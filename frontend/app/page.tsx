@@ -42,14 +42,15 @@ export default function Home() {
 
       if (!response.ok) {
         const errorData = await response.json()
-        throw new Error(errorData.detail || 'Failed to generate video')
+        console.error('Backend error:', errorData)
+        throw new Error(errorData.detail || errorData.message || 'Failed to generate video')
       }
 
       const result = await response.json()
       setStatus(`Video generation started! ${result.message || ''}`)
       
-      // Reset form
-      setFormData({ prompt: '', confidenceThreshold: 85 })
+              // Reset form
+        setFormData({ prompt: '', confidenceThreshold: 85 })
       
     } catch (error) {
       console.error('Error generating video:', error)
@@ -68,9 +69,7 @@ export default function Home() {
     setFormData(prev => ({ ...prev, prompt: e.target.value }))
   }
 
-  const handleThresholdChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData(prev => ({ ...prev, confidenceThreshold: parseInt(e.target.value) }))
-  }
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/30">
@@ -184,7 +183,7 @@ export default function Home() {
                         min="0"
                         max="100"
                         value={formData.confidenceThreshold}
-                        onChange={handleThresholdChange}
+                        onChange={(e) => setFormData(prev => ({ ...prev, confidenceThreshold: parseInt(e.target.value) }))}
                         className="w-full h-3 bg-slate-200 rounded-full appearance-none cursor-pointer slider hover:bg-slate-300 transition-colors duration-200"
                       />
                       <div className="flex justify-between text-sm text-slate-500">
@@ -198,8 +197,8 @@ export default function Home() {
                     
                     <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
                       <p className="text-sm text-blue-800">
-                        <strong>How it works:</strong> The AI will continuously refine the video until it reaches your confidence threshold. 
-                        At 100%, the system aims for near-perfect validation.
+                        <strong>How it works:</strong> First, the AI generates your video. Then, this threshold determines how much analysis and improvement to apply.
+                        Higher thresholds mean more refinement until quality standards are met.
                       </p>
                     </div>
                   </div>

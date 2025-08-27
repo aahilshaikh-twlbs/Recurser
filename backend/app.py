@@ -16,13 +16,7 @@ logger = logging.getLogger(__name__)
 # Pydantic models
 class VideoGenerationRequest(BaseModel):
     prompt: str
-    confidence_threshold: float = 85.0
-    max_attempts: int = 5
-
-class VideoUploadRequest(BaseModel):
-    original_prompt: str
-    confidence_threshold: float = 85.0
-    max_attempts: int = 5
+    confidence_threshold: float = 85.0  # Optional, for future analysis
 
 class VideoResponse(BaseModel):
     success: bool
@@ -32,7 +26,7 @@ class VideoResponse(BaseModel):
 # FastAPI app
 app = FastAPI(
     title="Recurser Validator API",
-    description="Simple AI Video Generation & Validation",
+    description="Simple AI Video Generation",
     version="1.0.0"
 )
 
@@ -53,28 +47,15 @@ def init_db():
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     
-    # Simple projects table
+    # Simple videos table
     cursor.execute("""
-        CREATE TABLE IF NOT EXISTS projects (
+        CREATE TABLE IF NOT EXISTS videos (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             prompt TEXT NOT NULL,
+            status TEXT DEFAULT 'pending',
+            video_path TEXT,
             confidence_threshold REAL DEFAULT 85.0,
-            max_attempts INTEGER DEFAULT 5,
-            status TEXT DEFAULT 'pending',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
-    
-    # Simple iterations table
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS iterations (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            project_id INTEGER,
-            iteration_number INTEGER,
-            prompt TEXT,
-            status TEXT DEFAULT 'pending',
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (project_id) REFERENCES projects (id)
         )
     """)
     
@@ -101,45 +82,54 @@ async def health_check():
         "status": "healthy",
         "timestamp": datetime.now().isoformat(),
         "database": "sqlite",
-        "endpoints": ["/api/videos/generate", "/api/videos/upload", "/api/projects/{id}/status"]
+        "endpoints": ["/api/videos/generate", "/api/videos/upload", "/api/videos/{id}/status"]
     }
 
 @app.post("/api/videos/generate")
 async def generate_video(request: VideoGenerationRequest):
-    """Generate a new video with recursive improvement"""
+    """Generate a new video - simple pipeline"""
     try:
-        logger.info(f"🎬 Video generation request: {request.prompt[:50]}...")
+        logger.info(f"🎬 Video generation request: {request.prompt}")
         
-        # Store project in database
+        # Store video request in database
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
         
         cursor.execute("""
-            INSERT INTO projects (prompt, confidence_threshold, max_attempts, status)
-            VALUES (?, ?, ?, ?)
-        """, (request.prompt, request.confidence_threshold, request.max_attempts, "processing"))
+            INSERT INTO videos (prompt, status, confidence_threshold)
+            VALUES (?, ?, ?)
+        """, (request.prompt, "generating", request.confidence_threshold))
         
-        project_id = cursor.lastrowid
-        
-        # Create first iteration
-        cursor.execute("""
-            INSERT INTO iterations (project_id, iteration_number, prompt, status)
-            VALUES (?, ?, ?, ?)
-        """, (project_id, 1, request.prompt, "processing"))
-        
+        video_id = cursor.lastrowid
         conn.commit()
         conn.close()
         
-        # Simulate video generation (replace with actual AI calls)
-        logger.info(f"🚀 Starting video generation for project {project_id}")
+        # SIMPLE PIPELINE: Just generate the video
+        logger.info(f"🚀 Starting video generation for ID {video_id}")
+        
+        # TODO: Replace this with actual AI video generation
+        # For now, just simulate success
+        simulated_video_path = f"generated_video_{video_id}.mp4"
+        
+        # Update status to completed
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute("""
+            UPDATE videos SET status = ?, video_path = ? WHERE id = ?
+        """, ("completed", simulated_video_path, video_id))
+        conn.commit()
+        conn.close()
+        
+        logger.info(f"✅ Video generation completed for ID {video_id}")
         
         return VideoResponse(
             success=True,
-            message="Video generation started successfully",
+            message="Video generated successfully!",
             data={
-                "project_id": project_id,
-                "status": "processing",
+                "video_id": video_id,
+                "status": "completed",
                 "prompt": request.prompt,
+                "video_path": simulated_video_path,
                 "confidence_threshold": request.confidence_threshold
             }
         )
@@ -151,9 +141,7 @@ async def generate_video(request: VideoGenerationRequest):
 @app.post("/api/videos/upload")
 async def upload_video(
     file: UploadFile = File(...),
-    original_prompt: str = Form(...),
-    confidence_threshold: float = Form(default=85.0),
-    max_attempts: int = Form(default=5)
+    original_prompt: str = Form(...)
 ):
     """Upload an existing video for analysis"""
     try:
@@ -180,17 +168,11 @@ async def upload_video(
         cursor = conn.cursor()
         
         cursor.execute("""
-            INSERT INTO projects (prompt, confidence_threshold, max_attempts, status)
-            VALUES (?, ?, ?, ?)
-        """, (original_prompt, confidence_threshold, max_attempts, "uploaded"))
+            INSERT INTO videos (prompt, status, video_path)
+            VALUES (?, ?, ?)
+        """, (original_prompt, "uploaded", filepath))
         
-        project_id = cursor.lastrowid
-        
-        cursor.execute("""
-            INSERT INTO iterations (project_id, iteration_number, prompt, status)
-            VALUES (?, ?, ?, ?)
-        """, (project_id, 0, original_prompt, "uploaded"))
-        
+        video_id = cursor.lastrowid
         conn.commit()
         conn.close()
         
@@ -198,9 +180,9 @@ async def upload_video(
         
         return VideoResponse(
             success=True,
-            message="Video uploaded and analysis started",
+            message="Video uploaded successfully",
             data={
-                "project_id": project_id,
+                "video_id": video_id,
                 "filename": filename,
                 "status": "uploaded",
                 "original_prompt": original_prompt
@@ -211,44 +193,29 @@ async def upload_video(
         logger.error(f"❌ Video upload error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/api/projects/{project_id}/status")
-async def get_project_status(project_id: int):
-    """Get the current status of a project"""
+@app.get("/api/videos/{video_id}/status")
+async def get_video_status(video_id: int):
+    """Get the current status of a video"""
     try:
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
         
-        # Get project info
-        cursor.execute("SELECT * FROM projects WHERE id = ?", (project_id,))
-        project = cursor.fetchone()
+        cursor.execute("SELECT * FROM videos WHERE id = ?", (video_id,))
+        video = cursor.fetchone()
         
-        if not project:
-            raise HTTPException(status_code=404, detail="Project not found")
-        
-        # Get iterations
-        cursor.execute("SELECT * FROM iterations WHERE project_id = ? ORDER BY iteration_number", (project_id,))
-        iterations = cursor.fetchall()
+        if not video:
+            raise HTTPException(status_code=404, detail="Video not found")
         
         conn.close()
         
         return {
             "success": True,
             "data": {
-                "project_id": project_id,
-                "prompt": project[1],
-                "confidence_threshold": project[2],
-                "max_attempts": project[3],
-                "status": project[4],
-                "created_at": project[5],
-                "iterations": [
-                    {
-                        "iteration_number": iter[2],
-                        "prompt": iter[3],
-                        "status": iter[4],
-                        "created_at": iter[5]
-                    }
-                    for iter in iterations
-                ]
+                "video_id": video[0],
+                "prompt": video[1],
+                "status": video[2],
+                "video_path": video[3],
+                "created_at": video[4]
             }
         }
         
@@ -256,42 +223,34 @@ async def get_project_status(project_id: int):
         logger.error(f"❌ Status check error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/api/analyze/prompt")
-async def analyze_prompt(prompt: str):
-    """Analyze a prompt for potential improvements"""
+@app.get("/api/videos")
+async def list_videos():
+    """List all videos"""
     try:
-        # Simple prompt analysis
-        analysis = {
-            "prompt_length": len(prompt),
-            "word_count": len(prompt.split()),
-            "has_style_indicators": any(word in prompt.lower() for word in [
-                "cinematic", "realistic", "artistic", "photorealistic", "3D", "animation"
-            ]),
-            "has_composition_indicators": any(word in prompt.lower() for word in [
-                "close-up", "wide shot", "aerial", "POV", "tracking"
-            ]),
-            "suggestions": []
-        }
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
         
-        # Generate suggestions
-        if len(prompt) < 50:
-            analysis["suggestions"].append("Consider adding more descriptive details")
+        cursor.execute("SELECT * FROM videos ORDER BY created_at DESC")
+        videos = cursor.fetchall()
         
-        if not analysis["has_style_indicators"]:
-            analysis["suggestions"].append("Add style indicators (e.g., 'cinematic', 'realistic')")
-        
-        if not analysis["has_composition_indicators"]:
-            analysis["suggestions"].append("Specify camera composition (e.g., 'close-up shot', 'aerial view')")
+        conn.close()
         
         return {
             "success": True,
-            "data": analysis
+            "data": [
+                {
+                    "video_id": video[0],
+                    "prompt": video[1],
+                    "status": video[2],
+                    "video_path": video[3],
+                    "created_at": video[4]
+                }
+                for video in videos
+            ]
         }
         
     except Exception as e:
-        logger.error(f"❌ Prompt analysis error: {str(e)}")
+        logger.error(f"❌ List videos error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)
+# Remove the uvicorn.run() from here since we're using run_simple.py
