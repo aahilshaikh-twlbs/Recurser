@@ -12,12 +12,14 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState('generate')
   const [isLoading, setIsLoading] = useState(false)
   const [status, setStatus] = useState('Ready to process')
+  const [currentVideoId, setCurrentVideoId] = useState<number | null>(null)
+  const [progress, setProgress] = useState(0)
   const [formData, setFormData] = useState({
     prompt: '',
     confidenceThreshold: 85
   })
 
-  const handleGenerateVideo = async (e: React.FormEvent) => {
+    const handleGenerateVideo = async (e: React.FormEvent) => {
     e.preventDefault()
     
     if (!formData.prompt.trim()) {
@@ -26,19 +28,20 @@ export default function Home() {
     }
 
     setIsLoading(true)
-    setStatus('Generating video...')
+    setStatus('Starting video generation...')
+    setProgress(0)
 
     try {
-              const response = await fetch('http://localhost:8000/api/videos/generate', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            prompt: formData.prompt,
-            confidence_threshold: formData.confidenceThreshold
-          })
+      const response = await fetch('http://localhost:8000/api/videos/generate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          prompt: formData.prompt,
+          confidence_threshold: formData.confidenceThreshold
         })
+      })
 
       if (!response.ok) {
         const errorData = await response.json()
@@ -47,17 +50,53 @@ export default function Home() {
       }
 
       const result = await response.json()
-      setStatus(`Video generation started! ${result.message || ''}`)
+      setCurrentVideoId(result.data.video_id)
+      setStatus(`Video generation started! ID: ${result.data.video_id}`)
       
-              // Reset form
-        setFormData({ prompt: '', confidenceThreshold: 85 })
+      // Start progress tracking
+      startProgressTracking(result.data.video_id)
       
     } catch (error) {
       console.error('Error generating video:', error)
       setStatus(`Error: ${error instanceof Error ? error.message : 'Failed to generate video'}`)
-    } finally {
       setIsLoading(false)
     }
+  }
+
+  const startProgressTracking = async (videoId: number) => {
+    const checkProgress = async () => {
+      try {
+        const response = await fetch(`http://localhost:8000/api/videos/${videoId}/status`)
+        if (response.ok) {
+          const data = await response.json()
+          const videoData = data.data
+          
+          setProgress(videoData.progress || 0)
+          setStatus(`Status: ${videoData.status} - Progress: ${videoData.progress}%`)
+          
+          if (videoData.status === 'completed') {
+            setStatus(`✅ Video generated successfully! Path: ${videoData.video_path}`)
+            setIsLoading(false)
+            setFormData({ prompt: '', confidenceThreshold: 85 })
+            setCurrentVideoId(null)
+            setProgress(0)
+          } else if (videoData.status === 'failed') {
+            setStatus(`❌ Generation failed: ${videoData.error_message}`)
+            setIsLoading(false)
+            setCurrentVideoId(null)
+            setProgress(0)
+          } else {
+            // Continue tracking
+            setTimeout(checkProgress, 2000) // Check every 2 seconds
+          }
+        }
+      } catch (error) {
+        console.error('Progress tracking error:', error)
+        setTimeout(checkProgress, 5000) // Retry after 5 seconds
+      }
+    }
+    
+    checkProgress()
   }
 
   const handleUploadVideo = async (e: React.FormEvent) => {
@@ -327,15 +366,76 @@ export default function Home() {
                   {isLoading && <Spinner size="sm" className="text-yellow-500" />}
                   <p className="text-slate-700 font-medium">{status}</p>
                 </div>
-                {isLoading && (
+                {isLoading && currentVideoId && (
+                  <>
+                    <div className="mb-3">
+                      <div className="flex justify-between text-sm text-slate-600 mb-1">
+                        <span>Progress</span>
+                        <span>{progress}%</span>
+                      </div>
+                      <Progress value={progress} className="h-2" />
+                    </div>
+                    <p className="text-slate-600 text-sm">
+                      {progress < 25 && "Initializing Google Veo..."}
+                      {progress >= 25 && progress < 50 && "Processing prompt..."}
+                      {progress >= 50 && progress < 75 && "Generating video..."}
+                      {progress >= 75 && progress < 100 && "Finalizing..."}
+                      {progress === 100 && "Video generation complete!"}
+                    </p>
+                  </>
+                )}
+                {isLoading && !currentVideoId && (
                   <>
                     <Progress value={75} className="mb-3" />
-                    <p className="text-slate-600 text-sm">Please wait while the AI processes your request...</p>
+                    <p className="text-slate-600 text-sm">Starting video generation...</p>
                   </>
                 )}
               </div>
             </CardContent>
           </Card>
+
+          {/* Video Player Section */}
+          {progress === 100 && currentVideoId && (
+            <Card className="shadow-xl border-0 bg-white/80 backdrop-blur-sm mt-6">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  🎬 Generated Video
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
+                  <div className="aspect-video bg-black rounded-lg overflow-hidden mb-4">
+                    <video 
+                      className="w-full h-full object-cover"
+                      controls
+                      autoPlay
+                      muted
+                      loop
+                    >
+                      <source src={`http://localhost:8000/api/videos/${currentVideoId}/play`} type="video/mp4" />
+                      Your browser does not support the video tag.
+                    </video>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-slate-600 text-sm mb-2">
+                      Video generated successfully! The video file has been saved to your uploads folder.
+                    </p>
+                    <Button 
+                      onClick={() => {
+                        setCurrentVideoId(null)
+                        setProgress(0)
+                        setIsLoading(false)
+                      }}
+                      variant="outline"
+                      size="sm"
+                    >
+                      Generate Another Video
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </main>
 
