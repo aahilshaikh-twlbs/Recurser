@@ -15,7 +15,6 @@ from dotenv import load_dotenv
 from google import genai
 import httpx
 from twelvelabs import TwelveLabs
-import openai
 from contextlib import asynccontextmanager
 
 # Load environment variables
@@ -43,11 +42,6 @@ if not GEMINI_API_KEY:
 if not TWELVELABS_API_KEY:
     logger.error("❌ TWELVELABS_API_KEY not found in environment variables!")
     TWELVELABS_API_KEY = "MISSING_API_KEY"
-
-# OpenAI no longer needed - using Gemini instead
-
-# Initialize clients
-# OpenAI no longer needed - using Gemini instead
 
 # Fix for streaming JSON responses from Pegasus API
 def parse_streaming_json(response_text):
@@ -674,7 +668,7 @@ async def health_check():
         "database": "sqlite",
         "video_generation": "google-veo2",
         "ai_detection": "twelvelabs-marengo-pegasus",
-        "prompt_enhancement": "openai-gpt4"
+        "prompt_enhancement": "google-gemini-2.5-flash"
     }
 
 @app.post("/api/videos/generate")
