@@ -992,22 +992,37 @@ async def list_index_videos(index_id: str, api_key: Optional[str] = None):
         # Get videos from the index
         videos = []
         try:
-            index = client.index.retrieve(index_id)
+            # Use the correct TwelveLabs API structure
+            # List all videos in the index
+            from twelvelabs.models.video import Video
             
-            # List videos in the index
-            video_list = client.index.video.list(index_id=index_id)
+            page = client.video.list(index_id=index_id)
             
-            for video in video_list:
-                videos.append({
-                    "id": video.id,
-                    "title": getattr(video, 'metadata', {}).get('title', f"Video {video.id[:8]}"),
-                    "description": getattr(video, 'metadata', {}).get('description', ''),
-                    "duration": getattr(video, 'metadata', {}).get('duration', 0),
-                    "created_at": str(getattr(video, 'created_at', '')),
-                    "updated_at": str(getattr(video, 'updated_at', '')),
-                    "thumbnail": getattr(video, 'hls', {}).get('thumbnail_urls', [None])[0] if hasattr(video, 'hls') else None,
-                    "confidence_score": getattr(video, 'metadata', {}).get('confidence_score', None)
-                })
+            # Iterate through videos in the page
+            for video in page:
+                try:
+                    video_data = {
+                        "id": video.id,
+                        "title": f"Video {video.id[:8]}",  # Use ID as title for now
+                        "description": f"Video from index {index_id}",
+                        "duration": getattr(video, 'duration', 0),
+                        "created_at": str(getattr(video, 'created_at', '')),
+                        "updated_at": str(getattr(video, 'updated_at', '')),
+                        "thumbnail": None,  # Thumbnails might not be directly available
+                        "confidence_score": None
+                    }
+                    
+                    # Try to get metadata if available
+                    if hasattr(video, 'metadata') and video.metadata:
+                        video_data["title"] = video.metadata.get('title', video_data["title"])
+                        video_data["description"] = video.metadata.get('description', video_data["description"])
+                        video_data["confidence_score"] = video.metadata.get('confidence_score', None)
+                    
+                    videos.append(video_data)
+                except Exception as ve:
+                    logger.warning(f"Error processing video {video.id}: {str(ve)}")
+                    continue
+                    
         except Exception as e:
             logger.warning(f"Could not fetch videos from index: {str(e)}")
             # Return empty list if index doesn't exist or has no videos
