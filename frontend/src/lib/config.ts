@@ -6,7 +6,7 @@ export const API_CONFIG = {
   // Default credentials for playground mode
   defaultCredentials: {
     twelvelabsApiKey: 'tlk_3JEVNXJ253JH062DSN3ZX1A6SXKG',
-    playgroundIndexId: '68bb521dc600d3d8baf629a4', // Default playground index with sample videos
+    playgroundIndexId: '68cd2969ca672ec899e0d9b7', // Recurser Prod index with actual videos
     geminiApiKey: process.env.NEXT_PUBLIC_GEMINI_API_KEY || '', // Can be set via env
   },
   
