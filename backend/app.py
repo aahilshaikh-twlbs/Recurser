@@ -992,53 +992,54 @@ async def list_index_videos(index_id: str, api_key: Optional[str] = None):
         # Get videos from the index
         videos = []
         try:
-            # Use the correct TwelveLabs API structure based on SDK
-            # The client has indexes.videos.list() method
-            video_iterator = client.indexes.videos.list(index_id=index_id)
+            # First, verify the index exists and get its info
+            try:
+                index = client.indexes.retrieve(index_id=index_id)
+                logger.info(f"Retrieved index: {index_id}, name={getattr(index, 'index_name', 'unknown')}")
+                logger.info(f"Index has {getattr(index, 'video_count', 0)} videos")
+            except Exception as e:
+                logger.warning(f"Could not retrieve index info: {str(e)}")
             
-            # Iterate through videos
-            for video in video_iterator:
+            # Now list videos in the index
+            # According to the SDK docs, this should be client.indexes.videos.list()
+            video_pager = client.indexes.videos.list(index_id=index_id)
+            
+            # Iterate through videos (it's a pager like indexes.list())
+            for video in video_pager:
                 try:
+                    # Extract video information based on actual video object structure
                     video_data = {
-                        "id": video.id if hasattr(video, 'id') else str(video),
-                        "title": f"Video {str(video)[:8]}",  # Use ID as title for now
-                        "description": f"Video from index {index_id}",
-                        "duration": getattr(video, 'duration', 0) if hasattr(video, 'duration') else 0,
-                        "created_at": str(getattr(video, 'created_at', '')) if hasattr(video, 'created_at') else '',
-                        "updated_at": str(getattr(video, 'updated_at', '')) if hasattr(video, 'updated_at') else '',
-                        "thumbnail": None,  # Will need to check how to get thumbnails
+                        "id": str(video.id),
+                        "title": getattr(video, 'name', None) or getattr(video, 'filename', None) or f"Video {str(video.id)[:8]}",
+                        "description": "",
+                        "duration": getattr(video, 'duration', 0),
+                        "created_at": str(getattr(video, 'created_at', '')),
+                        "updated_at": str(getattr(video, 'updated_at', '')),
+                        "thumbnail": None,
                         "confidence_score": None
                     }
                     
-                    # Try to get metadata if available
+                    # Check for metadata
                     if hasattr(video, 'metadata') and video.metadata:
                         if isinstance(video.metadata, dict):
-                            video_data["title"] = video.metadata.get('title', video_data["title"])
-                            video_data["description"] = video.metadata.get('description', video_data["description"])
-                            video_data["confidence_score"] = video.metadata.get('confidence_score', None)
+                            video_data["title"] = video.metadata.get('filename', video_data["title"])
+                            video_data["description"] = video.metadata.get('description', '')
                     
-                    # Try to get video name if available
-                    if hasattr(video, 'name') and video.name:
-                        video_data["title"] = video.name
+                    # Check for duration in metadata
+                    if hasattr(video, 'metadata') and video.metadata and 'duration' in video.metadata:
+                        video_data["duration"] = video.metadata['duration']
                     
                     videos.append(video_data)
-                    logger.info(f"Added video {video_data['id']} to list")
+                    logger.info(f"Added video {video_data['id']}: {video_data['title']}")
+                    
                 except Exception as ve:
                     logger.warning(f"Error processing video: {str(ve)}")
                     continue
                     
         except Exception as e:
             logger.warning(f"Could not fetch videos from index: {str(e)}")
-            # Try alternative approach if indexes.videos doesn't work
-            try:
-                # Some SDK versions might have different structure
-                logger.info("Trying alternative video listing approach...")
-                # Just list indexes to verify connection works
-                index = client.indexes.retrieve(index_id)
-                logger.info(f"Retrieved index: {index_id}, has {getattr(index, 'video_count', 0)} videos")
-                # Return empty for now but at least we know the index exists
-            except Exception as e2:
-                logger.warning(f"Alternative approach also failed: {str(e2)}")
+            logger.warning(f"Error type: {type(e).__name__}")
+            # Return empty list but include error info
             pass
         
         return {
