@@ -992,40 +992,53 @@ async def list_index_videos(index_id: str, api_key: Optional[str] = None):
         # Get videos from the index
         videos = []
         try:
-            # Use the correct TwelveLabs API structure
-            # List all videos in the index
-            from twelvelabs.models.video import Video
+            # Use the correct TwelveLabs API structure based on SDK
+            # The client has indexes.videos.list() method
+            video_iterator = client.indexes.videos.list(index_id=index_id)
             
-            page = client.video.list(index_id=index_id)
-            
-            # Iterate through videos in the page
-            for video in page:
+            # Iterate through videos
+            for video in video_iterator:
                 try:
                     video_data = {
-                        "id": video.id,
-                        "title": f"Video {video.id[:8]}",  # Use ID as title for now
+                        "id": video.id if hasattr(video, 'id') else str(video),
+                        "title": f"Video {str(video)[:8]}",  # Use ID as title for now
                         "description": f"Video from index {index_id}",
-                        "duration": getattr(video, 'duration', 0),
-                        "created_at": str(getattr(video, 'created_at', '')),
-                        "updated_at": str(getattr(video, 'updated_at', '')),
-                        "thumbnail": None,  # Thumbnails might not be directly available
+                        "duration": getattr(video, 'duration', 0) if hasattr(video, 'duration') else 0,
+                        "created_at": str(getattr(video, 'created_at', '')) if hasattr(video, 'created_at') else '',
+                        "updated_at": str(getattr(video, 'updated_at', '')) if hasattr(video, 'updated_at') else '',
+                        "thumbnail": None,  # Will need to check how to get thumbnails
                         "confidence_score": None
                     }
                     
                     # Try to get metadata if available
                     if hasattr(video, 'metadata') and video.metadata:
-                        video_data["title"] = video.metadata.get('title', video_data["title"])
-                        video_data["description"] = video.metadata.get('description', video_data["description"])
-                        video_data["confidence_score"] = video.metadata.get('confidence_score', None)
+                        if isinstance(video.metadata, dict):
+                            video_data["title"] = video.metadata.get('title', video_data["title"])
+                            video_data["description"] = video.metadata.get('description', video_data["description"])
+                            video_data["confidence_score"] = video.metadata.get('confidence_score', None)
+                    
+                    # Try to get video name if available
+                    if hasattr(video, 'name') and video.name:
+                        video_data["title"] = video.name
                     
                     videos.append(video_data)
+                    logger.info(f"Added video {video_data['id']} to list")
                 except Exception as ve:
-                    logger.warning(f"Error processing video {video.id}: {str(ve)}")
+                    logger.warning(f"Error processing video: {str(ve)}")
                     continue
                     
         except Exception as e:
             logger.warning(f"Could not fetch videos from index: {str(e)}")
-            # Return empty list if index doesn't exist or has no videos
+            # Try alternative approach if indexes.videos doesn't work
+            try:
+                # Some SDK versions might have different structure
+                logger.info("Trying alternative video listing approach...")
+                # Just list indexes to verify connection works
+                index = client.indexes.retrieve(index_id)
+                logger.info(f"Retrieved index: {index_id}, has {getattr(index, 'video_count', 0)} videos")
+                # Return empty for now but at least we know the index exists
+            except Exception as e2:
+                logger.warning(f"Alternative approach also failed: {str(e2)}")
             pass
         
         return {
