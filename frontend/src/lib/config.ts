@@ -20,6 +20,7 @@ export const API_CONFIG = {
     videoStatus: (videoId: string) => `/api/videos/${videoId}/status`,
     videoLogs: (videoId: string) => `/api/videos/${videoId}/logs`,
     listVideos: '/api/videos',
+    listIndexVideos: (indexId: string) => `/api/index/${indexId}/videos`,
     playVideo: (videoId: string) => `/api/videos/${videoId}/play`,
   },
   

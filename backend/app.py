@@ -975,6 +975,53 @@ async def get_video_status(video_id: int):
         logger.error(f"❌ Status check error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/api/index/{index_id}/videos")
+async def list_index_videos(index_id: str, api_key: Optional[str] = None):
+    """List all videos in a TwelveLabs index"""
+    try:
+        # Use provided API key or default
+        twelvelabs_api_key = api_key or TWELVELABS_API_KEY
+        
+        # Initialize TwelveLabs client
+        client = TwelveLabs(api_key=twelvelabs_api_key)
+        
+        # Get videos from the index
+        videos = []
+        try:
+            index = client.index.retrieve(index_id)
+            
+            # List videos in the index
+            video_list = client.index.video.list(index_id=index_id)
+            
+            for video in video_list:
+                videos.append({
+                    "id": video.id,
+                    "title": getattr(video, 'metadata', {}).get('title', f"Video {video.id[:8]}"),
+                    "description": getattr(video, 'metadata', {}).get('description', ''),
+                    "duration": getattr(video, 'metadata', {}).get('duration', 0),
+                    "created_at": str(getattr(video, 'created_at', '')),
+                    "updated_at": str(getattr(video, 'updated_at', '')),
+                    "thumbnail": getattr(video, 'hls', {}).get('thumbnail_urls', [None])[0] if hasattr(video, 'hls') else None,
+                    "confidence_score": getattr(video, 'metadata', {}).get('confidence_score', None)
+                })
+        except Exception as e:
+            logger.warning(f"Could not fetch videos from index: {str(e)}")
+            # Return empty list if index doesn't exist or has no videos
+            pass
+        
+        return {
+            "success": True,
+            "data": {
+                "index_id": index_id,
+                "video_count": len(videos),
+                "videos": videos
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"❌ Index video list error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/api/videos")
 async def list_videos():
     """List all videos with status and progress"""
