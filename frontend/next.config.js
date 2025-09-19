@@ -7,10 +7,15 @@ const nextConfig = {
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://64.227.97.134:8000',
   },
   async rewrites() {
+    const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://64.227.97.134:8000';
     return [
       {
+        source: '/api/health',
+        destination: `${backendUrl}/health`,
+      },
+      {
         source: '/api/:path*',
-        destination: `${process.env.NEXT_PUBLIC_API_URL || 'http://64.227.97.134:8000'}/api/:path*`,
+        destination: `${backendUrl}/api/:path*`,
       },
     ]
   },

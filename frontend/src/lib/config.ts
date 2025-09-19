@@ -1,12 +1,19 @@
 // API Configuration
 export const API_CONFIG = {
-  // Use environment variable or fallback to production server
-  baseUrl: process.env.NEXT_PUBLIC_API_URL || 'http://64.227.97.134:8000',
+  // Use proxy path for Vercel deployment (avoids CORS and mixed content issues)
+  baseUrl: '', // Empty to use relative URLs through Next.js proxy
+  
+  // Default credentials for playground mode
+  defaultCredentials: {
+    twelvelabsApiKey: 'tlk_3JEVNXJ253JH062DSN3ZX1A6SXKG',
+    playgroundIndexId: '68cd2969ca672ec899e0d9b7', // Default playground index with sample videos
+    geminiApiKey: process.env.NEXT_PUBLIC_GEMINI_API_KEY || '', // Can be set via env
+  },
   
   // API endpoints
   endpoints: {
-    health: '/health',
-    root: '/',
+    health: '/api/health',
+    root: '/api',
     generateVideo: '/api/videos/generate',
     uploadVideo: '/api/videos/upload',
     gradeVideo: (videoId: string) => `/api/videos/${videoId}/grade`,

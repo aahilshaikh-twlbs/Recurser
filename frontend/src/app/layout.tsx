@@ -5,8 +5,8 @@ import './globals.css'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'Circuit Validator - AI Video Generation Validator',
-  description: 'Validate and improve AI-generated videos with recursive enhancement',
+  title: 'Recurser - AI Video Generation with Recursive Enhancement',
+  description: 'Generate and improve AI videos through recursive prompt optimization',
 }
 
 export default function RootLayout({
@@ -23,10 +23,10 @@ export default function RootLayout({
               <div className="flex justify-between items-center py-4">
                 <div className="flex items-center">
                   <h1 className="text-2xl font-bold text-gray-900">
-                    Circuit Validator
+                    Recurser
                   </h1>
                   <span className="ml-2 text-sm text-gray-500">
-                    AI Video Generation Validator
+                    AI Video Generation with Recursive Enhancement
                   </span>
                 </div>
                 <nav className="flex space-x-8">
