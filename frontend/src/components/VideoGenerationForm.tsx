@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { Play, Sparkles, Target, RefreshCw } from 'lucide-react'
 import { useForm } from 'react-hook-form'
+import { API_CONFIG, apiRequest } from '@/lib/config'
 
 interface VideoGenerationFormProps {
   onProjectCreated: (project: any) => void
@@ -34,16 +35,14 @@ export default function VideoGenerationForm({ onProjectCreated }: VideoGeneratio
     if (!watchedPrompt || watchedPrompt.length < 10) return
     
     try {
-      const response = await fetch('/api/analyze/prompt', {
+      const response = await apiRequest('/api/analyze/prompt', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt: watchedPrompt })
       })
       
-      if (response.ok) {
-        const data = await response.json()
-        setPromptAnalysis(data.data)
-      }
+      const data = await response.json()
+      setPromptAnalysis(data.data)
     } catch (error) {
       console.error('Failed to analyze prompt:', error)
     }
@@ -53,27 +52,23 @@ export default function VideoGenerationForm({ onProjectCreated }: VideoGeneratio
     setIsGenerating(true)
     
     try {
-      const response = await fetch('/api/videos/generate', {
+      const response = await apiRequest(API_CONFIG.endpoints.generateVideo, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           prompt: data.prompt,
-          project_id: 1, // Placeholder - would come from project creation
           confidence_threshold: data.confidenceThreshold,
-          max_attempts: data.maxAttempts
+          max_retries: data.maxAttempts,
+          index_id: "68bb521dc600d3d8baf629a4", // Default index ID
+          twelvelabs_api_key: "tlk_3JEVNXJ253JH062DSN3ZX1A6SXKG" // Default API key
         })
       })
       
-      if (response.ok) {
-        const result = await response.json()
-        onProjectCreated(result.data)
-      } else {
-        const error = await response.json()
-        alert(`Generation failed: ${error.detail}`)
-      }
+      const result = await response.json()
+      onProjectCreated(result.data)
     } catch (error) {
       console.error('Generation error:', error)
-      alert('Failed to start video generation')
+      alert(error instanceof Error ? error.message : 'Failed to start video generation')
     } finally {
       setIsGenerating(false)
     }

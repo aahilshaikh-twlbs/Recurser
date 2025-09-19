@@ -128,13 +128,14 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS middleware
+# CORS middleware - Allow all origins in production
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:3001"],
+    allow_origins=["*"],  # Allow all origins for production
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 # Database setup
@@ -653,22 +654,60 @@ Return only the enhanced prompt, no additional text."""
 # API Endpoints
 @app.get("/")
 async def root():
+    \"\"\"Root endpoint with API information\"\"\"
     return {
         "message": "Recurser Validator API",
         "version": "2.0.0",
         "status": "production-ready",
-        "features": ["video_generation", "ai_detection", "quality_grading", "prompt_enhancement"]
+        "features": ["video_generation", "ai_detection", "quality_grading", "prompt_enhancement"],
+        "endpoints": {
+            "health": "/health",
+            "generate_video": "/api/videos/generate",
+            "upload_video": "/api/videos/upload",
+            "grade_video": "/api/videos/{video_id}/grade",
+            "video_status": "/api/videos/{video_id}/status",
+            "video_logs": "/api/videos/{video_id}/logs",
+            "list_videos": "/api/videos",
+            "play_video": "/api/videos/{video_id}/play"
+        },
+        "documentation": "/docs"
     }
 
 @app.get("/health")
 async def health_check():
+    """Health check endpoint for monitoring"""
+    # Check database connection
+    db_status = "healthy"
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) FROM videos")
+        video_count = cursor.fetchone()[0]
+        conn.close()
+    except Exception as e:
+        db_status = f"unhealthy: {str(e)}"
+        video_count = 0
+    
+    # Check API keys [[memory:5188213]]
+    api_keys_status = {
+        "gemini": "configured" if GEMINI_API_KEY and GEMINI_API_KEY != "MISSING_API_KEY" else "missing",
+        "twelvelabs": "configured" if TWELVELABS_API_KEY and TWELVELABS_API_KEY != "MISSING_API_KEY" else "missing"
+    }
+    
     return {
-        "status": "healthy",
+        "status": "healthy" if db_status == "healthy" else "degraded",
         "timestamp": datetime.now().isoformat(),
-        "database": "sqlite",
-        "video_generation": "google-veo2",
-        "ai_detection": "twelvelabs-marengo-pegasus",
-        "prompt_enhancement": "google-gemini-2.5-flash"
+        "database": {
+            "status": db_status,
+            "video_count": video_count
+        },
+        "services": {
+            "video_generation": "google-veo2",
+            "ai_detection": "twelvelabs-marengo-pegasus",
+            "prompt_enhancement": "google-gemini-2.5-flash"
+        },
+        "api_keys": api_keys_status,
+        "version": "2.0.0"
     }
 
 @app.post("/api/videos/generate")

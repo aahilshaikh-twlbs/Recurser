@@ -5,6 +5,7 @@ import { motion } from 'framer-motion'
 import { Upload, FileVideo, Target, RefreshCw, AlertCircle } from 'lucide-react'
 import { useDropzone } from 'react-dropzone'
 import { useForm } from 'react-hook-form'
+import { API_CONFIG, buildApiUrl } from '@/lib/config'
 
 interface VideoUploadFormProps {
   onProjectCreated: (project: any) => void
@@ -70,12 +71,12 @@ export default function VideoUploadForm({ onProjectCreated }: VideoUploadFormPro
     try {
       const formData = new FormData()
       formData.append('file', uploadedFile)
-      formData.append('project_id', '1') // Placeholder
       formData.append('original_prompt', data.originalPrompt)
       formData.append('confidence_threshold', data.confidenceThreshold.toString())
-      formData.append('max_attempts', data.maxAttempts.toString())
+      formData.append('index_id', '68bb521dc600d3d8baf629a4') // Default index ID
+      formData.append('twelvelabs_api_key', 'tlk_3JEVNXJ253JH062DSN3ZX1A6SXKG') // Default API key
       
-      const response = await fetch('/api/videos/upload', {
+      const response = await fetch(buildApiUrl(API_CONFIG.endpoints.uploadVideo), {
         method: 'POST',
         body: formData
       })
@@ -89,7 +90,7 @@ export default function VideoUploadForm({ onProjectCreated }: VideoUploadFormPro
       }
     } catch (error) {
       console.error('Upload error:', error)
-      setUploadError('Failed to upload video')
+      setUploadError(error instanceof Error ? error.message : 'Failed to upload video')
     } finally {
       setIsProcessing(false)
     }

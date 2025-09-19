@@ -12,6 +12,7 @@ import {
   Download,
   Eye
 } from 'lucide-react'
+import { API_CONFIG, apiRequest } from '@/lib/config'
 
 interface ProjectStatusProps {
   project: any
