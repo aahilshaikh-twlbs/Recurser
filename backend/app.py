@@ -91,12 +91,15 @@ class VideoGenerationRequest(BaseModel):
     max_retries: int = 5
     index_id: str
     twelvelabs_api_key: str
+    gemini_api_key: Optional[str] = None
 
 class VideoUploadRequest(BaseModel):
     original_prompt: Optional[str] = None
     confidence_threshold: float = 50.0
+    max_retries: int = 5
     index_id: str
     twelvelabs_api_key: str
+    gemini_api_key: Optional[str] = None
 
 class VideoResponse(BaseModel):
     success: bool
@@ -230,7 +233,7 @@ def init_db():
 # Services
 class VideoGenerationService:
     @staticmethod
-    async def generate_video(prompt: str, video_id: int, index_id: str, twelvelabs_api_key: str):
+    async def generate_video(prompt: str, video_id: int, index_id: str, twelvelabs_api_key: str, gemini_api_key: Optional[str] = None):
         """Generate video using Veo2"""
         try:
             log_progress(video_id, "🎬 Starting Veo2 generation", 10)
@@ -599,7 +602,7 @@ class AIDetectionService:
 
 class PromptEnhancementService:
     @staticmethod
-    async def enhance_prompt(original_prompt: str, analysis_results: Dict[str, Any]):
+    async def enhance_prompt(original_prompt: str, analysis_results: Dict[str, Any], gemini_api_key: Optional[str] = None):
         """Enhance prompt based on analysis results"""
         try:
             logger.info("🔧 Enhancing prompt based on analysis results")
@@ -740,7 +743,8 @@ async def generate_video(request: VideoGenerationRequest, background_tasks: Back
             request.prompt, 
             video_id, 
             index_id, 
-            twelvelabs_api_key
+            twelvelabs_api_key,
+            request.gemini_api_key
         )
         
         logger.info(f"🚀 Started video generation for video {video_id}")

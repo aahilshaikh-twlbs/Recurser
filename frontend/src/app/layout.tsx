@@ -29,17 +29,6 @@ export default function RootLayout({
                     AI Video Generation with Recursive Enhancement
                   </span>
                 </div>
-                <nav className="flex space-x-8">
-                  <a href="/" className="text-gray-700 hover:text-primary-600 px-3 py-2 rounded-md text-sm font-medium">
-                    Home
-                  </a>
-                  <a href="/projects" className="text-gray-700 hover:text-primary-600 px-3 py-2 rounded-md text-sm font-medium">
-                    Projects
-                  </a>
-                  <a href="/about" className="text-gray-700 hover:text-primary-600 px-3 py-2 rounded-md text-sm font-medium">
-                    About
-                  </a>
-                </nav>
               </div>
             </div>
           </header>

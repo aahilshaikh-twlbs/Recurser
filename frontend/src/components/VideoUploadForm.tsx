@@ -96,6 +96,9 @@ export default function VideoUploadForm({ onProjectCreated, apiKeys }: VideoUplo
       formData.append('max_retries', data.maxAttempts === 'unlimited' ? '999' : data.maxAttempts.toString())
       formData.append('index_id', apiKeys?.indexId || API_CONFIG.defaultCredentials.playgroundIndexId)
       formData.append('twelvelabs_api_key', apiKeys?.twelvelabsKey || API_CONFIG.defaultCredentials.twelvelabsApiKey)
+      if (apiKeys?.geminiKey) {
+        formData.append('gemini_api_key', apiKeys.geminiKey)
+      }
       
       const response = await fetch(buildApiUrl(API_CONFIG.endpoints.uploadVideo), {
         method: 'POST',
