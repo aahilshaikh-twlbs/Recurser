@@ -1009,20 +1009,23 @@ async def list_index_videos(index_id: str, api_key: Optional[str] = None):
             )
             
             # Track unique video IDs to avoid duplicates
-            seen_video_ids = set()
+            # Use prefix to detect true duplicates (first 8-12 chars are usually the actual ID)
+            seen_video_prefixes = set()
+            unique_videos = []
             
             # Iterate through videos (it's a pager like indexes.list())
-            # Only iterate through the first page to avoid duplicates
             for video in video_pager:
                 try:
                     video_id = str(video.id)
+                    # Use first 12 characters as the unique identifier
+                    video_prefix = video_id[:12] if len(video_id) >= 12 else video_id
                     
-                    # Skip if we've already processed this video
-                    if video_id in seen_video_ids:
-                        logger.debug(f"Skipping duplicate video {video_id}")
+                    # Skip if we've already seen a video with this prefix
+                    if video_prefix in seen_video_prefixes:
+                        logger.debug(f"Skipping video with duplicate prefix {video_prefix}: {video_id}")
                         continue
                     
-                    seen_video_ids.add(video_id)
+                    seen_video_prefixes.add(video_prefix)
                     
                     # Extract video information based on actual video object structure
                     video_data = {
@@ -1047,11 +1050,13 @@ async def list_index_videos(index_id: str, api_key: Optional[str] = None):
                         video_data["duration"] = video.metadata['duration']
                     
                     videos.append(video_data)
-                    logger.info(f"Added video {video_data['id']}: {video_data['title']}")
+                    unique_videos.append(video_prefix)
+                    logger.info(f"Added unique video #{len(unique_videos)}: {video_prefix} (full: {video_data['id']})")
                     
-                    # Stop after getting reasonable number of videos
-                    if len(videos) >= 50:
-                        logger.info(f"Reached limit of 50 videos, stopping iteration")
+                    # Stop after getting reasonable number of unique videos
+                    # Based on your comment, there should be about 6 unique videos
+                    if len(unique_videos) >= 10:  # Allow up to 10 to be safe
+                        logger.info(f"Found {len(unique_videos)} unique videos, stopping iteration")
                         break
                     
                 except Exception as ve:
@@ -1064,6 +1069,7 @@ async def list_index_videos(index_id: str, api_key: Optional[str] = None):
             # Return empty list but include error info
             pass
         
+        logger.info(f"Returning {len(videos)} unique videos from index {index_id}")
         return {
             "success": True,
             "data": {
