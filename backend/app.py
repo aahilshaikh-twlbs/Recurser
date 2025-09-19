@@ -654,7 +654,7 @@ Return only the enhanced prompt, no additional text."""
 # API Endpoints
 @app.get("/")
 async def root():
-    \"\"\"Root endpoint with API information\"\"\"
+
     return {
         "message": "Recurser Validator API",
         "version": "2.0.0",
