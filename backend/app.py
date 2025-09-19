@@ -1002,15 +1002,32 @@ async def list_index_videos(index_id: str, api_key: Optional[str] = None):
             
             # Now list videos in the index
             # According to the SDK docs, this should be client.indexes.videos.list()
-            video_pager = client.indexes.videos.list(index_id=index_id)
+            # Use page_limit to control pagination and avoid duplicates
+            video_pager = client.indexes.videos.list(
+                index_id=index_id,
+                page_limit=50  # Get up to 50 videos per page
+            )
+            
+            # Track unique video IDs to avoid duplicates
+            seen_video_ids = set()
             
             # Iterate through videos (it's a pager like indexes.list())
+            # Only iterate through the first page to avoid duplicates
             for video in video_pager:
                 try:
+                    video_id = str(video.id)
+                    
+                    # Skip if we've already processed this video
+                    if video_id in seen_video_ids:
+                        logger.debug(f"Skipping duplicate video {video_id}")
+                        continue
+                    
+                    seen_video_ids.add(video_id)
+                    
                     # Extract video information based on actual video object structure
                     video_data = {
-                        "id": str(video.id),
-                        "title": getattr(video, 'name', None) or getattr(video, 'filename', None) or f"Video {str(video.id)[:8]}",
+                        "id": video_id,
+                        "title": getattr(video, 'name', None) or getattr(video, 'filename', None) or f"Video {video_id[:8]}",
                         "description": "",
                         "duration": getattr(video, 'duration', 0),
                         "created_at": str(getattr(video, 'created_at', '')),
@@ -1031,6 +1048,11 @@ async def list_index_videos(index_id: str, api_key: Optional[str] = None):
                     
                     videos.append(video_data)
                     logger.info(f"Added video {video_data['id']}: {video_data['title']}")
+                    
+                    # Stop after getting reasonable number of videos
+                    if len(videos) >= 50:
+                        logger.info(f"Reached limit of 50 videos, stopping iteration")
+                        break
                     
                 except Exception as ve:
                     logger.warning(f"Error processing video: {str(ve)}")
