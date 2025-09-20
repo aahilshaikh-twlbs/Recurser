@@ -31,7 +31,7 @@ export default function VideoGenerationForm({
   const defaultValues = useMemo(() => ({
     maxAttempts: '5' as const,
     prompt: selectedVideo?.title 
-      ? `Enhance this video: ${selectedVideo.title}. ${selectedVideo.description || ''}` 
+      ? `Enhance this video: ${String(selectedVideo.title || 'Untitled')}. ${String(selectedVideo.description || '')}` 
       : ''
   }), [selectedVideo])
 

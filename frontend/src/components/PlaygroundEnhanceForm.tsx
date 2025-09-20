@@ -58,13 +58,16 @@ export default function PlaygroundEnhanceForm({
 
     try {
       // For playground videos, we need to analyze them first to generate a prompt
+      const videoTitle = String(selectedVideo.title || 'Untitled')
+      const videoId = String(selectedVideo.id || 'unknown')
+      
       const payload = {
-        prompt: `Analyze and enhance this existing video from the playground. Video ID: ${selectedVideo.id}, Title: ${selectedVideo.title || 'Unknown'}. This is a pre-existing video that needs recursive improvement.`,
-        project_name: `Enhance_${selectedVideo.title?.replace(/[^a-zA-Z0-9]/g, '_') || selectedVideo.id}_${String(Date.now())}`,
+        prompt: `Analyze and enhance this existing video from the playground. Video ID: ${videoId}, Title: ${videoTitle}. This is a pre-existing video that needs recursive improvement.`,
+        project_name: `Enhance_${videoTitle.replace(/[^a-zA-Z0-9]/g, '_')}_${String(Date.now())}`,
         confidence_threshold: 50,
         max_retries: data.maxAttempts === 'unlimited' ? 999 : parseInt(data.maxAttempts, 10),
         index_id: '68bb521dc600d3d8baf629a4', // Recurser test index for iterations
-        video_id: selectedVideo.id, // Pass the original video ID for analysis
+        video_id: videoId, // Pass the original video ID for analysis
         is_playground_video: true // Flag to indicate this is from playground
       }
 
@@ -109,16 +112,16 @@ export default function PlaygroundEnhanceForm({
           <Video className="w-12 h-12 text-primary-600 flex-shrink-0" />
           <div className="flex-1">
             <h3 className="text-lg font-semibold text-gray-900 mb-2">
-              Enhancing: {selectedVideo.title || 'Untitled Video'}
+              Enhancing: {String(selectedVideo.title || 'Untitled Video')}
             </h3>
             <p className="text-sm text-gray-600 mb-4">
-              {selectedVideo.description || 'This video will be analyzed and recursively enhanced to improve quality and coherence.'}
+              {String(selectedVideo.description || 'This video will be analyzed and recursively enhanced to improve quality and coherence.')}
             </p>
             {selectedVideo.confidence_score && (
               <div className="flex items-center space-x-2">
                 <span className="text-sm text-gray-500">Current Confidence:</span>
                 <span className="text-sm font-semibold text-primary-600">
-                  {selectedVideo.confidence_score}%
+                  {String(selectedVideo.confidence_score)}%
                 </span>
               </div>
             )}

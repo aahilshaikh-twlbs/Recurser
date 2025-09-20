@@ -28,8 +28,20 @@ export default function PlaygroundPage() {
 
   const handleEnhanceVideo = () => {
     if (selectedVideo) {
+      // Ensure all properties are safe strings before storing
+      const safeVideo = {
+        id: String(selectedVideo.id || ''),
+        title: String(selectedVideo.title || 'Untitled'),
+        description: String(selectedVideo.description || ''),
+        thumbnail: selectedVideo.thumbnail || null,
+        hls_url: selectedVideo.hls_url || null,
+        duration: Number(selectedVideo.duration) || 0,
+        confidence_score: selectedVideo.confidence_score ? Number(selectedVideo.confidence_score) : null,
+        created_at: String(selectedVideo.created_at || ''),
+        updated_at: selectedVideo.updated_at ? String(selectedVideo.updated_at) : undefined
+      }
       // Store video in sessionStorage to pass to enhance page
-      sessionStorage.setItem('videoToEnhance', JSON.stringify(selectedVideo))
+      sessionStorage.setItem('videoToEnhance', JSON.stringify(safeVideo))
       router.push('/enhance')
     }
   }
