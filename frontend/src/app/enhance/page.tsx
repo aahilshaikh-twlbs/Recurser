@@ -14,7 +14,7 @@ const VideoGenerationForm = dynamic(
     ssr: false,
     loading: () => (
       <div className="flex items-center justify-center p-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600" />
       </div>
     )
   }
@@ -26,7 +26,7 @@ const VideoUploadForm = dynamic(
     ssr: false,
     loading: () => (
       <div className="flex items-center justify-center p-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600" />
       </div>
     )
   }
@@ -167,7 +167,7 @@ export default function EnhancePage() {
                   onProjectCreated={handleProjectCreated}
                   apiKeys={customApiKeys}
                   selectedVideo={videoToEnhance}
-                  autoSubmit={!!videoToEnhance}
+                  autoSubmit={Boolean(videoToEnhance)}
                 />
               ) : (
                 <VideoUploadForm

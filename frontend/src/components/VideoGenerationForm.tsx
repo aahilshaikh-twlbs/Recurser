@@ -34,7 +34,7 @@ export default function VideoGenerationForm({ onProjectCreated, apiKeys, selecte
   const { register, handleSubmit, formState: { errors }, watch, setValue } = useForm<FormData>({
     defaultValues: {
       maxAttempts: '5',
-      projectName: selectedVideo ? `Enhance: ${selectedVideo.title}` : `Project ${Date.now()}`,
+      projectName: selectedVideo ? `Enhance: ${selectedVideo.title}` : `Project ${String(Date.now())}`,
       prompt: selectedVideo ? `Enhance this video: ${selectedVideo.title}. ${selectedVideo.description}` : ''
     }
   })

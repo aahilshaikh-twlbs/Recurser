@@ -240,11 +240,11 @@ export default function PlaygroundView({ onVideoSelected }: PlaygroundViewProps)
       )}
 
       {/* Video Count */}
-      {videos.length > 0 && (
+      {videos.length > 0 ? (
         <div className="text-sm text-gray-600 text-center">
           Showing {filteredVideos.length} of {videos.length} videos from index
         </div>
-      )}
+      ) : null}
 
       {/* Simple Video Selection Modal */}
       {selectedVideo && (

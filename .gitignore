@@ -41,6 +41,8 @@ env/
 *.db
 *.sqlite
 *.sqlite3
+# Keep the initialized database for the application
+!backend/recurser_validator.db
 
 # Logs
 *.log

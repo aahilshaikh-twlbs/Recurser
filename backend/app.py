@@ -770,8 +770,10 @@ async def upload_video(
     file: UploadFile = File(...),
     original_prompt: str = Form(...),
     confidence_threshold: float = Form(50.0),
+    max_retries: int = Form(5),
     index_id: str = Form(None),
-    twelvelabs_api_key: str = Form(None)
+    twelvelabs_api_key: str = Form(None),
+    gemini_api_key: Optional[str] = Form(None)
 ):
     """Upload an existing video for analysis"""
     try:

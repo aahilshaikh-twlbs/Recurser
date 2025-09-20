@@ -31,7 +31,7 @@ export default function VideoUploadForm({ onProjectCreated, apiKeys }: VideoUplo
   const { register, handleSubmit, formState: { errors }, watch, setValue } = useForm<FormData>({
     defaultValues: {
       maxAttempts: '5',
-      projectName: `Upload Project ${Date.now()}`
+      projectName: `Upload Project ${String(Date.now())}`
     }
   })
 
