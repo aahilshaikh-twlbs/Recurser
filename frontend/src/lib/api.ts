@@ -118,8 +118,7 @@ export async function checkHealth(): Promise<boolean> {
 // Video-specific API functions
 export async function getVideosFromIndex(indexId: string): Promise<any[]> {
   try {
-    const response = await apiRequest(`/api/index/${indexId}/videos`)
-    const data = await response.json()
+    const data = await apiRequest(`/api/index/${indexId}/videos`)
     
     // Extract videos from the nested response structure
     if (data.success && data.data && data.data.videos) {
