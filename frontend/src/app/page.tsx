@@ -68,10 +68,10 @@ export default function HomePage() {
       >
         {features.map((feature, index) => (
           <motion.div
-            key={index}
+            key={`feature-${index}`}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 * index }}
+            transition={{ delay: 0.1 * (index + 1) }}
             className="card text-center space-y-3"
           >
             <div className="mx-auto w-12 h-12 bg-primary-100 rounded-lg flex items-center justify-center text-primary-600">

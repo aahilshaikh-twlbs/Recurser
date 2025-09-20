@@ -176,7 +176,7 @@ export default function PlaygroundView({ onVideoSelected }: PlaygroundViewProps)
             key={video.id}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.1 }}
+            transition={{ delay: (index + 1) * 0.1 }}
             className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow cursor-pointer"
             onClick={() => handleVideoSelect(video)}
           >
