@@ -251,9 +251,10 @@ export default function HomePage() {
             <button 
               className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
               onClick={() => {
-                // Start enhancement process
+                // Start enhancement process with selected video
                 setMode('custom')
                 setActiveTab('generate')
+                // TODO: Pass selectedVideo data to generation form
               }}
             >
               <ArrowRight className="w-4 h-4 inline mr-2" />

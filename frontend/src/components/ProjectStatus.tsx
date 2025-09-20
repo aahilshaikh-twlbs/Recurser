@@ -80,7 +80,7 @@ export default function ProjectStatus({ project }: ProjectStatusProps) {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <div className="text-center p-4 bg-gray-50 rounded-lg">
           <div className="text-2xl font-bold text-primary-600">
-            {project.total_iterations || 0}
+            {project.total_iterations || '0'}
           </div>
           <div className="text-sm text-gray-600">Total Iterations</div>
         </div>
@@ -175,7 +175,7 @@ export default function ProjectStatus({ project }: ProjectStatusProps) {
                 
                 <div className="text-right">
                   <div className="text-lg font-bold text-primary-600">
-                    {iteration.confidence_score?.toFixed(1) || 0}%
+                    {iteration.confidence_score?.toFixed(1) || '0'}%
                   </div>
                   <div className="text-sm text-gray-600">Confidence</div>
                 </div>
@@ -194,7 +194,7 @@ export default function ProjectStatus({ project }: ProjectStatusProps) {
                 <div>
                   <label className="text-sm font-medium text-gray-700">Marengo Score:</label>
                   <div className="text-lg font-bold text-blue-600">
-                    {iteration.marengo_score?.toFixed(1) || 0}%
+                    {iteration.marengo_score?.toFixed(1) || '0'}%
                   </div>
                 </div>
                 <div>
