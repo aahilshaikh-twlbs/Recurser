@@ -1038,30 +1038,37 @@ async def list_index_videos(index_id: str, api_key: Optional[str] = None):
                     # Log all video attributes for debugging
                     logger.info(f"Video object attributes: {[attr for attr in dir(video) if not attr.startswith('_')]}")
                     
-                    # Try multiple ways to get the video title - check all possible attributes
-                    video_title = None
-                    if hasattr(video, 'filename') and video.filename:
-                        video_title = video.filename
-                        logger.info(f"Found filename: {video_title}")
-                    elif hasattr(video, 'name') and video.name:
-                        video_title = video.name
-                        logger.info(f"Found name: {video_title}")
-                    elif hasattr(video, 'title') and video.title:
-                        video_title = video.title
-                        logger.info(f"Found title: {video_title}")
-                    elif hasattr(video, 'metadata') and video.metadata:
-                        logger.info(f"Video metadata: {video.metadata}")
-                        if isinstance(video.metadata, dict):
-                            video_title = (video.metadata.get('filename') or 
-                                         video.metadata.get('name') or 
-                                         video.metadata.get('title') or
-                                         video.metadata.get('original_filename'))
-                            if video_title:
-                                logger.info(f"Found title in metadata dict: {video_title}")
-                        elif hasattr(video.metadata, 'filename'):
-                            video_title = video.metadata.filename
-                            logger.info(f"Found title in metadata.filename: {video_title}")
+                    # Try to get video dict representation
+                    try:
+                        video_dict = video.dict() if hasattr(video, 'dict') else {}
+                        logger.info(f"Video dict keys: {list(video_dict.keys())}")
+                        logger.info(f"Video dict: {video_dict}")
+                    except Exception as e:
+                        logger.warning(f"Could not get video dict: {e}")
+                        video_dict = {}
                     
+                    # Check system_metadata for filename
+                    video_title = None
+                    if hasattr(video, 'system_metadata') and video.system_metadata:
+                        logger.info(f"System metadata type: {type(video.system_metadata)}")
+                        logger.info(f"System metadata: {video.system_metadata}")
+                        if isinstance(video.system_metadata, dict):
+                            video_title = (video.system_metadata.get('filename') or
+                                         video.system_metadata.get('name') or
+                                         video.system_metadata.get('title') or
+                                         video.system_metadata.get('original_filename'))
+                            if video_title:
+                                logger.info(f"Found title in system_metadata: {video_title}")
+                    
+                    # Try video dict
+                    if not video_title and video_dict:
+                        video_title = (video_dict.get('filename') or
+                                     video_dict.get('name') or
+                                     video_dict.get('title'))
+                        if video_title:
+                            logger.info(f"Found title in video dict: {video_title}")
+                    
+                    # Fallback to video ID
                     if not video_title:
                         video_title = f"Video {video_id[:8]}"
                         logger.info(f"Using fallback title: {video_title}")
@@ -1078,18 +1085,27 @@ async def list_index_videos(index_id: str, api_key: Optional[str] = None):
                     
                     # Try to get thumbnail URL
                     thumbnail_url = None
-                    if hasattr(video, 'hls') and video.hls:
+                    
+                    # First check video dict for thumbnail
+                    if video_dict:
+                        thumbnail_url = (video_dict.get('thumbnail_url') or
+                                       video_dict.get('thumbnail'))
+                        if thumbnail_url:
+                            logger.info(f"Found thumbnail in video dict: {thumbnail_url}")
+                    
+                    # Check system_metadata for thumbnail
+                    if not thumbnail_url and hasattr(video, 'system_metadata') and video.system_metadata:
+                        if isinstance(video.system_metadata, dict):
+                            thumbnail_url = (video.system_metadata.get('thumbnail_url') or
+                                           video.system_metadata.get('thumbnail'))
+                            if thumbnail_url:
+                                logger.info(f"Found thumbnail in system_metadata: {thumbnail_url}")
+                    
+                    # Try HLS thumbnails
+                    if not thumbnail_url and hasattr(video, 'hls') and video.hls:
                         if hasattr(video.hls, 'thumbnail_urls') and video.hls.thumbnail_urls:
                             thumbnail_url = video.hls.thumbnail_urls[0] if video.hls.thumbnail_urls else None
-                            logger.info(f"Found thumbnail URL: {thumbnail_url}")
-                    elif hasattr(video, 'thumbnail_url') and video.thumbnail_url:
-                        thumbnail_url = video.thumbnail_url
-                        logger.info(f"Found direct thumbnail URL: {thumbnail_url}")
-                    elif hasattr(video, 'metadata') and video.metadata:
-                        if isinstance(video.metadata, dict):
-                            thumbnail_url = video.metadata.get('thumbnail_url')
-                            if thumbnail_url:
-                                logger.info(f"Found thumbnail in metadata: {thumbnail_url}")
+                            logger.info(f"Found thumbnail URL in HLS: {thumbnail_url}")
                     
                     video_data = {
                         "id": video_id,
