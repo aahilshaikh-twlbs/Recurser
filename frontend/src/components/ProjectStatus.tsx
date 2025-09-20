@@ -20,7 +20,7 @@ interface ProjectStatusProps {
 
 export default function ProjectStatus({ project: initialProject }: ProjectStatusProps) {
   const [project, setProject] = useState(initialProject)
-  const [currentIteration, setCurrentIteration] = useState(project?.current_iteration || 1)
+  const [currentIteration, setCurrentIteration] = useState(String(project?.current_iteration || 1))
   const [isExpanded, setIsExpanded] = useState(false)
   const [isPolling, setIsPolling] = useState(true)
 
@@ -135,7 +135,7 @@ export default function ProjectStatus({ project: initialProject }: ProjectStatus
         
         <div className="text-center p-4 bg-gray-50 rounded-lg">
           <div className="text-2xl font-bold text-warning-600">
-            {`${project.target_confidence || 85}%`}
+            {`${String(project.target_confidence || 85)}%`}
           </div>
           <div className="text-sm text-gray-600">Target Confidence</div>
         </div>
