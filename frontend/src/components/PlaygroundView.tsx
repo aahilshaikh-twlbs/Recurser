@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Play, Download, Info, Search, Filter, RefreshCw, AlertCircle } from 'lucide-react'
+import { Play, Search, RefreshCw, AlertCircle, ArrowRight } from 'lucide-react'
 import { API_CONFIG, apiRequest } from '@/lib/config'
 
 interface Video {
@@ -16,13 +16,16 @@ interface Video {
   updated_at?: string
 }
 
-export default function PlaygroundView() {
+interface PlaygroundViewProps {
+  onVideoSelected?: (video: Video) => void
+}
+
+export default function PlaygroundView({ onVideoSelected }: PlaygroundViewProps) {
   const [videos, setVideos] = useState<Video[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [selectedVideo, setSelectedVideo] = useState<Video | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
-  const [filterScore, setFilterScore] = useState(0)
 
   useEffect(() => {
     loadPlaygroundVideos()
@@ -56,26 +59,17 @@ export default function PlaygroundView() {
       console.error('Failed to load playground videos:', error)
       setError(error instanceof Error ? error.message : 'Failed to load videos')
       
-      // Fallback to mock data if API fails
-      const mockVideos: Video[] = [
+      // Fallback to sample data if API fails
+      const sampleVideos: Video[] = [
         {
           id: '1',
           title: 'Sample Video 1',
           description: 'This is a sample video from the playground index',
           duration: 30,
-          confidence_score: 92,
-          created_at: new Date().toISOString()
-        },
-        {
-          id: '2',
-          title: 'Sample Video 2',
-          description: 'Another sample video for testing',
-          duration: 45,
-          confidence_score: 88,
           created_at: new Date().toISOString()
         }
       ]
-      setVideos(mockVideos)
+      setVideos(sampleVideos)
     } finally {
       setLoading(false)
     }
@@ -86,10 +80,8 @@ export default function PlaygroundView() {
   }
 
   const filteredVideos = videos.filter(video => {
-    const matchesSearch = video.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          video.description.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesScore = !filterScore || (video.confidence_score && video.confidence_score >= filterScore)
-    return matchesSearch && matchesScore
+    return video.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+           video.description.toLowerCase().includes(searchTerm.toLowerCase())
   })
 
   const formatDuration = (seconds: number) => {
@@ -112,6 +104,13 @@ export default function PlaygroundView() {
     }
   }
 
+  const handleVideoSelect = (video: Video) => {
+    setSelectedVideo(video)
+    if (onVideoSelected) {
+      onVideoSelected(video)
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex flex-col justify-center items-center py-12 space-y-4">
@@ -123,8 +122,8 @@ export default function PlaygroundView() {
 
   return (
     <div className="space-y-6 mt-6">
-      {/* Search and Filter Bar */}
-      <div className="flex flex-col sm:flex-row gap-4">
+      {/* Search Bar */}
+      <div className="flex gap-4">
         <div className="flex-1 relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
           <input
@@ -135,27 +134,13 @@ export default function PlaygroundView() {
             className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
           />
         </div>
-        <div className="flex items-center space-x-2">
-          <Filter className="text-gray-400 w-5 h-5" />
-          <select
-            value={filterScore}
-            onChange={(e) => setFilterScore(Number(e.target.value))}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-          >
-            <option value={0}>All Scores</option>
-            <option value={80}>80+ Score</option>
-            <option value={85}>85+ Score</option>
-            <option value={90}>90+ Score</option>
-            <option value={95}>95+ Score</option>
-          </select>
-          <button
-            onClick={refreshVideos}
-            className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-            title="Refresh videos"
-          >
-            <RefreshCw className="w-5 h-5 text-gray-600" />
-          </button>
-        </div>
+        <button
+          onClick={refreshVideos}
+          className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+          title="Refresh videos"
+        >
+          <RefreshCw className="w-5 h-5 text-gray-600" />
+        </button>
       </div>
 
       {/* Error Message */}
@@ -180,7 +165,7 @@ export default function PlaygroundView() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.1 }}
             className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow cursor-pointer"
-            onClick={() => setSelectedVideo(video)}
+            onClick={() => handleVideoSelect(video)}
           >
             {/* Video Thumbnail */}
             <div className="relative h-48 bg-gradient-to-br from-primary-100 to-primary-200">
@@ -198,50 +183,30 @@ export default function PlaygroundView() {
               <div className="absolute top-2 right-2 bg-black bg-opacity-60 text-white text-xs px-2 py-1 rounded">
                 {formatDuration(video.duration)}
               </div>
-              {video.confidence_score && (
-                <div className="absolute top-2 left-2 bg-primary-600 text-white text-xs px-2 py-1 rounded">
-                  {Math.round(video.confidence_score)}% Score
+              <div className="absolute inset-0 bg-black bg-opacity-0 hover:bg-opacity-20 transition-all flex items-center justify-center">
+                <div className="opacity-0 hover:opacity-100 transition-opacity">
+                  <ArrowRight className="w-8 h-8 text-white" />
                 </div>
-              )}
+              </div>
             </div>
 
             {/* Video Info */}
             <div className="p-4">
               <h3 className="font-semibold text-gray-900 mb-1 truncate">{video.title}</h3>
               <p className="text-sm text-gray-600 mb-2 line-clamp-2">
-                {video.description || 'No description available'}
+                {video.description || 'Click to select for recursive enhancement'}
               </p>
               <div className="flex justify-between items-center text-xs text-gray-500">
                 <span>{formatDate(video.created_at)}</span>
-                <div className="flex space-x-2">
-                  <button 
-                    className="hover:text-primary-600"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      // Play functionality
-                    }}
-                  >
-                    <Play className="w-4 h-4" />
-                  </button>
-                  <button 
-                    className="hover:text-primary-600"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      // Download functionality
-                    }}
-                  >
-                    <Download className="w-4 h-4" />
-                  </button>
-                  <button 
-                    className="hover:text-primary-600"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      setSelectedVideo(video)
-                    }}
-                  >
-                    <Info className="w-4 h-4" />
-                  </button>
-                </div>
+                <button 
+                  className="text-primary-600 hover:text-primary-700 font-medium"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    handleVideoSelect(video)
+                  }}
+                >
+                  Select for Enhancement
+                </button>
               </div>
             </div>
           </motion.div>
@@ -252,8 +217,8 @@ export default function PlaygroundView() {
       {filteredVideos.length === 0 && !loading && (
         <div className="text-center py-12">
           <p className="text-gray-500">
-            {searchTerm || filterScore > 0 
-              ? 'No videos found matching your criteria.' 
+            {searchTerm 
+              ? 'No videos found matching your search.' 
               : 'No videos available in this index yet.'}
           </p>
           {videos.length === 0 && (
@@ -275,7 +240,7 @@ export default function PlaygroundView() {
         </div>
       )}
 
-      {/* Selected Video Modal */}
+      {/* Simple Video Selection Modal */}
       {selectedVideo && (
         <div 
           className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
@@ -284,7 +249,7 @@ export default function PlaygroundView() {
           <motion.div 
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-lg max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto"
+            className="bg-white rounded-lg max-w-2xl w-full p-6"
             onClick={(e) => e.stopPropagation()}
           >
             <h2 className="text-2xl font-bold mb-4">{selectedVideo.title}</h2>
@@ -305,9 +270,9 @@ export default function PlaygroundView() {
             </div>
             
             {/* Video Details */}
-            <div className="space-y-3 mb-4">
+            <div className="space-y-3 mb-6">
               <p className="text-gray-600">
-                {selectedVideo.description || 'No description available'}
+                {selectedVideo.description}
               </p>
               
               <div className="grid grid-cols-2 gap-4 text-sm">
@@ -315,19 +280,9 @@ export default function PlaygroundView() {
                   <span className="text-gray-500">Duration:</span>
                   <span className="ml-2 font-medium">{formatDuration(selectedVideo.duration)}</span>
                 </div>
-                {selectedVideo.confidence_score && (
-                  <div>
-                    <span className="text-gray-500">Confidence Score:</span>
-                    <span className="ml-2 font-medium">{Math.round(selectedVideo.confidence_score)}%</span>
-                  </div>
-                )}
                 <div>
-                  <span className="text-gray-500">Created:</span>
+                  <span className="text-gray-500">Added:</span>
                   <span className="ml-2 font-medium">{formatDate(selectedVideo.created_at)}</span>
-                </div>
-                <div>
-                  <span className="text-gray-500">Video ID:</span>
-                  <span className="ml-2 font-mono text-xs">{selectedVideo.id.substring(0, 8)}...</span>
                 </div>
               </div>
             </div>
@@ -341,8 +296,8 @@ export default function PlaygroundView() {
                 Close
               </button>
               <button className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700">
-                <Download className="w-4 h-4 inline mr-2" />
-                Download Video
+                <ArrowRight className="w-4 h-4 inline mr-2" />
+                Use for Recursive Enhancement
               </button>
             </div>
           </motion.div>

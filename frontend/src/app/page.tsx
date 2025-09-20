@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { Play, Upload, Zap, Target, BarChart3, Settings, AlertTriangle, Video, Key } from 'lucide-react'
+import { Play, Upload, Zap, Target, BarChart3, Settings, AlertTriangle, Video, Key, ArrowRight } from 'lucide-react'
 import VideoGenerationForm from '@/components/VideoGenerationForm'
 import VideoUploadForm from '@/components/VideoUploadForm'
 import ProjectStatus from '@/components/ProjectStatus'
@@ -12,6 +12,7 @@ export default function HomePage() {
   const [mode, setMode] = useState<'playground' | 'custom'>('playground')
   const [activeTab, setActiveTab] = useState<'generate' | 'upload'>('generate')
   const [currentProject, setCurrentProject] = useState<any>(null)
+  const [selectedVideo, setSelectedVideo] = useState<any>(null)
   const [customApiKeys, setCustomApiKeys] = useState({
     geminiKey: '',
     twelvelabsKey: '',
@@ -131,7 +132,7 @@ export default function HomePage() {
                   Using our default API keys and sample video index.
                 </p>
               </div>
-              <PlaygroundView />
+              <PlaygroundView onVideoSelected={setSelectedVideo} />
             </div>
           </div>
         ) : (
@@ -233,6 +234,34 @@ export default function HomePage() {
           </div>
         )}
       </motion.div>
+
+      {/* Selected Video for Enhancement */}
+      {selectedVideo && mode === 'playground' && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5 }}
+          className="card bg-blue-50 border-blue-200"
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="font-semibold text-gray-900">Selected Video: {selectedVideo.title}</h3>
+              <p className="text-sm text-gray-600">Ready for recursive enhancement</p>
+            </div>
+            <button 
+              className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
+              onClick={() => {
+                // Start enhancement process
+                setMode('custom')
+                setActiveTab('generate')
+              }}
+            >
+              <ArrowRight className="w-4 h-4 inline mr-2" />
+              Enhance This Video
+            </button>
+          </div>
+        </motion.div>
+      )}
 
       {/* Project Status */}
       {currentProject && (

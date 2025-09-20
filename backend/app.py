@@ -1094,7 +1094,7 @@ async def list_index_videos(index_id: str, api_key: Optional[str] = None):
                     video_data = {
                         "id": video_id,
                         "title": video_title,
-                        "description": "Recurser generated video",  # Default description
+                        "description": "Video available for recursive enhancement",
                         "duration": duration,
                         "created_at": str(getattr(video, 'created_at', '')),
                         "updated_at": str(getattr(video, 'updated_at', '')),
