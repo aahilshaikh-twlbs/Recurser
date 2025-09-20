@@ -18,8 +18,10 @@ const LoadingSpinner = () => (
 
 // Force dynamic rendering to prevent static generation issues
 export const dynamic = 'force-dynamic'
+export const revalidate = 0
 
-export default function StatusPage() {
+// Client-only wrapper to prevent SSR issues
+function ClientOnlyStatusPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const videoId = searchParams.get('id')
@@ -127,4 +129,19 @@ export default function StatusPage() {
       </main>
     </div>
   )
+}
+
+// Main component with client-side only rendering
+export default function StatusPage() {
+  const [isClient, setIsClient] = useState(false)
+
+  useEffect(() => {
+    setIsClient(true)
+  }, [])
+
+  if (!isClient) {
+    return <LoadingSpinner />
+  }
+
+  return <ClientOnlyStatusPage />
 }

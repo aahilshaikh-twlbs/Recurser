@@ -19,8 +19,10 @@ const LoadingSpinner = () => (
 
 // Force dynamic rendering to prevent static generation issues
 export const dynamic = 'force-dynamic'
+export const revalidate = 0
 
-export default function EnhancePage() {
+// Client-only wrapper to prevent SSR issues
+function ClientOnlyEnhancePage() {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<'generate' | 'upload'>('generate')
   const [videoToEnhance, setVideoToEnhance] = useState<any>(null)
@@ -171,4 +173,19 @@ export default function EnhancePage() {
       </main>
     </div>
   )
+}
+
+// Main component with client-side only rendering
+export default function EnhancePage() {
+  const [isClient, setIsClient] = useState(false)
+
+  useEffect(() => {
+    setIsClient(true)
+  }, [])
+
+  if (!isClient) {
+    return <LoadingSpinner />
+  }
+
+  return <ClientOnlyEnhancePage />
 }
