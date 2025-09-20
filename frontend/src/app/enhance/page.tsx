@@ -1,28 +1,13 @@
 'use client'
 
-import { useState, useEffect, Suspense, lazy } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { motion } from 'framer-motion'
 import { ArrowLeft, Home, Key, Upload, Play } from 'lucide-react'
+import VideoGenerationForm from '@/components/VideoGenerationForm'
+import VideoUploadForm from '@/components/VideoUploadForm'
 
-// Lazy load components with Suspense
-const VideoGenerationForm = lazy(() => import('@/components/VideoGenerationForm'))
-const VideoUploadForm = lazy(() => import('@/components/VideoUploadForm'))
-
-// Loading spinner component
-const LoadingSpinner = () => (
-  <div className="flex items-center justify-center p-8">
-    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600" />
-  </div>
-)
-
-// Force dynamic rendering to prevent static generation issues
-export const dynamic = 'force-dynamic'
-export const revalidate = 0
-
-// Client-only wrapper to prevent SSR issues
-function ClientOnlyEnhancePage() {
+export default function EnhancePage() {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<'generate' | 'upload'>('generate')
   const [videoToEnhance, setVideoToEnhance] = useState<any>(null)
@@ -31,20 +16,42 @@ function ClientOnlyEnhancePage() {
     twelvelabsKey: '',
     indexId: ''
   })
+  const [isClient, setIsClient] = useState(false)
+
+  useEffect(() => {
+    setIsClient(true)
+  }, [])
 
   // Check for video passed from playground
   useEffect(() => {
-    const storedVideo = sessionStorage.getItem('videoToEnhance')
-    if (storedVideo) {
-      setVideoToEnhance(JSON.parse(storedVideo))
-      sessionStorage.removeItem('videoToEnhance')
+    if (typeof window !== 'undefined') {
+      const storedVideo = sessionStorage.getItem('videoToEnhance')
+      if (storedVideo) {
+        try {
+          setVideoToEnhance(JSON.parse(storedVideo))
+          sessionStorage.removeItem('videoToEnhance')
+        } catch (e) {
+          console.error('Failed to parse video data:', e)
+        }
+      }
     }
   }, [])
 
   const handleProjectCreated = (project: any) => {
     // Store project in sessionStorage and navigate to status page
-    sessionStorage.setItem('currentProject', JSON.stringify(project))
-    router.push(`/status?id=${project.video_id}`)
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('currentProject', JSON.stringify(project))
+      router.push(`/status?id=${project.video_id}`)
+    }
+  }
+
+  // Prevent SSR issues
+  if (!isClient) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600" />
+      </div>
+    )
   }
 
   return (
@@ -78,11 +85,7 @@ function ClientOnlyEnhancePage() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="space-y-6"
-        >
+        <div className="space-y-6">
           {/* API Key Configuration */}
           <div className="card bg-yellow-50 border-yellow-200">
             <div className="flex items-start space-x-3">
@@ -152,40 +155,23 @@ function ClientOnlyEnhancePage() {
 
             {/* Tab Content */}
             <div className="mt-6">
-              <Suspense fallback={<LoadingSpinner />}>
-                {activeTab === 'generate' ? (
-                  <VideoGenerationForm
-                    onProjectCreated={handleProjectCreated}
-                    apiKeys={customApiKeys}
-                    selectedVideo={videoToEnhance}
-                    autoSubmit={Boolean(videoToEnhance)}
-                  />
-                ) : (
-                  <VideoUploadForm
-                    onProjectCreated={handleProjectCreated}
-                    apiKeys={customApiKeys}
-                  />
-                )}
-              </Suspense>
+              {activeTab === 'generate' ? (
+                <VideoGenerationForm
+                  onProjectCreated={handleProjectCreated}
+                  apiKeys={customApiKeys}
+                  selectedVideo={videoToEnhance}
+                  autoSubmit={!!videoToEnhance}
+                />
+              ) : (
+                <VideoUploadForm
+                  onProjectCreated={handleProjectCreated}
+                  apiKeys={customApiKeys}
+                />
+              )}
             </div>
           </div>
-        </motion.div>
+        </div>
       </main>
     </div>
   )
-}
-
-// Main component with client-side only rendering
-export default function EnhancePage() {
-  const [isClient, setIsClient] = useState(false)
-
-  useEffect(() => {
-    setIsClient(true)
-  }, [])
-
-  if (!isClient) {
-    return <LoadingSpinner />
-  }
-
-  return <ClientOnlyEnhancePage />
 }

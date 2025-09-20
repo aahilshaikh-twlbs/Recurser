@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { Play, Search, RefreshCw, AlertCircle, ArrowRight } from 'lucide-react'
+import { getVideosFromIndex } from '@/lib/api'
 import { API_CONFIG, apiRequest } from '@/lib/config'
 
 interface Video {
@@ -38,21 +39,11 @@ export default function PlaygroundView({ onVideoSelected }: PlaygroundViewProps)
       setError(null)
       
       // Fetch real videos from the TwelveLabs index
-      const response = await apiRequest(
-        API_CONFIG.endpoints.listIndexVideos(API_CONFIG.defaultCredentials.playgroundIndexId),
-        {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-          }
-        }
-      )
+      const videos = await getVideosFromIndex(API_CONFIG.defaultCredentials.playgroundIndexId)
       
-      const result = await response.json()
-      
-      if (result.success && result.data && result.data.videos) {
+      if (videos && videos.length > 0) {
         // Ensure all video data is properly typed
-        const safeVideos = result.data.videos.map((video: any) => ({
+        const safeVideos = videos.map((video: any) => ({
           id: String(video.id || ''),
           title: String(video.title || 'Unknown Video'),
           description: String(video.description || 'Video available for recursive enhancement'),
@@ -65,13 +56,12 @@ export default function PlaygroundView({ onVideoSelected }: PlaygroundViewProps)
         }))
         setVideos(safeVideos)
       } else {
-        setError('Failed to load videos from index')
         setVideos([])
       }
     } catch (error) {
       console.error('Failed to load playground videos:', error)
       setError(error instanceof Error ? error.message : 'Failed to load videos')
-      setVideos([])  // Don't use fallback data - show real error
+      setVideos([])
     } finally {
       setLoading(false)
     }
