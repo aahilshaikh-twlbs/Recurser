@@ -274,47 +274,6 @@ export default function HomePage() {
         </motion.div>
       )}
 
-      {/* How It Works */}
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.8 }}
-        className="card"
-      >
-        <h2 className="text-2xl font-bold text-gray-900 mb-6">How It Works</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="text-center space-y-3">
-            <div className="mx-auto w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center text-primary-600 text-2xl font-bold">
-              1
-            </div>
-            <h3 className="font-semibold text-gray-900">Input & Generate</h3>
-            <p className="text-sm text-gray-600">
-              Provide your video prompt or upload an existing video. Our system generates 
-              or analyzes the content using state-of-the-art AI models.
-            </p>
-          </div>
-          <div className="text-center space-y-3">
-            <div className="mx-auto w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center text-primary-600 text-2xl font-bold">
-              2
-            </div>
-            <h3 className="font-semibold text-gray-900">Analyze & Score</h3>
-            <p className="text-sm text-gray-600">
-              Marengo 2.7 analyzes video quality, consistency, and AI artifacts. 
-              Pegasus 1.2 provides intelligent improvement suggestions.
-            </p>
-          </div>
-          <div className="text-center space-y-3">
-            <div className="mx-auto w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center text-primary-600 text-2xl font-bold">
-              3
-            </div>
-            <h3 className="font-semibold text-gray-900">Iterate & Improve</h3>
-            <p className="text-sm text-gray-600">
-              The system automatically refines prompts and regenerates videos. 
-              Choose limited iterations or unlimited mode for perfect results.
-            </p>
-          </div>
-        </div>
-      </motion.div>
     </div>
   )
 }
