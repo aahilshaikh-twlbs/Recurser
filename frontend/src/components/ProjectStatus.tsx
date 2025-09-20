@@ -83,15 +83,15 @@ export default function ProjectStatus({ project: initialProject }: ProjectStatus
   }
 
   const formatProgress = () => {
-    if (!project.iterations || project.iterations.length === 0) return 0
+    if (!project.iterations || project.iterations.length === 0) return '0'
     const completed = project.iterations.filter((iter: any) => iter.status === 'completed').length
-    return Math.round((completed / project.iterations.length) * 100)
+    return String(Math.round((completed / project.iterations.length) * 100))
   }
 
   const getCurrentConfidence = () => {
-    if (!project.iterations || project.iterations.length === 0) return 0
+    if (!project.iterations || project.iterations.length === 0) return '0'
     const latest = project.iterations[project.iterations.length - 1]
-    return latest.confidence_score || 0
+    return String(latest.confidence_score || 0)
   }
 
   return (
@@ -128,7 +128,7 @@ export default function ProjectStatus({ project: initialProject }: ProjectStatus
         
         <div className="text-center p-4 bg-gray-50 rounded-lg">
           <div className="text-2xl font-bold text-success-600">
-            {`${getCurrentConfidence().toFixed(1)}%`}
+            {`${parseFloat(getCurrentConfidence()).toFixed(1)}%`}
           </div>
           <div className="text-sm text-gray-600">Current Confidence</div>
         </div>
@@ -145,7 +145,7 @@ export default function ProjectStatus({ project: initialProject }: ProjectStatus
       <div className="mb-6">
         <div className="flex justify-between items-center mb-2">
           <span className="text-sm font-medium text-gray-700">Progress</span>
-          <span className="text-sm text-gray-600">{`${formatProgress()}%`}</span>
+          <span className="text-sm text-gray-600">{formatProgress()}%</span>
         </div>
         <div className="w-full bg-gray-200 rounded-full h-2">
           <motion.div

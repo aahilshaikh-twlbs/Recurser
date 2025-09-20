@@ -23,6 +23,10 @@ const nextConfig = {
       },
     ]
   },
+  // Disable static optimization for pages that use dynamic data
+  experimental: {
+    esmExternals: false,
+  },
 }
 
 module.exports = nextConfig
