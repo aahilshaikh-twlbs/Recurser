@@ -142,7 +142,7 @@ export default function ProjectStatus({ project }: ProjectStatusProps) {
       </div>
 
       {/* Expanded Details */}
-      {isExpanded && project.iterations && (
+      {isExpanded && project.iterations && project.iterations.length > 0 ? (
         <motion.div
           initial={{ opacity: 0, height: 0 }}
           animate={{ opacity: 1, height: 'auto' }}
@@ -236,7 +236,7 @@ export default function ProjectStatus({ project }: ProjectStatusProps) {
             </motion.div>
           ))}
         </motion.div>
-      )}
+      ) : null}
 
       {/* Final Results */}
       {project.status === 'completed' && (

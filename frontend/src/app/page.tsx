@@ -236,7 +236,7 @@ export default function HomePage() {
       </motion.div>
 
       {/* Selected Video for Enhancement */}
-      {selectedVideo && mode === 'playground' && (
+      {selectedVideo && mode === 'playground' ? (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -261,7 +261,7 @@ export default function HomePage() {
             </button>
           </div>
         </motion.div>
-      )}
+      ) : null}
 
       {/* Project Status */}
       {currentProject && (
