@@ -118,7 +118,16 @@ export async function checkHealth(): Promise<boolean> {
 // Video-specific API functions
 export async function getVideosFromIndex(indexId: string): Promise<any[]> {
   try {
-    return await apiRequest(`/api/index/${indexId}/videos`)
+    const response = await apiRequest(`/api/index/${indexId}/videos`)
+    const data = await response.json()
+    
+    // Extract videos from the nested response structure
+    if (data.success && data.data && data.data.videos) {
+      return data.data.videos
+    }
+    
+    console.warn('Unexpected API response structure:', data)
+    return []
   } catch (error) {
     console.error('Failed to fetch videos:', error)
     return [] // Return empty array on error
