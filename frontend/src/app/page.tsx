@@ -8,11 +8,23 @@ import VideoUploadForm from '@/components/VideoUploadForm'
 import ProjectStatus from '@/components/ProjectStatus'
 import PlaygroundView from '@/components/PlaygroundView'
 
+interface VideoData {
+  id: string
+  title: string
+  description: string
+  thumbnail?: string | null
+  hls_url?: string | null
+  duration: number
+  confidence_score?: number | null
+  created_at: string
+  updated_at?: string
+}
+
 export default function HomePage() {
   const [mode, setMode] = useState<'playground' | 'custom'>('playground')
   const [activeTab, setActiveTab] = useState<'generate' | 'upload'>('generate')
   const [currentProject, setCurrentProject] = useState<any>(null)
-  const [selectedVideo, setSelectedVideo] = useState<any>(null)
+  const [selectedVideo, setSelectedVideo] = useState<VideoData | null>(null)
   const [customApiKeys, setCustomApiKeys] = useState({
     geminiKey: '',
     twelvelabsKey: '',

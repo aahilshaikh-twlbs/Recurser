@@ -260,28 +260,29 @@ export default function PlaygroundView({ onVideoSelected }: PlaygroundViewProps)
           >
             <h2 className="text-2xl font-bold mb-4">{selectedVideo.title}</h2>
             
-            {/* Video Player */}
+            {/* Video Preview */}
             <div className="aspect-video bg-black rounded-lg mb-4 relative overflow-hidden">
-              {selectedVideo.hls_url ? (
-                <video 
-                  controls
-                  autoPlay
-                  className="absolute inset-0 w-full h-full"
-                  poster={selectedVideo.thumbnail || undefined}
-                >
-                  <source src={selectedVideo.hls_url} type="application/x-mpegURL" />
-                  <source src={selectedVideo.hls_url} type="video/mp4" />
-                  Your browser does not support the video tag.
-                </video>
-              ) : selectedVideo.thumbnail ? (
+              {selectedVideo.thumbnail ? (
                 <img 
                   src={selectedVideo.thumbnail} 
                   alt={selectedVideo.title}
                   className="absolute inset-0 w-full h-full object-cover"
                 />
               ) : (
-                <div className="absolute inset-0 flex items-center justify-center">
+                <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900">
                   <Play className="w-16 h-16 text-white opacity-80" />
+                </div>
+              )}
+              {selectedVideo.hls_url && (
+                <div className="absolute bottom-4 right-4">
+                  <a 
+                    href={selectedVideo.hls_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-3 py-1.5 bg-white bg-opacity-90 text-gray-800 text-sm font-medium rounded hover:bg-opacity-100 transition-all"
+                  >
+                    Open Video →
+                  </a>
                 </div>
               )}
             </div>
