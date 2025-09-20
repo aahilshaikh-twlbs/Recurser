@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { Play, Sparkles, AlertTriangle, Infinity } from 'lucide-react'
 import { useForm } from 'react-hook-form'
@@ -13,6 +13,12 @@ interface VideoGenerationFormProps {
     twelvelabsKey: string
     indexId: string
   }
+  selectedVideo?: {
+    id: string
+    title: string
+    description: string
+  }
+  autoSubmit?: boolean
 }
 
 interface FormData {
@@ -21,18 +27,30 @@ interface FormData {
   projectName: string
 }
 
-export default function VideoGenerationForm({ onProjectCreated, apiKeys }: VideoGenerationFormProps) {
+export default function VideoGenerationForm({ onProjectCreated, apiKeys, selectedVideo, autoSubmit }: VideoGenerationFormProps) {
   const [isGenerating, setIsGenerating] = useState(false)
   const [showUnlimitedWarning, setShowUnlimitedWarning] = useState(false)
   
   const { register, handleSubmit, formState: { errors }, watch, setValue } = useForm<FormData>({
     defaultValues: {
       maxAttempts: 5,
-      projectName: `Project ${Date.now()}`
+      projectName: selectedVideo ? `Enhance: ${selectedVideo.title}` : `Project ${Date.now()}`,
+      prompt: selectedVideo ? `Enhance this video: ${selectedVideo.title}. ${selectedVideo.description}` : ''
     }
   })
 
   const watchedMaxAttempts = watch('maxAttempts')
+
+  // Auto-submit when selectedVideo is provided
+  useEffect(() => {
+    if (autoSubmit && selectedVideo) {
+      // Small delay to show the form before submitting
+      const timer = setTimeout(() => {
+        handleSubmit(onSubmit)()
+      }, 500)
+      return () => clearTimeout(timer)
+    }
+  }, [autoSubmit, selectedVideo])
 
   const onSubmit = async (data: FormData) => {
     // Check if API keys are provided in custom mode

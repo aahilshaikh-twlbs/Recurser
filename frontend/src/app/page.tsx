@@ -25,6 +25,7 @@ export default function HomePage() {
   const [activeTab, setActiveTab] = useState<'generate' | 'upload'>('generate')
   const [currentProject, setCurrentProject] = useState<any>(null)
   const [selectedVideo, setSelectedVideo] = useState<VideoData | null>(null)
+  const [videoToEnhance, setVideoToEnhance] = useState<VideoData | null>(null)
   const [customApiKeys, setCustomApiKeys] = useState({
     geminiKey: '',
     twelvelabsKey: '',
@@ -233,8 +234,13 @@ export default function HomePage() {
 
               {activeTab === 'generate' ? (
                 <VideoGenerationForm 
-                  onProjectCreated={setCurrentProject}
+                  onProjectCreated={(project) => {
+                    setCurrentProject(project)
+                    setVideoToEnhance(null) // Clear after submission
+                  }}
                   apiKeys={customApiKeys}
+                  selectedVideo={videoToEnhance || undefined}
+                  autoSubmit={!!videoToEnhance}
                 />
               ) : (
                 <VideoUploadForm 
@@ -264,9 +270,9 @@ export default function HomePage() {
               className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
               onClick={() => {
                 // Start enhancement process with selected video
+                setVideoToEnhance(selectedVideo)
                 setMode('custom')
                 setActiveTab('generate')
-                // TODO: Pass selectedVideo data to generation form
               }}
             >
               <ArrowRight className="w-4 h-4 inline mr-2" />
