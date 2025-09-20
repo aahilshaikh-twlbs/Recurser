@@ -9,18 +9,12 @@ interface FormData {
 
 interface VideoGenerationFormProps {
   onProjectCreated: (project: any) => void
-  apiKeys?: {
-    geminiKey?: string
-    twelvelabsKey?: string
-    indexId?: string
-  }
   selectedVideo?: any
   autoSubmit?: boolean
 }
 
 export default function VideoGenerationForm({ 
   onProjectCreated, 
-  apiKeys, 
   selectedVideo, 
   autoSubmit 
 }: VideoGenerationFormProps) {
@@ -28,21 +22,32 @@ export default function VideoGenerationForm({
   const [error, setError] = useState<string | null>(null)
   const [showUnlimitedWarning, setShowUnlimitedWarning] = useState(false)
 
-  const defaultValues = useMemo(() => ({
-    maxAttempts: '5' as const,
-    prompt: selectedVideo?.title 
-      ? `Enhance this video: ${String(selectedVideo.title || 'Untitled')}. ${String(selectedVideo.description || '')}` 
-      : ''
-  }), [selectedVideo])
+  const defaultValues = useMemo(() => {
+    const values: FormData = {
+      maxAttempts: '5',
+      prompt: ''
+    }
+    
+    if (selectedVideo && selectedVideo.title) {
+      const title = String(selectedVideo.title || 'Untitled')
+      const description = String(selectedVideo.description || '')
+      values.prompt = `Enhance this video: ${title}. ${description}`.trim()
+    }
+    
+    return values
+  }, [selectedVideo])
 
   const { register, handleSubmit, formState: { errors }, watch, setValue } = useForm<FormData>({
-    defaultValues
+    defaultValues,
+    mode: 'onSubmit'
   })
 
   const watchedMaxAttempts = watch('maxAttempts')
 
   useEffect(() => {
-    setShowUnlimitedWarning(watchedMaxAttempts === 'unlimited')
+    if (watchedMaxAttempts) {
+      setShowUnlimitedWarning(watchedMaxAttempts === 'unlimited')
+    }
   }, [watchedMaxAttempts])
 
   // Auto-submit if requested
@@ -53,7 +58,7 @@ export default function VideoGenerationForm({
       }, 500)
       return () => clearTimeout(timer)
     }
-  }, [autoSubmit, selectedVideo])
+  }, [autoSubmit, selectedVideo, handleSubmit])
 
   const onSubmit = async (data: FormData) => {
     setIsGenerating(true)

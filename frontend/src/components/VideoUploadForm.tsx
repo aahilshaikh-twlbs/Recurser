@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { useDropzone } from 'react-dropzone'
 import { AlertCircle, Upload, FileVideo, Loader2, X } from 'lucide-react'
@@ -25,6 +25,12 @@ export default function VideoUploadForm({ onProjectCreated }: VideoUploadFormPro
   })
 
   const watchedMaxAttempts = watch('maxAttempts')
+
+  useEffect(() => {
+    if (watchedMaxAttempts) {
+      setShowUnlimitedWarning(watchedMaxAttempts === 'unlimited')
+    }
+  }, [watchedMaxAttempts])
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     if (acceptedFiles.length > 0) {
