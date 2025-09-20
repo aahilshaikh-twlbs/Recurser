@@ -33,7 +33,7 @@ export default function VideoGenerationForm({ onProjectCreated, apiKeys, selecte
   
   const { register, handleSubmit, formState: { errors }, watch, setValue } = useForm<FormData>({
     defaultValues: {
-      maxAttempts: 5 as any,
+      maxAttempts: '5',
       projectName: selectedVideo ? `Enhance: ${selectedVideo.title}` : `Project ${Date.now()}`,
       prompt: selectedVideo ? `Enhance this video: ${selectedVideo.title}. ${selectedVideo.description}` : ''
     }
@@ -158,7 +158,7 @@ export default function VideoGenerationForm({ onProjectCreated, apiKeys, selecte
                   value="3"
                   {...register('maxAttempts')}
                   onChange={() => {
-                    setValue('maxAttempts', 3 as any)
+                    setValue('maxAttempts', '3')
                     setShowUnlimitedWarning(false)
                   }}
                   className="mr-2"
@@ -171,7 +171,7 @@ export default function VideoGenerationForm({ onProjectCreated, apiKeys, selecte
                   value="5"
                   {...register('maxAttempts')}
                   onChange={() => {
-                    setValue('maxAttempts', 5 as any)
+                    setValue('maxAttempts', '5')
                     setShowUnlimitedWarning(false)
                   }}
                   className="mr-2"
@@ -184,7 +184,7 @@ export default function VideoGenerationForm({ onProjectCreated, apiKeys, selecte
                   value="10"
                   {...register('maxAttempts')}
                   onChange={() => {
-                    setValue('maxAttempts', 10 as any)
+                    setValue('maxAttempts', '10')
                     setShowUnlimitedWarning(false)
                   }}
                   className="mr-2"
@@ -196,7 +196,7 @@ export default function VideoGenerationForm({ onProjectCreated, apiKeys, selecte
                   type="radio"
                   value="unlimited"
                   {...register('maxAttempts')}
-                  onChange={() => setValue('maxAttempts', 'unlimited' as any)}
+                  onChange={() => setValue('maxAttempts', 'unlimited')}
                   className="mr-2"
                 />
                 <span className="text-sm font-medium">
