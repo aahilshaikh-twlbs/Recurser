@@ -77,7 +77,7 @@ export default function VideoGenerationForm({ onProjectCreated, apiKeys, selecte
         body: JSON.stringify({
           prompt: data.prompt,
           confidence_threshold: 0, // No threshold - continue based on iterations
-          max_retries: data.maxAttempts === 'unlimited' ? 999 : data.maxAttempts,
+          max_retries: data.maxAttempts === 'unlimited' ? 999 : parseInt(data.maxAttempts),
           index_id: apiKeys?.indexId || API_CONFIG.defaultCredentials.playgroundIndexId,
           twelvelabs_api_key: apiKeys?.twelvelabsKey || API_CONFIG.defaultCredentials.twelvelabsApiKey,
           gemini_api_key: apiKeys?.geminiKey || API_CONFIG.defaultCredentials.geminiApiKey
@@ -85,8 +85,14 @@ export default function VideoGenerationForm({ onProjectCreated, apiKeys, selecte
       })
       
       const result = await response.json()
-      onProjectCreated(result.data)
-      setShowUnlimitedWarning(false)
+      console.log('Generate video response:', result)
+      
+      if (result.success && result.data) {
+        onProjectCreated(result.data)
+        setShowUnlimitedWarning(false)
+      } else {
+        throw new Error(result.message || 'Failed to start video generation')
+      }
     } catch (error) {
       console.error('Generation error:', error)
       alert(error instanceof Error ? error.message : 'Failed to start video generation')

@@ -18,9 +18,43 @@ interface ProjectStatusProps {
   project: any
 }
 
-export default function ProjectStatus({ project }: ProjectStatusProps) {
+export default function ProjectStatus({ project: initialProject }: ProjectStatusProps) {
+  const [project, setProject] = useState(initialProject)
   const [currentIteration, setCurrentIteration] = useState(project?.current_iteration || 1)
   const [isExpanded, setIsExpanded] = useState(false)
+  const [isPolling, setIsPolling] = useState(true)
+
+  // Poll for status updates
+  useEffect(() => {
+    if (!project?.video_id || !isPolling) return
+
+    const pollStatus = async () => {
+      try {
+        const response = await apiRequest(API_CONFIG.endpoints.videoStatus(project.video_id))
+        const result = await response.json()
+        
+        if (result.success && result.data) {
+          setProject(result.data)
+          setCurrentIteration(result.data.current_iteration || 1)
+          
+          // Stop polling if completed or failed
+          if (result.data.status === 'completed' || result.data.status === 'failed') {
+            setIsPolling(false)
+          }
+        }
+      } catch (error) {
+        console.error('Error polling status:', error)
+      }
+    }
+
+    // Initial poll
+    pollStatus()
+
+    // Set up interval for polling
+    const interval = setInterval(pollStatus, 3000) // Poll every 3 seconds
+
+    return () => clearInterval(interval)
+  }, [project?.video_id, isPolling])
 
   const getStatusIcon = (status: string) => {
     switch (status.toLowerCase()) {

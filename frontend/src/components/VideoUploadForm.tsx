@@ -107,11 +107,17 @@ export default function VideoUploadForm({ onProjectCreated, apiKeys }: VideoUplo
       
       if (response.ok) {
         const result = await response.json()
-        onProjectCreated(result.data)
-        setShowUnlimitedWarning(false)
+        console.log('Upload video response:', result)
+        
+        if (result.success && result.data) {
+          onProjectCreated(result.data)
+          setShowUnlimitedWarning(false)
+        } else {
+          throw new Error(result.message || 'Upload failed')
+        }
       } else {
         const error = await response.json()
-        setUploadError(error.detail || 'Upload failed')
+        setUploadError(error.detail || error.message || 'Upload failed')
       }
     } catch (error) {
       console.error('Upload error:', error)
