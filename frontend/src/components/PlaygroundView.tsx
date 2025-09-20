@@ -206,7 +206,9 @@ export default function PlaygroundView({ onVideoSelected }: PlaygroundViewProps)
                   className="text-primary-600 hover:text-primary-700 font-medium"
                   onClick={(e) => {
                     e.stopPropagation()
-                    onVideoSelected(video)
+                    if (onVideoSelected) {
+                      onVideoSelected(video)
+                    }
                   }}
                 >
                   Select for Enhancement
@@ -265,7 +267,7 @@ export default function PlaygroundView({ onVideoSelected }: PlaygroundViewProps)
                   controls
                   autoPlay
                   className="absolute inset-0 w-full h-full"
-                  poster={selectedVideo.thumbnail}
+                  poster={selectedVideo.thumbnail || undefined}
                 >
                   <source src={selectedVideo.hls_url} type="application/x-mpegURL" />
                   <source src={selectedVideo.hls_url} type="video/mp4" />
@@ -313,7 +315,9 @@ export default function PlaygroundView({ onVideoSelected }: PlaygroundViewProps)
               <button 
                 className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
                 onClick={() => {
-                  onVideoSelected(selectedVideo)
+                  if (onVideoSelected) {
+                    onVideoSelected(selectedVideo)
+                  }
                   setSelectedVideo(null)
                 }}
               >
