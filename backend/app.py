@@ -1002,10 +1002,10 @@ async def list_index_videos(index_id: str, api_key: Optional[str] = None):
             
             # Now list videos in the index
             # According to the SDK docs, this should be client.indexes.videos.list()
-            # Use page_limit to control pagination and avoid duplicates
+            # Use page_limit to control pagination
             video_pager = client.indexes.videos.list(
                 index_id=index_id,
-                page_limit=50  # Get up to 50 videos per page
+                page_limit=20  # Get up to 20 videos per page (should be enough for 6 unique videos)
             )
             
             # Track unique video IDs to avoid duplicates
@@ -1028,34 +1028,60 @@ async def list_index_videos(index_id: str, api_key: Optional[str] = None):
                     seen_video_prefixes.add(video_prefix)
                     
                     # Extract video information based on actual video object structure
+                    # Log the video object attributes for debugging
+                    logger.debug(f"Video object type: {type(video)}")
+                    logger.debug(f"Video attributes: {dir(video)}")
+                    
+                    # Try multiple ways to get the video title
+                    video_title = None
+                    if hasattr(video, 'name') and video.name:
+                        video_title = video.name
+                    elif hasattr(video, 'filename') and video.filename:
+                        video_title = video.filename
+                    elif hasattr(video, 'metadata') and video.metadata:
+                        if isinstance(video.metadata, dict):
+                            video_title = video.metadata.get('filename') or video.metadata.get('name') or video.metadata.get('title')
+                        elif hasattr(video.metadata, 'filename'):
+                            video_title = video.metadata.filename
+                    
+                    if not video_title:
+                        video_title = f"Video {video_id[:8]}"
+                    
+                    # Get duration
+                    duration = 0
+                    if hasattr(video, 'duration'):
+                        duration = video.duration
+                    elif hasattr(video, 'metadata') and video.metadata:
+                        if isinstance(video.metadata, dict):
+                            duration = video.metadata.get('duration', 0)
+                        elif hasattr(video.metadata, 'duration'):
+                            duration = video.metadata.duration
+                    
                     video_data = {
                         "id": video_id,
-                        "title": getattr(video, 'name', None) or getattr(video, 'filename', None) or f"Video {video_id[:8]}",
-                        "description": "",
-                        "duration": getattr(video, 'duration', 0),
+                        "title": video_title,
+                        "description": "Recurser generated video",  # Default description
+                        "duration": duration,
                         "created_at": str(getattr(video, 'created_at', '')),
                         "updated_at": str(getattr(video, 'updated_at', '')),
                         "thumbnail": None,
                         "confidence_score": None
                     }
                     
-                    # Check for metadata
+                    # Try to get description from metadata
                     if hasattr(video, 'metadata') and video.metadata:
                         if isinstance(video.metadata, dict):
-                            video_data["title"] = video.metadata.get('filename', video_data["title"])
-                            video_data["description"] = video.metadata.get('description', '')
-                    
-                    # Check for duration in metadata
-                    if hasattr(video, 'metadata') and video.metadata and 'duration' in video.metadata:
-                        video_data["duration"] = video.metadata['duration']
+                            video_data["description"] = video.metadata.get('description', video_data["description"])
+                        elif hasattr(video.metadata, 'description'):
+                            video_data["description"] = video.metadata.description
                     
                     videos.append(video_data)
                     unique_videos.append(video_prefix)
                     logger.info(f"Added unique video #{len(unique_videos)}: {video_prefix} (full: {video_data['id']})")
                     
                     # Stop after getting reasonable number of unique videos
-                    # Based on your comment, there should be about 6 unique videos
-                    if len(unique_videos) >= 10:  # Allow up to 10 to be safe
+                    # Continue until we've checked enough videos to find all unique ones
+                    if len(unique_videos) >= 20:  # Increase limit to ensure we get all 6
                         logger.info(f"Found {len(unique_videos)} unique videos, stopping iteration")
                         break
                     
