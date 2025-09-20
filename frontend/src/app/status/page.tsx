@@ -1,23 +1,19 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense, lazy } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { ArrowLeft, Home, RefreshCw } from 'lucide-react'
-import dynamic from 'next/dynamic'
 
-// Dynamically import ProjectStatus with SSR disabled to avoid prerendering issues
-const ProjectStatus = dynamic(
-  () => import('@/components/ProjectStatus'),
-  { 
-    ssr: false,
-    loading: () => (
-      <div className="flex items-center justify-center p-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600" />
-      </div>
-    )
-  }
+// Lazy load ProjectStatus component
+const ProjectStatus = lazy(() => import('@/components/ProjectStatus'))
+
+// Loading spinner component
+const LoadingSpinner = () => (
+  <div className="flex items-center justify-center p-8">
+    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600" />
+  </div>
 )
 
 export default function StatusPage() {
@@ -121,7 +117,9 @@ export default function StatusPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
         >
-          {project && <ProjectStatus project={project} />}
+          <Suspense fallback={<LoadingSpinner />}>
+            {project && <ProjectStatus project={project} />}
+          </Suspense>
         </motion.div>
       </main>
     </div>

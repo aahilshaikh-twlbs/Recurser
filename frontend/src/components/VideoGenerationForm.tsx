@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { Play, Sparkles, AlertTriangle, Infinity } from 'lucide-react'
 import { useForm } from 'react-hook-form'
@@ -31,12 +31,15 @@ export default function VideoGenerationForm({ onProjectCreated, apiKeys, selecte
   const [isGenerating, setIsGenerating] = useState(false)
   const [showUnlimitedWarning, setShowUnlimitedWarning] = useState(false)
   
+  // Use useMemo to ensure stable default values
+  const defaultValues = useMemo(() => ({
+    maxAttempts: '5',
+    projectName: selectedVideo?.title ? `Enhance: ${selectedVideo.title}` : `Project ${String(Date.now())}`,
+    prompt: selectedVideo?.title ? `Enhance this video: ${selectedVideo.title}. ${selectedVideo.description || ''}` : ''
+  }), [selectedVideo])
+  
   const { register, handleSubmit, formState: { errors }, watch, setValue } = useForm<FormData>({
-    defaultValues: {
-      maxAttempts: '5',
-      projectName: selectedVideo ? `Enhance: ${selectedVideo.title}` : `Project ${String(Date.now())}`,
-      prompt: selectedVideo ? `Enhance this video: ${selectedVideo.title}. ${selectedVideo.description}` : ''
-    }
+    defaultValues
   })
 
   const watchedMaxAttempts = watch('maxAttempts')

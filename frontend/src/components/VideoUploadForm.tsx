@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { Upload, FileVideo, AlertCircle, AlertTriangle, Infinity } from 'lucide-react'
 import { useDropzone } from 'react-dropzone'
@@ -28,11 +28,14 @@ export default function VideoUploadForm({ onProjectCreated, apiKeys }: VideoUplo
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [showUnlimitedWarning, setShowUnlimitedWarning] = useState(false)
   
+  // Use useMemo to ensure stable default values
+  const defaultValues = useMemo(() => ({
+    maxAttempts: '5',
+    projectName: `Upload Project ${String(Date.now())}`
+  }), [])
+  
   const { register, handleSubmit, formState: { errors }, watch, setValue } = useForm<FormData>({
-    defaultValues: {
-      maxAttempts: '5',
-      projectName: `Upload Project ${String(Date.now())}`
-    }
+    defaultValues
   })
 
   const watchedMaxAttempts = watch('maxAttempts')

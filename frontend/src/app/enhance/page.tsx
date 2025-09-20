@@ -1,35 +1,20 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense, lazy } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { ArrowLeft, Home, Key, Upload, Play } from 'lucide-react'
-import dynamic from 'next/dynamic'
 
-// Dynamically import form components with SSR disabled to avoid prerendering issues
-const VideoGenerationForm = dynamic(
-  () => import('@/components/VideoGenerationForm'),
-  { 
-    ssr: false,
-    loading: () => (
-      <div className="flex items-center justify-center p-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600" />
-      </div>
-    )
-  }
-)
+// Lazy load components with Suspense
+const VideoGenerationForm = lazy(() => import('@/components/VideoGenerationForm'))
+const VideoUploadForm = lazy(() => import('@/components/VideoUploadForm'))
 
-const VideoUploadForm = dynamic(
-  () => import('@/components/VideoUploadForm'),
-  { 
-    ssr: false,
-    loading: () => (
-      <div className="flex items-center justify-center p-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600" />
-      </div>
-    )
-  }
+// Loading spinner component
+const LoadingSpinner = () => (
+  <div className="flex items-center justify-center p-8">
+    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600" />
+  </div>
 )
 
 export default function EnhancePage() {
@@ -162,19 +147,21 @@ export default function EnhancePage() {
 
             {/* Tab Content */}
             <div className="mt-6">
-              {activeTab === 'generate' ? (
-                <VideoGenerationForm
-                  onProjectCreated={handleProjectCreated}
-                  apiKeys={customApiKeys}
-                  selectedVideo={videoToEnhance}
-                  autoSubmit={Boolean(videoToEnhance)}
-                />
-              ) : (
-                <VideoUploadForm
-                  onProjectCreated={handleProjectCreated}
-                  apiKeys={customApiKeys}
-                />
-              )}
+              <Suspense fallback={<LoadingSpinner />}>
+                {activeTab === 'generate' ? (
+                  <VideoGenerationForm
+                    onProjectCreated={handleProjectCreated}
+                    apiKeys={customApiKeys}
+                    selectedVideo={videoToEnhance}
+                    autoSubmit={Boolean(videoToEnhance)}
+                  />
+                ) : (
+                  <VideoUploadForm
+                    onProjectCreated={handleProjectCreated}
+                    apiKeys={customApiKeys}
+                  />
+                )}
+              </Suspense>
             </div>
           </div>
         </motion.div>
