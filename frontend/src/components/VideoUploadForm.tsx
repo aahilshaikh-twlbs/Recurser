@@ -195,7 +195,7 @@ export default function VideoUploadForm({ onProjectCreated, apiKeys }: VideoUplo
                   <div>
                     <p className="text-sm font-medium text-gray-900">{uploadedFile.name}</p>
                     <p className="text-xs text-gray-500">
-                      {(uploadedFile.size / (1024 * 1024)).toFixed(2)} MB
+                      {`${(uploadedFile.size / (1024 * 1024)).toFixed(2)} MB`}
                     </p>
                   </div>
                 </div>
@@ -248,8 +248,8 @@ export default function VideoUploadForm({ onProjectCreated, apiKeys }: VideoUplo
               <label className="flex items-center">
                 <input
                   type="radio"
-                  value="3"
                   {...register('maxAttempts')}
+                  value="3"
                   onChange={() => {
                     setValue('maxAttempts', '3')
                     setShowUnlimitedWarning(false)
@@ -261,8 +261,8 @@ export default function VideoUploadForm({ onProjectCreated, apiKeys }: VideoUplo
               <label className="flex items-center">
                 <input
                   type="radio"
-                  value="5"
                   {...register('maxAttempts')}
+                  value="5"
                   onChange={() => {
                     setValue('maxAttempts', '5')
                     setShowUnlimitedWarning(false)
@@ -274,8 +274,8 @@ export default function VideoUploadForm({ onProjectCreated, apiKeys }: VideoUplo
               <label className="flex items-center">
                 <input
                   type="radio"
-                  value="10"
                   {...register('maxAttempts')}
+                  value="10"
                   onChange={() => {
                     setValue('maxAttempts', '10')
                     setShowUnlimitedWarning(false)
@@ -287,8 +287,8 @@ export default function VideoUploadForm({ onProjectCreated, apiKeys }: VideoUplo
               <label className="flex items-center">
                 <input
                   type="radio"
-                  value="unlimited"
                   {...register('maxAttempts')}
+                  value="unlimited"
                   onChange={() => setValue('maxAttempts', 'unlimited')}
                   className="mr-2"
                 />

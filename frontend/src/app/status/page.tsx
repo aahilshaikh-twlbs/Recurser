@@ -25,8 +25,8 @@ export default function StatusPage() {
         video_id: videoId,
         status: 'processing',
         prompt: 'Loading...',
-        confidence_threshold: 0,
-        progress: 0
+        confidence_threshold: '0',
+        progress: '0'
       })
     }
   }, [videoId])

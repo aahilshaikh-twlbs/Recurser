@@ -77,7 +77,7 @@ export default function VideoGenerationForm({ onProjectCreated, apiKeys, selecte
         body: JSON.stringify({
           prompt: data.prompt,
           confidence_threshold: 0, // No threshold - continue based on iterations
-          max_retries: data.maxAttempts === 'unlimited' ? 999 : parseInt(data.maxAttempts),
+          max_retries: data.maxAttempts === 'unlimited' ? 999 : parseInt(data.maxAttempts, 10),
           index_id: apiKeys?.indexId || API_CONFIG.defaultCredentials.playgroundIndexId,
           twelvelabs_api_key: apiKeys?.twelvelabsKey || API_CONFIG.defaultCredentials.twelvelabsApiKey,
           gemini_api_key: apiKeys?.geminiKey || API_CONFIG.defaultCredentials.geminiApiKey
@@ -161,8 +161,8 @@ export default function VideoGenerationForm({ onProjectCreated, apiKeys, selecte
               <label className="flex items-center">
                 <input
                   type="radio"
-                  value="3"
                   {...register('maxAttempts')}
+                  value="3"
                   onChange={() => {
                     setValue('maxAttempts', '3')
                     setShowUnlimitedWarning(false)
@@ -174,8 +174,8 @@ export default function VideoGenerationForm({ onProjectCreated, apiKeys, selecte
               <label className="flex items-center">
                 <input
                   type="radio"
-                  value="5"
                   {...register('maxAttempts')}
+                  value="5"
                   onChange={() => {
                     setValue('maxAttempts', '5')
                     setShowUnlimitedWarning(false)
@@ -187,8 +187,8 @@ export default function VideoGenerationForm({ onProjectCreated, apiKeys, selecte
               <label className="flex items-center">
                 <input
                   type="radio"
-                  value="10"
                   {...register('maxAttempts')}
+                  value="10"
                   onChange={() => {
                     setValue('maxAttempts', '10')
                     setShowUnlimitedWarning(false)
@@ -200,8 +200,8 @@ export default function VideoGenerationForm({ onProjectCreated, apiKeys, selecte
               <label className="flex items-center">
                 <input
                   type="radio"
-                  value="unlimited"
                   {...register('maxAttempts')}
+                  value="unlimited"
                   onChange={() => setValue('maxAttempts', 'unlimited')}
                   className="mr-2"
                 />
