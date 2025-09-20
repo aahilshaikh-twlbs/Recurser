@@ -9,9 +9,9 @@ interface Video {
   id: string
   title: string
   description: string
-  thumbnail?: string
+  thumbnail?: string | null
   duration: number
-  confidence_score?: number
+  confidence_score?: number | null
   created_at: string
   updated_at?: string
 }
@@ -49,8 +49,19 @@ export default function PlaygroundView({ onVideoSelected }: PlaygroundViewProps)
       
       const result = await response.json()
       
-      if (result.success && result.data) {
-        setVideos(result.data.videos || [])
+      if (result.success && result.data && result.data.videos) {
+        // Ensure all video data is properly typed
+        const safeVideos = result.data.videos.map((video: any) => ({
+          id: String(video.id || ''),
+          title: String(video.title || 'Unknown Video'),
+          description: String(video.description || 'Video available for recursive enhancement'),
+          thumbnail: video.thumbnail || null,
+          duration: Number(video.duration) || 0,
+          confidence_score: video.confidence_score ? Number(video.confidence_score) : null,
+          created_at: String(video.created_at || ''),
+          updated_at: video.updated_at ? String(video.updated_at) : undefined
+        }))
+        setVideos(safeVideos)
       } else {
         setError('Failed to load videos from index')
         setVideos([])
@@ -84,10 +95,12 @@ export default function PlaygroundView({ onVideoSelected }: PlaygroundViewProps)
            video.description.toLowerCase().includes(searchTerm.toLowerCase())
   })
 
-  const formatDuration = (seconds: number) => {
-    if (!seconds || seconds === 0) return 'N/A'
-    const mins = Math.floor(seconds / 60)
-    const secs = Math.round(seconds % 60)
+  const formatDuration = (seconds: number | string | null | undefined) => {
+    // Handle various input types safely
+    const numSeconds = typeof seconds === 'string' ? parseFloat(seconds) : (seconds || 0)
+    if (!numSeconds || numSeconds === 0 || isNaN(numSeconds)) return 'N/A'
+    const mins = Math.floor(numSeconds / 60)
+    const secs = Math.round(numSeconds % 60)
     return `${mins}:${secs.toString().padStart(2, '0')}`
   }
 
