@@ -86,7 +86,7 @@ export default function PlaygroundView({ onVideoSelected }: PlaygroundViewProps)
            video.description.toLowerCase().includes(searchTerm.toLowerCase())
   })
 
-  const formatDuration = (seconds: number | string | null | undefined) => {
+  const formatDuration = (seconds: number | string | null | undefined): string => {
     // Handle various input types safely
     const numSeconds = typeof seconds === 'string' ? parseFloat(seconds) : (seconds || 0)
     if (!numSeconds || numSeconds === 0 || isNaN(numSeconds)) return 'N/A'
@@ -95,7 +95,7 @@ export default function PlaygroundView({ onVideoSelected }: PlaygroundViewProps)
     return `${mins}:${secs.toString().padStart(2, '0')}`
   }
 
-  const formatDate = (dateString: string) => {
+  const formatDate = (dateString: string): string => {
     if (!dateString) return 'Unknown'
     try {
       return new Date(dateString).toLocaleDateString('en-US', {
@@ -198,7 +198,7 @@ export default function PlaygroundView({ onVideoSelected }: PlaygroundViewProps)
             <div className="p-4">
               <h3 className="font-semibold text-gray-900 mb-1 truncate">{video.title}</h3>
               <p className="text-sm text-gray-600 mb-2 line-clamp-2">
-                {video.description || 'Click to select for recursive enhancement'}
+                {video.description ? video.description : 'Click to select for recursive enhancement'}
               </p>
               <div className="flex justify-between items-center text-xs text-gray-500">
                 <span>{formatDate(video.created_at)}</span>
@@ -287,7 +287,7 @@ export default function PlaygroundView({ onVideoSelected }: PlaygroundViewProps)
             {/* Video Details */}
             <div className="space-y-3 mb-6">
               <p className="text-gray-600">
-                {selectedVideo.description}
+                {selectedVideo.description || 'Video available for recursive enhancement'}
               </p>
               
               <div className="grid grid-cols-2 gap-4 text-sm">
