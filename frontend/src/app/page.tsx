@@ -97,43 +97,47 @@ export default function HomePage() {
       </motion.div>
 
       {/* Mode Selection */}
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.3 }}
-        className="flex justify-center space-x-4"
-      >
-        <button
-          onClick={() => setMode('playground')}
-          className={`px-6 py-3 rounded-lg font-medium transition-colors ${
-            mode === 'playground' 
-              ? 'bg-primary-600 text-white' 
-              : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-          }`}
+      {/* Mode Toggle - Hide when project is active */}
+      {!currentProject && (
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          className="flex justify-center space-x-4"
         >
-          <Video className="w-4 h-4 inline mr-2" />
-          Playground Mode
-        </button>
-        <button
-          onClick={() => setMode('custom')}
-          className={`px-6 py-3 rounded-lg font-medium transition-colors ${
-            mode === 'custom' 
-              ? 'bg-primary-600 text-white' 
-              : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-          }`}
-        >
-          <Key className="w-4 h-4 inline mr-2" />
-          Custom Mode (Your API Keys)
-        </button>
-      </motion.div>
+          <button
+            onClick={() => setMode('playground')}
+            className={`px-6 py-3 rounded-lg font-medium transition-colors ${
+              mode === 'playground' 
+                ? 'bg-primary-600 text-white' 
+                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+            }`}
+          >
+            <Video className="w-4 h-4 inline mr-2" />
+            Playground Mode
+          </button>
+          <button
+            onClick={() => setMode('custom')}
+            className={`px-6 py-3 rounded-lg font-medium transition-colors ${
+              mode === 'custom' 
+                ? 'bg-primary-600 text-white' 
+                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+            }`}
+          >
+            <Key className="w-4 h-4 inline mr-2" />
+            Custom Mode (Your API Keys)
+          </button>
+        </motion.div>
+      )}
 
-      {/* Main Content */}
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.4 }}
-      >
-        {mode === 'playground' ? (
+      {/* Main Content - Only show if no current project */}
+      {!currentProject ? (
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+        >
+          {mode === 'playground' ? (
           <div className="space-y-6">
             <div className="card">
               <div className="text-center space-y-4">
@@ -251,7 +255,8 @@ export default function HomePage() {
             </div>
           </div>
         )}
-      </motion.div>
+        </motion.div>
+      ) : null}
 
       {/* Selected Video for Enhancement */}
       {selectedVideo && mode === 'playground' ? (
@@ -287,8 +292,22 @@ export default function HomePage() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.6 }}
+          transition={{ delay: 0.2 }}
+          className="space-y-4"
         >
+          <div className="flex justify-between items-center">
+            <h2 className="text-2xl font-bold text-gray-900">Enhancement in Progress</h2>
+            <button
+              onClick={() => {
+                setCurrentProject(null)
+                setVideoToEnhance(null)
+                setSelectedVideo(null)
+              }}
+              className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+            >
+              Start New Enhancement
+            </button>
+          </div>
           <ProjectStatus project={currentProject} />
         </motion.div>
       )}
