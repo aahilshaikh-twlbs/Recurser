@@ -18,7 +18,7 @@ interface VideoUploadFormProps {
 
 interface FormData {
   originalPrompt: string
-  maxAttempts: number | 'unlimited'
+  maxAttempts: '3' | '5' | '10' | 'unlimited'
   projectName: string
 }
 
@@ -30,7 +30,7 @@ export default function VideoUploadForm({ onProjectCreated, apiKeys }: VideoUplo
   
   const { register, handleSubmit, formState: { errors }, watch, setValue } = useForm<FormData>({
     defaultValues: {
-      maxAttempts: 5,
+      maxAttempts: '5',
       projectName: `Upload Project ${Date.now()}`
     }
   })
@@ -93,7 +93,7 @@ export default function VideoUploadForm({ onProjectCreated, apiKeys }: VideoUplo
       formData.append('file', uploadedFile)
       formData.append('original_prompt', data.originalPrompt)
       formData.append('confidence_threshold', '0') // No threshold
-      formData.append('max_retries', data.maxAttempts === 'unlimited' ? '999' : data.maxAttempts.toString())
+      formData.append('max_retries', data.maxAttempts === 'unlimited' ? '999' : data.maxAttempts)
       formData.append('index_id', apiKeys?.indexId || API_CONFIG.defaultCredentials.playgroundIndexId)
       formData.append('twelvelabs_api_key', apiKeys?.twelvelabsKey || API_CONFIG.defaultCredentials.twelvelabsApiKey)
       if (apiKeys?.geminiKey) {
@@ -251,7 +251,7 @@ export default function VideoUploadForm({ onProjectCreated, apiKeys }: VideoUplo
                   value="3"
                   {...register('maxAttempts')}
                   onChange={() => {
-                    setValue('maxAttempts', 3)
+                    setValue('maxAttempts', '3')
                     setShowUnlimitedWarning(false)
                   }}
                   className="mr-2"
@@ -264,7 +264,7 @@ export default function VideoUploadForm({ onProjectCreated, apiKeys }: VideoUplo
                   value="5"
                   {...register('maxAttempts')}
                   onChange={() => {
-                    setValue('maxAttempts', 5)
+                    setValue('maxAttempts', '5')
                     setShowUnlimitedWarning(false)
                   }}
                   className="mr-2"
@@ -277,7 +277,7 @@ export default function VideoUploadForm({ onProjectCreated, apiKeys }: VideoUplo
                   value="10"
                   {...register('maxAttempts')}
                   onChange={() => {
-                    setValue('maxAttempts', 10)
+                    setValue('maxAttempts', '10')
                     setShowUnlimitedWarning(false)
                   }}
                   className="mr-2"

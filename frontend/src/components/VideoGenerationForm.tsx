@@ -23,7 +23,7 @@ interface VideoGenerationFormProps {
 
 interface FormData {
   prompt: string
-  maxAttempts: number | 'unlimited'
+  maxAttempts: '3' | '5' | '10' | 'unlimited'
   projectName: string
 }
 
