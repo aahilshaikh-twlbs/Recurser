@@ -114,28 +114,28 @@ export default function ProjectStatus({ project: initialProject }: ProjectStatus
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <div className="text-center p-4 bg-gray-50 rounded-lg">
           <div className="text-2xl font-bold text-primary-600">
-            {project.total_iterations || '0'}
+            {String(project.total_iterations || '0')}
           </div>
           <div className="text-sm text-gray-600">Total Iterations</div>
         </div>
         
         <div className="text-center p-4 bg-gray-50 rounded-lg">
           <div className="text-2xl font-bold text-primary-600">
-            {currentIteration}
+            {String(currentIteration)}
           </div>
           <div className="text-sm text-gray-600">Current Iteration</div>
         </div>
         
         <div className="text-center p-4 bg-gray-50 rounded-lg">
           <div className="text-2xl font-bold text-success-600">
-            {getCurrentConfidence().toFixed(1)}%
+            {`${getCurrentConfidence().toFixed(1)}%`}
           </div>
           <div className="text-sm text-gray-600">Current Confidence</div>
         </div>
         
         <div className="text-center p-4 bg-gray-50 rounded-lg">
           <div className="text-2xl font-bold text-warning-600">
-            {project.target_confidence || 85}%
+            {`${project.target_confidence || 85}%`}
           </div>
           <div className="text-sm text-gray-600">Target Confidence</div>
         </div>
@@ -145,7 +145,7 @@ export default function ProjectStatus({ project: initialProject }: ProjectStatus
       <div className="mb-6">
         <div className="flex justify-between items-center mb-2">
           <span className="text-sm font-medium text-gray-700">Progress</span>
-          <span className="text-sm text-gray-600">{formatProgress()}%</span>
+          <span className="text-sm text-gray-600">{`${formatProgress()}%`}</span>
         </div>
         <div className="w-full bg-gray-200 rounded-full h-2">
           <motion.div
@@ -195,11 +195,11 @@ export default function ProjectStatus({ project: initialProject }: ProjectStatus
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center space-x-3">
                   <div className="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center text-primary-600 font-bold text-sm">
-                    {iteration.iteration_number}
+                    {String(iteration.iteration_number)}
                   </div>
                   <div>
                     <h4 className="font-medium text-gray-900">
-                      Iteration {iteration.iteration_number}
+                      Iteration {String(iteration.iteration_number)}
                     </h4>
                     <p className="text-sm text-gray-600">
                       {iteration.status === 'uploaded_video' ? 'Uploaded Video' : 'Generated Video'}
@@ -209,7 +209,7 @@ export default function ProjectStatus({ project: initialProject }: ProjectStatus
                 
                 <div className="text-right">
                   <div className="text-lg font-bold text-primary-600">
-                    {iteration.confidence_score?.toFixed(1) || '0'}%
+                    {`${iteration.confidence_score?.toFixed(1) || '0'}%`}
                   </div>
                   <div className="text-sm text-gray-600">Confidence</div>
                 </div>
@@ -228,7 +228,7 @@ export default function ProjectStatus({ project: initialProject }: ProjectStatus
                 <div>
                   <label className="text-sm font-medium text-gray-700">Marengo Score:</label>
                   <div className="text-lg font-bold text-blue-600">
-                    {iteration.marengo_score?.toFixed(1) || '0'}%
+                    {`${iteration.marengo_score?.toFixed(1) || '0'}%`}
                   </div>
                 </div>
                 <div>
@@ -284,7 +284,7 @@ export default function ProjectStatus({ project: initialProject }: ProjectStatus
             <div>
               <h3 className="font-semibold text-success-900">Project Completed!</h3>
               <p className="text-sm text-success-700">
-                Final confidence: {project.final_confidence?.toFixed(1)}% | 
+                Final confidence: {`${project.final_confidence?.toFixed(1)}%`} | 
                 Best prompt: {project.best_prompt?.substring(0, 100)}...
               </p>
             </div>
