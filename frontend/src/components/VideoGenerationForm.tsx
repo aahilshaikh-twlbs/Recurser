@@ -1,11 +1,9 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import { AlertCircle, Loader2, Sparkles, Video } from 'lucide-react'
 
 interface FormData {
-  projectName: string
   prompt: string
-  confidenceThreshold: string
   maxAttempts: '3' | '5' | '10' | 'unlimited'
 }
 
@@ -30,17 +28,15 @@ export default function VideoGenerationForm({
   const [error, setError] = useState<string | null>(null)
   const [showUnlimitedWarning, setShowUnlimitedWarning] = useState(false)
 
+  const defaultValues = useMemo(() => ({
+    maxAttempts: '5' as const,
+    prompt: selectedVideo?.title 
+      ? `Enhance this video: ${selectedVideo.title}. ${selectedVideo.description || ''}` 
+      : ''
+  }), [selectedVideo])
+
   const { register, handleSubmit, formState: { errors }, watch, setValue } = useForm<FormData>({
-    defaultValues: {
-      maxAttempts: '5',
-      projectName: selectedVideo?.title 
-        ? `Enhance: ${selectedVideo.title}` 
-        : `Project ${new Date().getTime()}`,
-      prompt: selectedVideo?.title 
-        ? `Enhance this video: ${selectedVideo.title}. ${selectedVideo.description || ''}` 
-        : '',
-      confidenceThreshold: '50'
-    }
+    defaultValues
   })
 
   const watchedMaxAttempts = watch('maxAttempts')
@@ -67,12 +63,10 @@ export default function VideoGenerationForm({
       // Prepare the request payload
       const payload = {
         prompt: data.prompt,
-        project_name: data.projectName,
-        confidence_threshold: parseFloat(data.confidenceThreshold),
-        max_retries: data.maxAttempts === 'unlimited' ? 999 : parseInt(data.maxAttempts),
-        gemini_api_key: apiKeys?.geminiKey || undefined,
-        twelvelabs_api_key: apiKeys?.twelvelabsKey || undefined,
-        index_id: apiKeys?.indexId || undefined
+        project_name: `Enhancement_${String(Date.now())}`, // Auto-generated project name
+        confidence_threshold: 50, // Default threshold
+        max_retries: data.maxAttempts === 'unlimited' ? 999 : parseInt(data.maxAttempts, 10),
+        index_id: '68bb521dc600d3d8baf629a4' // Recurser test index for iterations
       }
 
       const response = await fetch('/api/videos/generate', {
@@ -102,22 +96,6 @@ export default function VideoGenerationForm({
   return (
     <div>
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-        {/* Project Name */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Project Name
-          </label>
-          <input
-            type="text"
-            {...register('projectName', { required: 'Project name is required' })}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-            placeholder="Enter project name..."
-          />
-          {errors.projectName && (
-            <p className="mt-1 text-sm text-red-600">{errors.projectName.message}</p>
-          )}
-        </div>
-
         {/* Video Description/Prompt */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -135,26 +113,6 @@ export default function VideoGenerationForm({
           />
           {errors.prompt && (
             <p className="mt-1 text-sm text-red-600">{errors.prompt.message}</p>
-          )}
-        </div>
-
-        {/* Confidence Threshold */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Target Confidence Threshold (%)
-          </label>
-          <input
-            type="number"
-            {...register('confidenceThreshold', { 
-              required: 'Confidence threshold is required',
-              min: { value: 0, message: 'Must be at least 0' },
-              max: { value: 100, message: 'Must be at most 100' }
-            })}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-            placeholder="50"
-          />
-          {errors.confidenceThreshold && (
-            <p className="mt-1 text-sm text-red-600">{errors.confidenceThreshold.message}</p>
           )}
         </div>
 

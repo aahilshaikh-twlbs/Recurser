@@ -4,22 +4,15 @@ import { useDropzone } from 'react-dropzone'
 import { AlertCircle, Upload, FileVideo, Loader2, X } from 'lucide-react'
 
 interface FormData {
-  projectName: string
   originalPrompt?: string
-  confidenceThreshold: string
   maxAttempts: '3' | '5' | '10' | 'unlimited'
 }
 
 interface VideoUploadFormProps {
   onProjectCreated: (project: any) => void
-  apiKeys?: {
-    geminiKey?: string
-    twelvelabsKey?: string
-    indexId?: string
-  }
 }
 
-export default function VideoUploadForm({ onProjectCreated, apiKeys }: VideoUploadFormProps) {
+export default function VideoUploadForm({ onProjectCreated }: VideoUploadFormProps) {
   const [uploadedFile, setUploadedFile] = useState<File | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
@@ -27,9 +20,7 @@ export default function VideoUploadForm({ onProjectCreated, apiKeys }: VideoUplo
 
   const { register, handleSubmit, formState: { errors }, watch, setValue } = useForm<FormData>({
     defaultValues: {
-      maxAttempts: '5',
-      projectName: `Upload Project ${new Date().getTime()}`,
-      confidenceThreshold: '50'
+      maxAttempts: '5'
     }
   })
 
@@ -45,8 +36,7 @@ export default function VideoUploadForm({ onProjectCreated, apiKeys }: VideoUplo
       }
       setUploadedFile(file)
       setUploadError(null)
-      // Update project name with filename
-      setValue('projectName', `Upload: ${file.name.replace(/\.[^/.]+$/, '')}`)
+      // File uploaded successfully
     }
   }, [setValue])
 
@@ -76,18 +66,9 @@ export default function VideoUploadForm({ onProjectCreated, apiKeys }: VideoUplo
       const formData = new FormData()
       formData.append('file', uploadedFile)
       formData.append('original_prompt', data.originalPrompt || '')
-      formData.append('confidence_threshold', data.confidenceThreshold)
+      formData.append('confidence_threshold', '50') // Default threshold
       formData.append('max_retries', data.maxAttempts === 'unlimited' ? '999' : data.maxAttempts)
-      
-      if (apiKeys?.indexId) {
-        formData.append('index_id', apiKeys.indexId)
-      }
-      if (apiKeys?.twelvelabsKey) {
-        formData.append('twelvelabs_api_key', apiKeys.twelvelabsKey)
-      }
-      if (apiKeys?.geminiKey) {
-        formData.append('gemini_api_key', apiKeys.geminiKey)
-      }
+      formData.append('index_id', '68bb521dc600d3d8baf629a4') // Recurser test index for iterations
 
       const response = await fetch('/api/videos/upload', {
         method: 'POST',
@@ -111,22 +92,6 @@ export default function VideoUploadForm({ onProjectCreated, apiKeys }: VideoUplo
   return (
     <div>
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-        {/* Project Name */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Project Name
-          </label>
-          <input
-            type="text"
-            {...register('projectName', { required: 'Project name is required' })}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-            placeholder="Enter project name..."
-          />
-          {errors.projectName && (
-            <p className="mt-1 text-sm text-red-600">{errors.projectName.message}</p>
-          )}
-        </div>
-
         {/* File Upload */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -196,26 +161,6 @@ export default function VideoUploadForm({ onProjectCreated, apiKeys }: VideoUplo
             placeholder="If you know the original prompt used to generate this video..."
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-none"
           />
-        </div>
-
-        {/* Confidence Threshold */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Target Confidence Threshold (%)
-          </label>
-          <input
-            type="number"
-            {...register('confidenceThreshold', { 
-              required: 'Confidence threshold is required',
-              min: { value: 0, message: 'Must be at least 0' },
-              max: { value: 100, message: 'Must be at most 100' }
-            })}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-            placeholder="50"
-          />
-          {errors.confidenceThreshold && (
-            <p className="mt-1 text-sm text-red-600">{errors.confidenceThreshold.message}</p>
-          )}
         </div>
 
         {/* Max Attempts */}

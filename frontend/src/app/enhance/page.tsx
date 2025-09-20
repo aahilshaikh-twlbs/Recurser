@@ -11,11 +11,6 @@ export default function EnhancePage() {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<'generate' | 'upload'>('generate')
   const [videoToEnhance, setVideoToEnhance] = useState<any>(null)
-  const [customApiKeys, setCustomApiKeys] = useState({
-    geminiKey: '',
-    twelvelabsKey: '',
-    indexId: ''
-  })
   const [isClient, setIsClient] = useState(false)
 
   useEffect(() => {
@@ -86,44 +81,6 @@ export default function EnhancePage() {
       {/* Main Content */}
       <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         <div className="space-y-6">
-          {/* API Key Configuration */}
-          <div className="card bg-yellow-50 border-yellow-200">
-            <div className="flex items-start space-x-3">
-              <Key className="w-5 h-5 text-yellow-600 mt-0.5" />
-              <div className="flex-1">
-                <h3 className="font-semibold text-gray-900 mb-2">
-                  API Configuration
-                </h3>
-                <p className="text-sm text-gray-600 mb-4">
-                  Enter your API keys to generate and upload your own videos
-                </p>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <input
-                    type="password"
-                    placeholder="Gemini API Key"
-                    value={customApiKeys.geminiKey}
-                    onChange={(e) => setCustomApiKeys({...customApiKeys, geminiKey: e.target.value})}
-                    className="px-3 py-2 border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500"
-                  />
-                  <input
-                    type="password"
-                    placeholder="TwelveLabs API Key"
-                    value={customApiKeys.twelvelabsKey}
-                    onChange={(e) => setCustomApiKeys({...customApiKeys, twelvelabsKey: e.target.value})}
-                    className="px-3 py-2 border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500"
-                  />
-                  <input
-                    type="text"
-                    placeholder="TwelveLabs Index ID"
-                    value={customApiKeys.indexId}
-                    onChange={(e) => setCustomApiKeys({...customApiKeys, indexId: e.target.value})}
-                    className="px-3 py-2 border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-
           {/* Tab Navigation */}
           <div className="card">
             <div className="border-b border-gray-200 mb-6">
@@ -158,14 +115,12 @@ export default function EnhancePage() {
               {activeTab === 'generate' ? (
                 <VideoGenerationForm
                   onProjectCreated={handleProjectCreated}
-                  apiKeys={customApiKeys}
                   selectedVideo={videoToEnhance}
                   autoSubmit={!!videoToEnhance}
                 />
               ) : (
                 <VideoUploadForm
                   onProjectCreated={handleProjectCreated}
-                  apiKeys={customApiKeys}
                 />
               )}
             </div>
