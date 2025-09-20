@@ -1052,13 +1052,17 @@ async def list_index_videos(index_id: str, api_key: Optional[str] = None):
                     if hasattr(video, 'system_metadata') and video.system_metadata:
                         logger.info(f"System metadata type: {type(video.system_metadata)}")
                         logger.info(f"System metadata: {video.system_metadata}")
-                        if isinstance(video.system_metadata, dict):
+                        # Check if it's an object with attributes
+                        if hasattr(video.system_metadata, 'filename'):
+                            video_title = video.system_metadata.filename
+                            logger.info(f"Found title in system_metadata.filename: {video_title}")
+                        elif isinstance(video.system_metadata, dict):
                             video_title = (video.system_metadata.get('filename') or
                                          video.system_metadata.get('name') or
                                          video.system_metadata.get('title') or
                                          video.system_metadata.get('original_filename'))
                             if video_title:
-                                logger.info(f"Found title in system_metadata: {video_title}")
+                                logger.info(f"Found title in system_metadata dict: {video_title}")
                     
                     # Try video dict
                     if not video_title and video_dict:
@@ -1086,12 +1090,14 @@ async def list_index_videos(index_id: str, api_key: Optional[str] = None):
                     # Try to get thumbnail URL
                     thumbnail_url = None
                     
-                    # First check video dict for thumbnail
-                    if video_dict:
-                        thumbnail_url = (video_dict.get('thumbnail_url') or
-                                       video_dict.get('thumbnail'))
-                        if thumbnail_url:
-                            logger.info(f"Found thumbnail in video dict: {thumbnail_url}")
+                    # First check video dict for HLS thumbnails
+                    if video_dict and 'hls' in video_dict:
+                        hls_data = video_dict['hls']
+                        if isinstance(hls_data, dict) and 'thumbnail_urls' in hls_data:
+                            thumbnail_urls = hls_data['thumbnail_urls']
+                            if thumbnail_urls and len(thumbnail_urls) > 0:
+                                thumbnail_url = thumbnail_urls[0]
+                                logger.info(f"Found thumbnail in video dict HLS: {thumbnail_url}")
                     
                     # Check system_metadata for thumbnail
                     if not thumbnail_url and hasattr(video, 'system_metadata') and video.system_metadata:
