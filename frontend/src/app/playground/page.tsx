@@ -19,6 +19,9 @@ interface VideoData {
   updated_at?: string
 }
 
+// Force dynamic rendering to prevent static generation issues
+export const dynamic = 'force-dynamic'
+
 export default function PlaygroundPage() {
   const router = useRouter()
   const [selectedVideo, setSelectedVideo] = useState<VideoData | null>(null)

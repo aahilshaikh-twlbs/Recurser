@@ -17,6 +17,9 @@ const LoadingSpinner = () => (
   </div>
 )
 
+// Force dynamic rendering to prevent static generation issues
+export const dynamic = 'force-dynamic'
+
 export default function EnhancePage() {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<'generate' | 'upload'>('generate')

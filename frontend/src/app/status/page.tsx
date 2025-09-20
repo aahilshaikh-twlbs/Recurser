@@ -16,6 +16,9 @@ const LoadingSpinner = () => (
   </div>
 )
 
+// Force dynamic rendering to prevent static generation issues
+export const dynamic = 'force-dynamic'
+
 export default function StatusPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
