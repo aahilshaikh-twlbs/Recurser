@@ -1014,8 +1014,11 @@ async def list_index_videos(index_id: str, api_key: Optional[str] = None):
             unique_videos = []
             
             # Iterate through videos (it's a pager like indexes.list())
+            # The pager automatically handles pagination
+            video_count = 0
             for video in video_pager:
                 try:
+                    video_count += 1
                     video_id = str(video.id)
                     # Use first 12 characters as the unique identifier
                     video_prefix = video_id[:12] if len(video_id) >= 12 else video_id
@@ -1026,6 +1029,7 @@ async def list_index_videos(index_id: str, api_key: Optional[str] = None):
                         continue
                     
                     seen_video_prefixes.add(video_prefix)
+                    logger.debug(f"Processing video {video_count}: {video_id}")
                     
                     # Extract video information based on actual video object structure
                     # Log the video object attributes for debugging
@@ -1079,15 +1083,17 @@ async def list_index_videos(index_id: str, api_key: Optional[str] = None):
                     unique_videos.append(video_prefix)
                     logger.info(f"Added unique video #{len(unique_videos)}: {video_prefix} (full: {video_data['id']})")
                     
-                    # Stop after getting reasonable number of unique videos
-                    # Continue until we've checked enough videos to find all unique ones
-                    if len(unique_videos) >= 20:  # Increase limit to ensure we get all 6
-                        logger.info(f"Found {len(unique_videos)} unique videos, stopping iteration")
+                    # Don't stop early - let the pager complete to get all videos
+                    # The index has 6 videos, so we should get all of them
+                    if len(unique_videos) >= 50:  # Safety limit only
+                        logger.info(f"Reached safety limit with {len(unique_videos)} unique videos")
                         break
                     
                 except Exception as ve:
                     logger.warning(f"Error processing video: {str(ve)}")
                     continue
+                    
+            logger.info(f"Pager iteration complete. Processed {video_count} total videos, found {len(unique_videos)} unique videos")
                     
         except Exception as e:
             logger.warning(f"Could not fetch videos from index: {str(e)}")
@@ -1095,7 +1101,7 @@ async def list_index_videos(index_id: str, api_key: Optional[str] = None):
             # Return empty list but include error info
             pass
         
-        logger.info(f"Returning {len(videos)} unique videos from index {index_id}")
+        logger.info(f"Returning {len(videos)} unique videos from index {index_id} (expected 6)")
         return {
             "success": True,
             "data": {
