@@ -69,18 +69,7 @@ export default function PlaygroundView({ onVideoSelected }: PlaygroundViewProps)
     } catch (error) {
       console.error('Failed to load playground videos:', error)
       setError(error instanceof Error ? error.message : 'Failed to load videos')
-      
-      // Fallback to sample data if API fails
-      const sampleVideos: Video[] = [
-        {
-          id: '1',
-          title: 'Sample Video 1',
-          description: 'This is a sample video from the playground index',
-          duration: 30,
-          created_at: new Date().toISOString()
-        }
-      ]
-      setVideos(sampleVideos)
+      setVideos([])  // Don't use fallback data - show real error
     } finally {
       setLoading(false)
     }
