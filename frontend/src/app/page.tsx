@@ -1,36 +1,21 @@
 'use client'
 
-import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { motion } from 'framer-motion'
-import { Play, Upload, Zap, Target, BarChart3, Settings, AlertTriangle, Video, Key, ArrowRight } from 'lucide-react'
-import VideoGenerationForm from '@/components/VideoGenerationForm'
-import VideoUploadForm from '@/components/VideoUploadForm'
-import ProjectStatus from '@/components/ProjectStatus'
-import PlaygroundView from '@/components/PlaygroundView'
-
-interface VideoData {
-  id: string
-  title: string
-  description: string
-  thumbnail?: string | null
-  hls_url?: string | null
-  duration: number
-  confidence_score?: number | null
-  created_at: string
-  updated_at?: string
-}
+import { 
+  Play, 
+  Zap, 
+  Target, 
+  BarChart3, 
+  ArrowRight,
+  Video,
+  Upload,
+  Sparkles
+} from 'lucide-react'
 
 export default function HomePage() {
-  const [mode, setMode] = useState<'playground' | 'custom'>('playground')
-  const [activeTab, setActiveTab] = useState<'generate' | 'upload'>('generate')
-  const [currentProject, setCurrentProject] = useState<any>(null)
-  const [selectedVideo, setSelectedVideo] = useState<VideoData | null>(null)
-  const [videoToEnhance, setVideoToEnhance] = useState<VideoData | null>(null)
-  const [customApiKeys, setCustomApiKeys] = useState({
-    geminiKey: '',
-    twelvelabsKey: '',
-    indexId: ''
-  })
+  const router = useRouter()
 
   const features = [
     {
@@ -47,271 +32,154 @@ export default function HomePage() {
       icon: <BarChart3 className="w-6 h-6" />,
       title: 'Recursive Improvement',
       description: 'Automatically improve prompts using Pegasus 1.2 for optimal results'
-    },
-    {
-      icon: <Settings className="w-6 h-6" />,
-      title: 'Unlimited Iterations',
-      description: 'Continue refining until you achieve the perfect video (Beta)'
     }
   ]
 
   return (
-    <div className="space-y-8">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       {/* Hero Section */}
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="text-center space-y-4"
-      >
-        <h1 className="text-4xl font-bold text-gray-900">
-          Recurser
-        </h1>
-        <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-          AI video generation with recursive enhancement. Continuously improve your prompts 
-          until optimal quality is achieved. Powered by Google Veo, Marengo 2.7, and Pegasus 1.2.
-        </p>
-      </motion.div>
-
-      {/* Features Grid */}
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
-        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"
-      >
-        {features.map((feature, index) => (
+      <div className="relative overflow-hidden">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
           <motion.div
-            key={`feature-${index}`}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 * (index + 1) }}
-            className="card text-center space-y-3"
+            className="text-center"
           >
-            <div className="mx-auto w-12 h-12 bg-primary-100 rounded-lg flex items-center justify-center text-primary-600">
-              {feature.icon}
+            <h1 className="text-5xl font-bold text-gray-900 mb-6">
+              Welcome to <span className="text-primary-600">Recurser</span>
+            </h1>
+            <p className="text-xl text-gray-600 mb-12 max-w-3xl mx-auto">
+              Generate and enhance AI videos through recursive prompt optimization.
+              Achieve higher quality with each iteration using cutting-edge AI models.
+            </p>
+
+            {/* CTA Buttons */}
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Link
+                href="/playground"
+                className="group px-8 py-4 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-all transform hover:scale-105 flex items-center justify-center space-x-2"
+              >
+                <Video className="w-5 h-5" />
+                <span className="font-semibold">Explore Playground</span>
+                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+              </Link>
+              <Link
+                href="/enhance"
+                className="group px-8 py-4 bg-white text-gray-900 rounded-lg border-2 border-gray-300 hover:border-primary-600 transition-all transform hover:scale-105 flex items-center justify-center space-x-2"
+              >
+                <Sparkles className="w-5 h-5" />
+                <span className="font-semibold">Start Enhancing</span>
+                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+              </Link>
             </div>
-            <h3 className="font-semibold text-gray-900">{feature.title}</h3>
-            <p className="text-sm text-gray-600">{feature.description}</p>
           </motion.div>
-        ))}
-      </motion.div>
+        </div>
 
-      {/* Mode Selection */}
-      {/* Mode Toggle - Hide when project is active */}
-      {!currentProject && (
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-          className="flex justify-center space-x-4"
-        >
-          <button
-            onClick={() => setMode('playground')}
-            className={`px-6 py-3 rounded-lg font-medium transition-colors ${
-              mode === 'playground' 
-                ? 'bg-primary-600 text-white' 
-                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-            }`}
-          >
-            <Video className="w-4 h-4 inline mr-2" />
-            Playground Mode
-          </button>
-          <button
-            onClick={() => setMode('custom')}
-            className={`px-6 py-3 rounded-lg font-medium transition-colors ${
-              mode === 'custom' 
-                ? 'bg-primary-600 text-white' 
-                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-            }`}
-          >
-            <Key className="w-4 h-4 inline mr-2" />
-            Custom Mode (Your API Keys)
-          </button>
-        </motion.div>
-      )}
+        {/* Decorative Elements */}
+        <div className="absolute top-0 left-0 w-full h-full pointer-events-none">
+          <div className="absolute top-20 left-10 w-72 h-72 bg-primary-200 rounded-full filter blur-3xl opacity-20"></div>
+          <div className="absolute bottom-20 right-10 w-96 h-96 bg-purple-200 rounded-full filter blur-3xl opacity-20"></div>
+        </div>
+      </div>
 
-      {/* Main Content - Only show if no current project */}
-      {!currentProject ? (
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
-        >
-          {mode === 'playground' ? (
-          <div className="space-y-6">
-            <div className="card">
-              <div className="text-center space-y-4">
-                <h2 className="text-2xl font-bold text-gray-900">
-                  Playground Mode
-                </h2>
-                <p className="text-gray-600 max-w-2xl mx-auto">
-                  Explore our collection of pre-generated videos and test the recursive enhancement system.
-                  Using our default API keys and sample video index.
-                </p>
-              </div>
-              <PlaygroundView onVideoSelected={setSelectedVideo} />
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-6">
-            {/* API Key Input Section */}
-            <div className="card bg-yellow-50 border-yellow-200">
-              <div className="flex items-start space-x-3">
-                <AlertTriangle className="w-5 h-5 text-yellow-600 mt-0.5" />
-                <div className="flex-1">
-                  <h3 className="font-semibold text-gray-900 mb-2">
-                    Enter Your API Keys
-                  </h3>
-                  <p className="text-sm text-gray-600 mb-4">
-                    To generate and upload your own videos, you'll need your own API keys.
-                  </p>
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Gemini API Key
-                      </label>
-                      <input
-                        type="password"
-                        placeholder="Your Gemini API key"
-                        value={customApiKeys.geminiKey}
-                        onChange={(e) => setCustomApiKeys({...customApiKeys, geminiKey: e.target.value})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        TwelveLabs API Key
-                      </label>
-                      <input
-                        type="password"
-                        placeholder="Your TwelveLabs API key"
-                        value={customApiKeys.twelvelabsKey}
-                        onChange={(e) => setCustomApiKeys({...customApiKeys, twelvelabsKey: e.target.value})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        TwelveLabs Index ID
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="Your TwelveLabs Index ID"
-                        value={customApiKeys.indexId}
-                        onChange={(e) => setCustomApiKeys({...customApiKeys, indexId: e.target.value})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Generation/Upload Tabs */}
-            <div className="card">
-              <div className="border-b border-gray-200 mb-6">
-                <nav className="-mb-px flex space-x-8">
-                  <button
-                    onClick={() => setActiveTab('generate')}
-                    className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                      activeTab === 'generate'
-                        ? 'border-primary-500 text-primary-600'
-                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                    }`}
-                  >
-                    <Play className="w-4 h-4 inline mr-2" />
-                    Generate New Video
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('upload')}
-                    className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                      activeTab === 'upload'
-                        ? 'border-primary-500 text-primary-600'
-                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                    }`}
-                  >
-                    <Upload className="w-4 h-4 inline mr-2" />
-                    Upload Existing Video
-                  </button>
-                </nav>
-              </div>
-
-              {activeTab === 'generate' ? (
-                <VideoGenerationForm 
-                  onProjectCreated={(project) => {
-                    setCurrentProject(project)
-                    setVideoToEnhance(null) // Clear after submission
-                  }}
-                  apiKeys={customApiKeys}
-                  selectedVideo={videoToEnhance || undefined}
-                  autoSubmit={!!videoToEnhance}
-                />
-              ) : (
-                <VideoUploadForm 
-                  onProjectCreated={setCurrentProject}
-                  apiKeys={customApiKeys}
-                />
-              )}
-            </div>
-          </div>
-        )}
-        </motion.div>
-      ) : null}
-
-      {/* Selected Video for Enhancement */}
-      {selectedVideo && mode === 'playground' ? (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5 }}
-          className="card bg-blue-50 border-blue-200"
-        >
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="font-semibold text-gray-900">Selected Video: {selectedVideo.title}</h3>
-              <p className="text-sm text-gray-600">Ready for recursive enhancement</p>
-            </div>
-            <button 
-              className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
-              onClick={() => {
-                // Start enhancement process with selected video
-                setVideoToEnhance(selectedVideo)
-                setMode('custom')
-                setActiveTab('generate')
-              }}
-            >
-              <ArrowRight className="w-4 h-4 inline mr-2" />
-              Enhance This Video
-            </button>
-          </div>
-        </motion.div>
-      ) : null}
-
-      {/* Project Status */}
-      {currentProject && (
+      {/* Features Section */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="space-y-4"
+          className="text-center mb-12"
         >
-          <div className="flex justify-between items-center">
-            <h2 className="text-2xl font-bold text-gray-900">Enhancement in Progress</h2>
-            <button
-              onClick={() => {
-                setCurrentProject(null)
-                setVideoToEnhance(null)
-                setSelectedVideo(null)
-              }}
-              className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
-            >
-              Start New Enhancement
-            </button>
-          </div>
-          <ProjectStatus project={currentProject} />
+          <h2 className="text-3xl font-bold text-gray-900 mb-4">
+            How It Works
+          </h2>
+          <p className="text-lg text-gray-600">
+            Three powerful steps to create perfect AI videos
+          </p>
         </motion.div>
-      )}
 
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          {features.map((feature, index) => (
+            <motion.div
+              key={`feature-${index}`}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 * (index + 1) }}
+              className="card hover:shadow-xl transition-shadow cursor-pointer group"
+            >
+              <div className="flex items-center space-x-3 mb-4">
+                <div className="p-2 bg-primary-100 text-primary-600 rounded-lg group-hover:bg-primary-600 group-hover:text-white transition-colors">
+                  {feature.icon}
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900">
+                  {feature.title}
+                </h3>
+              </div>
+              <p className="text-gray-600">
+                {feature.description}
+              </p>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+
+      {/* Quick Actions */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+          className="grid grid-cols-1 md:grid-cols-2 gap-8"
+        >
+          {/* Playground Card */}
+          <Link href="/playground" className="group">
+            <div className="card hover:shadow-xl transition-all hover:-translate-y-1 h-full">
+              <div className="flex items-start space-x-4">
+                <div className="p-3 bg-blue-100 text-blue-600 rounded-lg">
+                  <Play className="w-8 h-8" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-primary-600 transition-colors">
+                    Playground Mode
+                  </h3>
+                  <p className="text-gray-600 mb-4">
+                    Explore our collection of pre-generated videos. Test the recursive enhancement
+                    system with sample content using our default API keys.
+                  </p>
+                  <div className="flex items-center text-primary-600 font-medium">
+                    <span>Browse Videos</span>
+                    <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </Link>
+
+          {/* Custom Mode Card */}
+          <Link href="/enhance" className="group">
+            <div className="card hover:shadow-xl transition-all hover:-translate-y-1 h-full">
+              <div className="flex items-start space-x-4">
+                <div className="p-3 bg-purple-100 text-purple-600 rounded-lg">
+                  <Upload className="w-8 h-8" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-primary-600 transition-colors">
+                    Custom Enhancement
+                  </h3>
+                  <p className="text-gray-600 mb-4">
+                    Generate new videos or upload existing ones. Use your own API keys to create
+                    and enhance videos with full control.
+                  </p>
+                  <div className="flex items-center text-primary-600 font-medium">
+                    <span>Start Creating</span>
+                    <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </Link>
+        </motion.div>
+      </div>
     </div>
   )
 }
