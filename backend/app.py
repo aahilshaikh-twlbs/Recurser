@@ -1035,20 +1035,36 @@ async def list_index_videos(index_id: str, api_key: Optional[str] = None):
                     logger.debug(f"Video object type: {type(video)}")
                     logger.debug(f"Video attributes: {dir(video)}")
                     
-                    # Try multiple ways to get the video title
+                    # Log all video attributes for debugging
+                    logger.info(f"Video object attributes: {[attr for attr in dir(video) if not attr.startswith('_')]}")
+                    
+                    # Try multiple ways to get the video title - check all possible attributes
                     video_title = None
-                    if hasattr(video, 'name') and video.name:
-                        video_title = video.name
-                    elif hasattr(video, 'filename') and video.filename:
+                    if hasattr(video, 'filename') and video.filename:
                         video_title = video.filename
+                        logger.info(f"Found filename: {video_title}")
+                    elif hasattr(video, 'name') and video.name:
+                        video_title = video.name
+                        logger.info(f"Found name: {video_title}")
+                    elif hasattr(video, 'title') and video.title:
+                        video_title = video.title
+                        logger.info(f"Found title: {video_title}")
                     elif hasattr(video, 'metadata') and video.metadata:
+                        logger.info(f"Video metadata: {video.metadata}")
                         if isinstance(video.metadata, dict):
-                            video_title = video.metadata.get('filename') or video.metadata.get('name') or video.metadata.get('title')
+                            video_title = (video.metadata.get('filename') or 
+                                         video.metadata.get('name') or 
+                                         video.metadata.get('title') or
+                                         video.metadata.get('original_filename'))
+                            if video_title:
+                                logger.info(f"Found title in metadata dict: {video_title}")
                         elif hasattr(video.metadata, 'filename'):
                             video_title = video.metadata.filename
+                            logger.info(f"Found title in metadata.filename: {video_title}")
                     
                     if not video_title:
                         video_title = f"Video {video_id[:8]}"
+                        logger.info(f"Using fallback title: {video_title}")
                     
                     # Get duration
                     duration = 0
@@ -1060,6 +1076,21 @@ async def list_index_videos(index_id: str, api_key: Optional[str] = None):
                         elif hasattr(video.metadata, 'duration'):
                             duration = video.metadata.duration
                     
+                    # Try to get thumbnail URL
+                    thumbnail_url = None
+                    if hasattr(video, 'hls') and video.hls:
+                        if hasattr(video.hls, 'thumbnail_urls') and video.hls.thumbnail_urls:
+                            thumbnail_url = video.hls.thumbnail_urls[0] if video.hls.thumbnail_urls else None
+                            logger.info(f"Found thumbnail URL: {thumbnail_url}")
+                    elif hasattr(video, 'thumbnail_url') and video.thumbnail_url:
+                        thumbnail_url = video.thumbnail_url
+                        logger.info(f"Found direct thumbnail URL: {thumbnail_url}")
+                    elif hasattr(video, 'metadata') and video.metadata:
+                        if isinstance(video.metadata, dict):
+                            thumbnail_url = video.metadata.get('thumbnail_url')
+                            if thumbnail_url:
+                                logger.info(f"Found thumbnail in metadata: {thumbnail_url}")
+                    
                     video_data = {
                         "id": video_id,
                         "title": video_title,
@@ -1067,7 +1098,7 @@ async def list_index_videos(index_id: str, api_key: Optional[str] = None):
                         "duration": duration,
                         "created_at": str(getattr(video, 'created_at', '')),
                         "updated_at": str(getattr(video, 'updated_at', '')),
-                        "thumbnail": None,
+                        "thumbnail": thumbnail_url,
                         "confidence_score": None
                     }
                     
