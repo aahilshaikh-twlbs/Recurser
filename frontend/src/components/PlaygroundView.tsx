@@ -10,6 +10,7 @@ interface Video {
   title: string
   description: string
   thumbnail?: string | null
+  hls_url?: string | null
   duration: number
   confidence_score?: number | null
   created_at: string
@@ -56,6 +57,7 @@ export default function PlaygroundView({ onVideoSelected }: PlaygroundViewProps)
           title: String(video.title || 'Unknown Video'),
           description: String(video.description || 'Video available for recursive enhancement'),
           thumbnail: video.thumbnail || null,
+          hls_url: video.hls_url || null,
           duration: Number(video.duration) || 0,
           confidence_score: video.confidence_score ? Number(video.confidence_score) : null,
           created_at: String(video.created_at || ''),
@@ -204,7 +206,7 @@ export default function PlaygroundView({ onVideoSelected }: PlaygroundViewProps)
                   className="text-primary-600 hover:text-primary-700 font-medium"
                   onClick={(e) => {
                     e.stopPropagation()
-                    handleVideoSelect(video)
+                    onVideoSelected(video)
                   }}
                 >
                   Select for Enhancement
@@ -256,9 +258,20 @@ export default function PlaygroundView({ onVideoSelected }: PlaygroundViewProps)
           >
             <h2 className="text-2xl font-bold mb-4">{selectedVideo.title}</h2>
             
-            {/* Video Preview */}
-            <div className="aspect-video bg-gradient-to-br from-primary-100 to-primary-200 rounded-lg mb-4 relative overflow-hidden">
-              {selectedVideo.thumbnail ? (
+            {/* Video Player */}
+            <div className="aspect-video bg-black rounded-lg mb-4 relative overflow-hidden">
+              {selectedVideo.hls_url ? (
+                <video 
+                  controls
+                  autoPlay
+                  className="absolute inset-0 w-full h-full"
+                  poster={selectedVideo.thumbnail}
+                >
+                  <source src={selectedVideo.hls_url} type="application/x-mpegURL" />
+                  <source src={selectedVideo.hls_url} type="video/mp4" />
+                  Your browser does not support the video tag.
+                </video>
+              ) : selectedVideo.thumbnail ? (
                 <img 
                   src={selectedVideo.thumbnail} 
                   alt={selectedVideo.title}
@@ -297,7 +310,13 @@ export default function PlaygroundView({ onVideoSelected }: PlaygroundViewProps)
               >
                 Close
               </button>
-              <button className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700">
+              <button 
+                className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
+                onClick={() => {
+                  onVideoSelected(selectedVideo)
+                  setSelectedVideo(null)
+                }}
+              >
                 <ArrowRight className="w-4 h-4 inline mr-2" />
                 Use for Recursive Enhancement
               </button>

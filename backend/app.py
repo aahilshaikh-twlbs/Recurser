@@ -1113,6 +1113,14 @@ async def list_index_videos(index_id: str, api_key: Optional[str] = None):
                             thumbnail_url = video.hls.thumbnail_urls[0] if video.hls.thumbnail_urls else None
                             logger.info(f"Found thumbnail URL in HLS: {thumbnail_url}")
                     
+                    # Get HLS video URL
+                    hls_url = None
+                    if video_dict and 'hls' in video_dict:
+                        hls_data = video_dict['hls']
+                        if isinstance(hls_data, dict) and 'video_url' in hls_data:
+                            hls_url = hls_data['video_url']
+                            logger.info(f"Found HLS video URL: {hls_url}")
+                    
                     video_data = {
                         "id": video_id,
                         "title": video_title,
@@ -1121,6 +1129,7 @@ async def list_index_videos(index_id: str, api_key: Optional[str] = None):
                         "created_at": str(getattr(video, 'created_at', '')),
                         "updated_at": str(getattr(video, 'updated_at', '')),
                         "thumbnail": thumbnail_url,
+                        "hls_url": hls_url,
                         "confidence_score": None
                     }
                     
