@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { ArrowLeft, Home, Key, Upload, Play } from 'lucide-react'
 import VideoGenerationForm from '@/components/VideoGenerationForm'
 import VideoUploadForm from '@/components/VideoUploadForm'
+import PlaygroundEnhanceForm from '@/components/PlaygroundEnhanceForm'
 
 export default function EnhancePage() {
   const router = useRouter()
@@ -49,6 +50,9 @@ export default function EnhancePage() {
     )
   }
 
+  // Check if this is a playground video enhancement
+  const isPlaygroundVideo = videoToEnhance && videoToEnhance.id && !videoToEnhance.isNewVideo
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -61,10 +65,12 @@ export default function EnhancePage() {
               </Link>
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">
-                  Enhancement Studio
+                  {isPlaygroundVideo ? 'Recursive Enhancement' : 'Enhancement Studio'}
                 </h1>
                 <p className="text-sm text-gray-500">
-                  Generate or upload videos for recursive improvement
+                  {isPlaygroundVideo 
+                    ? 'Improving existing video through recursive refinement'
+                    : 'Generate or upload videos for recursive improvement'}
                 </p>
               </div>
             </div>
@@ -81,50 +87,60 @@ export default function EnhancePage() {
       {/* Main Content */}
       <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         <div className="space-y-6">
-          {/* Tab Navigation */}
-          <div className="card">
-            <div className="border-b border-gray-200 mb-6">
-              <nav className="-mb-px flex space-x-8">
-                <button
-                  onClick={() => setActiveTab('generate')}
-                  className={`py-2 px-1 border-b-2 font-medium text-sm flex items-center space-x-2 ${
-                    activeTab === 'generate'
-                      ? 'border-primary-500 text-primary-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }`}
-                >
-                  <Play className="w-4 h-4" />
-                  <span>Generate New Video</span>
-                </button>
-                <button
-                  onClick={() => setActiveTab('upload')}
-                  className={`py-2 px-1 border-b-2 font-medium text-sm flex items-center space-x-2 ${
-                    activeTab === 'upload'
-                      ? 'border-primary-500 text-primary-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }`}
-                >
-                  <Upload className="w-4 h-4" />
-                  <span>Upload Existing Video</span>
-                </button>
-              </nav>
+          {isPlaygroundVideo ? (
+            // Show specialized form for playground videos
+            <div className="card">
+              <PlaygroundEnhanceForm
+                onProjectCreated={handleProjectCreated}
+                selectedVideo={videoToEnhance}
+              />
             </div>
+          ) : (
+            // Show regular tabs for generate/upload
+            <div className="card">
+              <div className="border-b border-gray-200 mb-6">
+                <nav className="-mb-px flex space-x-8">
+                  <button
+                    onClick={() => setActiveTab('generate')}
+                    className={`py-2 px-1 border-b-2 font-medium text-sm flex items-center space-x-2 ${
+                      activeTab === 'generate'
+                        ? 'border-primary-500 text-primary-600'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    }`}
+                  >
+                    <Play className="w-4 h-4" />
+                    <span>Generate New Video</span>
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('upload')}
+                    className={`py-2 px-1 border-b-2 font-medium text-sm flex items-center space-x-2 ${
+                      activeTab === 'upload'
+                        ? 'border-primary-500 text-primary-600'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    }`}
+                  >
+                    <Upload className="w-4 h-4" />
+                    <span>Upload Existing Video</span>
+                  </button>
+                </nav>
+              </div>
 
-            {/* Tab Content */}
-            <div className="mt-6">
-              {activeTab === 'generate' ? (
-                <VideoGenerationForm
-                  onProjectCreated={handleProjectCreated}
-                  selectedVideo={videoToEnhance}
-                  autoSubmit={!!videoToEnhance}
-                />
-              ) : (
-                <VideoUploadForm
-                  onProjectCreated={handleProjectCreated}
-                />
-              )}
+              {/* Tab Content */}
+              <div className="mt-6">
+                {activeTab === 'generate' ? (
+                  <VideoGenerationForm
+                    onProjectCreated={handleProjectCreated}
+                    selectedVideo={videoToEnhance}
+                    autoSubmit={!!videoToEnhance}
+                  />
+                ) : (
+                  <VideoUploadForm
+                    onProjectCreated={handleProjectCreated}
+                  />
+                )}
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </main>
     </div>

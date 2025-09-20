@@ -93,6 +93,8 @@ class VideoGenerationRequest(BaseModel):
     index_id: Optional[str] = None
     twelvelabs_api_key: Optional[str] = None
     gemini_api_key: Optional[str] = None
+    video_id: Optional[str] = None  # For playground video enhancement
+    is_playground_video: Optional[bool] = False
 
 class VideoUploadRequest(BaseModel):
     original_prompt: Optional[str] = None
@@ -724,6 +726,51 @@ async def generate_video(request: VideoGenerationRequest, background_tasks: Back
         index_id = request.index_id or DEFAULT_INDEX_ID
         twelvelabs_api_key = request.twelvelabs_api_key or TWELVELABS_API_KEY
         
+        # If this is a playground video, analyze it first
+        enhanced_prompt = request.prompt
+        if request.is_playground_video and request.video_id:
+            logger.info(f"📊 Analyzing playground video {request.video_id} for enhancement")
+            try:
+                # Get video details from TwelveLabs
+                client = TwelveLabs(api_key=twelvelabs_api_key)
+                
+                # Get the video from the playground index
+                playground_index_id = "68cd2969ca672ec899e0d9b7"  # Recurser Prod index
+                
+                # Analyze the video content using TwelveLabs
+                search_result = client.search.query(
+                    index_id=playground_index_id,
+                    query=f"Describe the content and style of video {request.video_id}",
+                    options=["visual", "conversation", "text_in_video"],
+                    page_limit=1
+                )
+                
+                # Use Gemini to generate an enhanced prompt based on the analysis
+                genai.configure(api_key=GEMINI_API_KEY)
+                model = genai.GenerativeModel('gemini-2.0-flash-exp')
+                
+                analysis_prompt = f"""
+                Analyze this existing video and create an enhanced version prompt:
+                Video Title: {request.prompt}
+                
+                Based on this video, generate a detailed prompt for creating an improved version that:
+                1. Maintains the core concept and theme
+                2. Enhances visual quality and coherence
+                3. Improves pacing and storytelling
+                4. Adds more detail and refinement
+                
+                Return ONLY the enhanced prompt, no explanations.
+                """
+                
+                response = model.generate_content(analysis_prompt)
+                enhanced_prompt = response.text.strip()
+                logger.info(f"✨ Enhanced prompt generated for playground video")
+                
+            except Exception as e:
+                logger.warning(f"⚠️ Could not analyze playground video: {e}")
+                # Fall back to the original prompt if analysis fails
+                enhanced_prompt = request.prompt
+        
         # Store video request in database
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
@@ -732,7 +779,7 @@ async def generate_video(request: VideoGenerationRequest, background_tasks: Back
         cursor.execute("""
             INSERT INTO videos (prompt, status, confidence_threshold, progress, generation_id, index_id)
             VALUES (?, ?, ?, ?, ?, ?)
-        """, (request.prompt, "pending", request.confidence_threshold, 0, generation_id, index_id))
+        """, (enhanced_prompt, "pending", request.confidence_threshold, 0, generation_id, index_id))
         
         video_id = cursor.lastrowid
         conn.commit()
@@ -741,7 +788,7 @@ async def generate_video(request: VideoGenerationRequest, background_tasks: Back
         # Start background video generation
         background_tasks.add_task(
             VideoGenerationService.generate_video, 
-            request.prompt, 
+            enhanced_prompt,  # Use the enhanced prompt
             video_id, 
             index_id, 
             twelvelabs_api_key,
