@@ -30,7 +30,7 @@ export default function VideoUploadForm({ onProjectCreated, apiKeys }: VideoUplo
   
   // Use useMemo to ensure stable default values
   const defaultValues = useMemo(() => ({
-    maxAttempts: '5',
+    maxAttempts: '5' as const,
     projectName: `Upload Project ${String(Date.now())}`
   }), [])
   

@@ -33,7 +33,7 @@ export default function VideoGenerationForm({ onProjectCreated, apiKeys, selecte
   
   // Use useMemo to ensure stable default values
   const defaultValues = useMemo(() => ({
-    maxAttempts: '5',
+    maxAttempts: '5' as const,
     projectName: selectedVideo?.title ? `Enhance: ${selectedVideo.title}` : `Project ${String(Date.now())}`,
     prompt: selectedVideo?.title ? `Enhance this video: ${selectedVideo.title}. ${selectedVideo.description || ''}` : ''
   }), [selectedVideo])
