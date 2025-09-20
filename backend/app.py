@@ -1009,8 +1009,7 @@ async def list_index_videos(index_id: str, api_key: Optional[str] = None):
             )
             
             # Track unique video IDs to avoid duplicates
-            # Use prefix to detect true duplicates (first 8-12 chars are usually the actual ID)
-            seen_video_prefixes = set()
+            seen_video_ids = set()
             unique_videos = []
             
             # Iterate through videos (it's a pager like indexes.list())
@@ -1020,16 +1019,16 @@ async def list_index_videos(index_id: str, api_key: Optional[str] = None):
                 try:
                     video_count += 1
                     video_id = str(video.id)
-                    # Use first 12 characters as the unique identifier
-                    video_prefix = video_id[:12] if len(video_id) >= 12 else video_id
                     
-                    # Skip if we've already seen a video with this prefix
-                    if video_prefix in seen_video_prefixes:
-                        logger.debug(f"Skipping video with duplicate prefix {video_prefix}: {video_id}")
+                    # Log each video we encounter for debugging
+                    logger.info(f"Processing video {video_count}: {video_id}")
+                    
+                    # Skip if we've already seen this exact video ID
+                    if video_id in seen_video_ids:
+                        logger.info(f"Skipping duplicate video ID: {video_id}")
                         continue
                     
-                    seen_video_prefixes.add(video_prefix)
-                    logger.debug(f"Processing video {video_count}: {video_id}")
+                    seen_video_ids.add(video_id)
                     
                     # Extract video information based on actual video object structure
                     # Log the video object attributes for debugging
@@ -1080,8 +1079,8 @@ async def list_index_videos(index_id: str, api_key: Optional[str] = None):
                             video_data["description"] = video.metadata.description
                     
                     videos.append(video_data)
-                    unique_videos.append(video_prefix)
-                    logger.info(f"Added unique video #{len(unique_videos)}: {video_prefix} (full: {video_data['id']})")
+                    unique_videos.append(video_id)
+                    logger.info(f"Added unique video #{len(unique_videos)}: {video_data['title']} (ID: {video_id})")
                     
                     # Don't stop early - let the pager complete to get all videos
                     # The index has 6 videos, so we should get all of them
