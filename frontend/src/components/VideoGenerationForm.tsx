@@ -33,7 +33,7 @@ export default function VideoGenerationForm({ onProjectCreated, apiKeys, selecte
   
   const { register, handleSubmit, formState: { errors }, watch, setValue } = useForm<FormData>({
     defaultValues: {
-      maxAttempts: 5,
+      maxAttempts: 5 as any,
       projectName: selectedVideo ? `Enhance: ${selectedVideo.title}` : `Project ${Date.now()}`,
       prompt: selectedVideo ? `Enhance this video: ${selectedVideo.title}. ${selectedVideo.description}` : ''
     }
@@ -43,14 +43,15 @@ export default function VideoGenerationForm({ onProjectCreated, apiKeys, selecte
 
   // Auto-submit when selectedVideo is provided
   useEffect(() => {
-    if (autoSubmit && selectedVideo) {
+    if (autoSubmit && selectedVideo && !isGenerating) {
       // Small delay to show the form before submitting
       const timer = setTimeout(() => {
         handleSubmit(onSubmit)()
       }, 500)
       return () => clearTimeout(timer)
     }
-  }, [autoSubmit, selectedVideo])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoSubmit, selectedVideo?.id])
 
   const onSubmit = async (data: FormData) => {
     // Check if API keys are provided in custom mode
@@ -157,7 +158,7 @@ export default function VideoGenerationForm({ onProjectCreated, apiKeys, selecte
                   value="3"
                   {...register('maxAttempts')}
                   onChange={() => {
-                    setValue('maxAttempts', 3)
+                    setValue('maxAttempts', 3 as any)
                     setShowUnlimitedWarning(false)
                   }}
                   className="mr-2"
@@ -170,7 +171,7 @@ export default function VideoGenerationForm({ onProjectCreated, apiKeys, selecte
                   value="5"
                   {...register('maxAttempts')}
                   onChange={() => {
-                    setValue('maxAttempts', 5)
+                    setValue('maxAttempts', 5 as any)
                     setShowUnlimitedWarning(false)
                   }}
                   className="mr-2"
@@ -183,7 +184,7 @@ export default function VideoGenerationForm({ onProjectCreated, apiKeys, selecte
                   value="10"
                   {...register('maxAttempts')}
                   onChange={() => {
-                    setValue('maxAttempts', 10)
+                    setValue('maxAttempts', 10 as any)
                     setShowUnlimitedWarning(false)
                   }}
                   className="mr-2"
@@ -195,7 +196,7 @@ export default function VideoGenerationForm({ onProjectCreated, apiKeys, selecte
                   type="radio"
                   value="unlimited"
                   {...register('maxAttempts')}
-                  onChange={() => setValue('maxAttempts', 'unlimited')}
+                  onChange={() => setValue('maxAttempts', 'unlimited' as any)}
                   className="mr-2"
                 />
                 <span className="text-sm font-medium">
