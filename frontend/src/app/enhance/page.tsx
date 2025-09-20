@@ -5,8 +5,32 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { ArrowLeft, Home, Key, Upload, Play } from 'lucide-react'
-import VideoGenerationForm from '@/components/VideoGenerationForm'
-import VideoUploadForm from '@/components/VideoUploadForm'
+import dynamic from 'next/dynamic'
+
+// Dynamically import form components with SSR disabled to avoid prerendering issues
+const VideoGenerationForm = dynamic(
+  () => import('@/components/VideoGenerationForm'),
+  { 
+    ssr: false,
+    loading: () => (
+      <div className="flex items-center justify-center p-8">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+      </div>
+    )
+  }
+)
+
+const VideoUploadForm = dynamic(
+  () => import('@/components/VideoUploadForm'),
+  { 
+    ssr: false,
+    loading: () => (
+      <div className="flex items-center justify-center p-8">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+      </div>
+    )
+  }
+)
 
 export default function EnhancePage() {
   const router = useRouter()
