@@ -1,6 +1,7 @@
 // API utility functions with proper error handling
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || ''
+// Always use relative paths - they'll be proxied appropriately
+const API_BASE = ''
 
 interface ApiOptions extends RequestInit {
   timeout?: number
