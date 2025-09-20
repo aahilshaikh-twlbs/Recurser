@@ -87,10 +87,11 @@ httpx.Response.json = patched_json
 # Pydantic Models
 class VideoGenerationRequest(BaseModel):
     prompt: str
+    project_name: Optional[str] = None
     confidence_threshold: float = 50.0
     max_retries: int = 5
-    index_id: str
-    twelvelabs_api_key: str
+    index_id: Optional[str] = None
+    twelvelabs_api_key: Optional[str] = None
     gemini_api_key: Optional[str] = None
 
 class VideoUploadRequest(BaseModel):
