@@ -6,17 +6,10 @@ export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData()
     
-    // Create new FormData for backend
-    const backendFormData = new FormData()
-    
-    // Copy all fields from the incoming form data
-    for (const [key, value] of formData.entries()) {
-      backendFormData.append(key, value)
-    }
-    
+    // Forward the FormData directly to the backend
     const response = await fetch(`${BACKEND_URL}/api/videos/upload`, {
       method: 'POST',
-      body: backendFormData,
+      body: formData,
       // Don't set Content-Type - let fetch set it with boundary
       // Add timeout for upload
       signal: AbortSignal.timeout(120000), // 120 seconds for upload
