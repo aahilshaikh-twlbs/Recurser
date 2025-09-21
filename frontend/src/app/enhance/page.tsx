@@ -3,19 +3,43 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Home, Key, Upload, Play } from 'lucide-react'
+import { ArrowLeft, Home, Key, Upload, Play, AlertCircle, CheckCircle, Loader } from 'lucide-react'
 import VideoGenerationForm from '@/components/VideoGenerationForm'
 import VideoUploadForm from '@/components/VideoUploadForm'
 import PlaygroundEnhanceForm from '@/components/PlaygroundEnhanceForm'
+import { apiRequest } from '@/lib/api'
 
 export default function EnhancePage() {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<'generate' | 'upload'>('generate')
   const [videoToEnhance, setVideoToEnhance] = useState<any>(null)
   const [isClient, setIsClient] = useState(false)
+  const [backendStatus, setBackendStatus] = useState<'checking' | 'online' | 'offline'>('checking')
 
   useEffect(() => {
     setIsClient(true)
+  }, [])
+
+  // Check backend connectivity
+  useEffect(() => {
+    const checkBackend = async () => {
+      try {
+        const response = await apiRequest('/health')
+        if (response && response.status === 'healthy') {
+          setBackendStatus('online')
+        } else {
+          setBackendStatus('offline')
+        }
+      } catch (error) {
+        console.error('Backend connectivity check failed:', error)
+        setBackendStatus('offline')
+      }
+    }
+
+    checkBackend()
+    // Check again every 30 seconds
+    const interval = setInterval(checkBackend, 30000)
+    return () => clearInterval(interval)
   }, [])
 
   // Check for video passed from playground
@@ -74,12 +98,35 @@ export default function EnhancePage() {
                 </p>
               </div>
             </div>
-            <Link
-              href="/playground"
-              className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
-            >
-              ← Playground
-            </Link>
+            <div className="flex items-center space-x-4">
+              {/* Backend Status Indicator */}
+              <div className="flex items-center space-x-2">
+                {backendStatus === 'checking' && (
+                  <>
+                    <Loader className="w-4 h-4 text-gray-400 animate-spin" />
+                    <span className="text-sm text-gray-500">Checking backend...</span>
+                  </>
+                )}
+                {backendStatus === 'online' && (
+                  <>
+                    <CheckCircle className="w-4 h-4 text-green-500" />
+                    <span className="text-sm text-green-600">Backend Online</span>
+                  </>
+                )}
+                {backendStatus === 'offline' && (
+                  <>
+                    <AlertCircle className="w-4 h-4 text-red-500" />
+                    <span className="text-sm text-red-600">Backend Offline</span>
+                  </>
+                )}
+              </div>
+              <Link
+                href="/playground"
+                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+              >
+                ← Playground
+              </Link>
+            </div>
           </div>
         </div>
       </header>
@@ -87,6 +134,24 @@ export default function EnhancePage() {
       {/* Main Content */}
       <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         <div className="space-y-6">
+          {/* Backend Offline Warning */}
+          {backendStatus === 'offline' && (
+            <div className="bg-red-50 border-l-4 border-red-400 p-4 rounded-lg">
+              <div className="flex">
+                <AlertCircle className="h-5 w-5 text-red-400" />
+                <div className="ml-3">
+                  <h3 className="text-sm font-medium text-red-800">
+                    Backend Server Offline
+                  </h3>
+                  <p className="mt-1 text-sm text-red-700">
+                    The backend server is currently unavailable. Video generation and upload features will not work until the backend is running. 
+                    Please ensure the backend server is started at the configured endpoint.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+          
           {isPlaygroundVideo ? (
             // Show specialized form for playground videos
             <div className="card">
