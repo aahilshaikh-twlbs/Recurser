@@ -531,6 +531,70 @@ class VideoGenerationService:
             
             log_progress(video_id, "🔍 Starting AI detection analysis", 65)
             
+            # Run AI detection with detailed logging
+            try:
+                ai_analysis = await AIDetectionService.detect_ai_generation(
+                    index_id, twelvelabs_video_id, twelvelabs_api_key
+                )
+                
+                ai_detection_score = ai_analysis.get('ai_detection_score', 100.0)
+                quality_score = ai_analysis.get('quality_score', 0.0)
+                detailed_logs = ai_analysis.get('detailed_logs', [])
+                
+                logger.info(f"🤖 AI Detection Score: {ai_detection_score:.1f}%")
+                logger.info(f"📊 Quality Score: {quality_score:.1f}%")
+                
+                # Store detailed logs in database
+                if detailed_logs:
+                    conn = sqlite3.connect(DB_PATH)
+                    cursor = conn.cursor()
+                    cursor.execute("""
+                        UPDATE videos SET 
+                            detailed_logs = ?,
+                            ai_detection_score = ?,
+                            current_confidence = ?,
+                            updated_at = CURRENT_TIMESTAMP
+                        WHERE id = ?
+                    """, (json.dumps(detailed_logs), ai_detection_score, max(0, 100 - ai_detection_score), video_id))
+                    conn.commit()
+                    conn.close()
+                
+                # Check if video passes as real (no AI indicators found)
+                if ai_detection_score == 0:
+                    logger.info(f"🎉 SUCCESS! Video passes as real - No AI indicators detected")
+                    current_confidence = 100.0
+                    
+                    # Update database with success
+                    conn = sqlite3.connect(DB_PATH)
+                    cursor = conn.cursor()
+                    cursor.execute("""
+                        UPDATE videos SET 
+                            current_confidence = 100.0,
+                            ai_detection_score = 0.0,
+                            status = 'completed',
+                            progress = 100,
+                            updated_at = CURRENT_TIMESTAMP
+                        WHERE id = ?
+                    """, (video_id,))
+                    conn.commit()
+                    conn.close()
+                    
+                    log_progress(video_id, "🎉 SUCCESS! Video passes as real - No AI indicators detected", 100)
+                    
+                    return {
+                        "video_id": video_id,
+                        "status": "completed",
+                        "video_path": video_path,
+                        "twelvelabs_video_id": twelvelabs_video_id,
+                        "ai_detection_score": 0.0,
+                        "current_confidence": 100.0,
+                        "message": "Video generated and passes as real - no AI indicators detected!"
+                    }
+                
+            except Exception as e:
+                logger.error(f"❌ AI detection failed: {e}")
+                detailed_logs = [f"❌ AI detection failed: {str(e)}"]
+            
             # Generate enhanced prompts using Gemini
             log_progress(video_id, "🔧 Generating enhanced prompts with Gemini", 70)
             try:
@@ -1390,17 +1454,28 @@ async def get_video_status(video_id: int):
             "data": {
                 "video_id": video[0],
                 "prompt": video[1],
-                "status": video[2],
-                "video_path": video[3],
-                "confidence_threshold": video[4],
-                "progress": video[5] or 0,
-                "generation_id": video[6],
-                "error_message": video[7],
-                "index_id": video[8],
-                "twelvelabs_video_id": video[9],
-                "created_at": video[10],
-                "updated_at": video[11],
-                "analysis_results": analysis_data
+                "enhanced_prompt": video[2],
+                "status": video[3],
+                "video_path": video[4],
+                "confidence_threshold": video[5],
+                "current_confidence": video[6],
+                "progress": video[7] or 0,
+                "generation_id": video[8],
+                "error_message": video[9],
+                "index_id": video[10],
+                "twelvelabs_video_id": video[11],
+                "iteration_count": video[12] or 1,
+                "max_iterations": video[13] or 5,
+                "source_video_id": video[14],
+                "ai_detection_score": video[15] or 0.0,
+                "ai_detection_confidence": video[16] or 0.0,
+                "ai_detection_details": video[17],
+                "detailed_logs": video[18],
+                "created_at": video[19],
+                "updated_at": video[20],
+                "current_iteration": video[12] or 1,
+                "analysis_results": analysis_data,
+                "iterations": []  # Empty for now, will be populated later
             }
         }
         
