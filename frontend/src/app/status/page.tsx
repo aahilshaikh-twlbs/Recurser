@@ -143,5 +143,9 @@ export default function StatusPage() {
     return <LoadingSpinner />
   }
 
-  return <ClientOnlyStatusPage />
+  return (
+    <Suspense fallback={<LoadingSpinner />}>
+      <ClientOnlyStatusPage />
+    </Suspense>
+  )
 }
