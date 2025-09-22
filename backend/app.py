@@ -180,30 +180,38 @@ def init_db():
     cursor.execute("DROP TABLE IF EXISTS generation_tasks")
     cursor.execute("DROP TABLE IF EXISTS analysis_results")
     
-    # Create videos table
+    # Create videos table with iteration tracking
     cursor.execute("""
-        CREATE TABLE videos (
+        CREATE TABLE IF NOT EXISTS videos (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             prompt TEXT NOT NULL,
             enhanced_prompt TEXT,
             status TEXT DEFAULT 'pending',
             video_path TEXT,
             confidence_threshold REAL DEFAULT 50.0,
+            current_confidence REAL DEFAULT 0.0,
             progress INTEGER DEFAULT 0,
             generation_id TEXT,
             error_message TEXT,
             index_id TEXT,
             twelvelabs_video_id TEXT,
+            iteration_count INTEGER DEFAULT 1,
+            max_iterations INTEGER DEFAULT 5,
+            source_video_id TEXT,
+            ai_detection_score REAL DEFAULT 0.0,
+            ai_detection_confidence REAL DEFAULT 0.0,
+            ai_detection_details TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
     
-    # Create generation_tasks table
+    # Create generation_tasks table with iteration tracking
     cursor.execute("""
-        CREATE TABLE generation_tasks (
+        CREATE TABLE IF NOT EXISTS generation_tasks (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             video_id INTEGER,
+            iteration_number INTEGER DEFAULT 1,
             task_type TEXT NOT NULL,
             status TEXT DEFAULT 'pending',
             retry_count INTEGER DEFAULT 0,
@@ -215,15 +223,17 @@ def init_db():
         )
     """)
     
-    # Create analysis_results table
+    # Create analysis_results table with iteration tracking
     cursor.execute("""
-        CREATE TABLE analysis_results (
+        CREATE TABLE IF NOT EXISTS analysis_results (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             video_id INTEGER,
+            iteration_number INTEGER DEFAULT 1,
             search_results TEXT,
             analysis_results TEXT,
             quality_score REAL,
             ai_detection_score REAL,
+            confidence_score REAL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (video_id) REFERENCES videos (id)
         )
@@ -236,10 +246,136 @@ def init_db():
 # Services
 class VideoGenerationService:
     @staticmethod
-    async def generate_video(prompt: str, video_id: int, index_id: str, twelvelabs_api_key: str, gemini_api_key: Optional[str] = None):
-        """Generate video using Veo2"""
+    async def generate_iterative_video(
+        prompt: str, 
+        video_id: int, 
+        index_id: str, 
+        twelvelabs_api_key: str, 
+        gemini_api_key: Optional[str] = None,
+        starting_iteration: int = 1,
+        target_confidence: float = 85.0,
+        max_iterations: int = 5,
+        initial_analysis_data: dict = None
+    ):
+        """Generate videos iteratively until target confidence is reached"""
+        current_iteration = starting_iteration
+        current_confidence = 0.0
+        current_prompt = prompt
+        previous_video_id = None
+        
+        while current_iteration <= max_iterations and current_confidence < target_confidence:
+            logger.info(f"🔄 Starting iteration {current_iteration}/{max_iterations}")
+            
+            # Generate video for this iteration
+            await VideoGenerationService.generate_video(
+                current_prompt, 
+                video_id, 
+                index_id, 
+                twelvelabs_api_key, 
+                gemini_api_key, 
+                current_iteration
+            )
+            
+            # Wait for indexing to complete
+            await asyncio.sleep(30)  # Give time for indexing
+            
+            # Analyze the generated video
+            conn = sqlite3.connect(DB_PATH)
+            cursor = conn.cursor()
+            cursor.execute("SELECT twelvelabs_video_id FROM videos WHERE id = ?", (video_id,))
+            result = cursor.fetchone()
+            conn.close()
+            
+            if result and result[0]:
+                new_video_id = result[0]
+                
+                # STEP 5: Search and analyze the new video
+                try:
+                    client = TwelveLabs(api_key=twelvelabs_api_key)
+                    
+                    # Search in test index for the newly generated video
+                    search_results = client.search.query(
+                        index_id=index_id,  # Test index
+                        query_text=f"Analyze improvements and remaining issues in this video",
+                        search_options=["visual", "audio"],
+                        page_limit=5
+                    )
+                    
+                    # Calculate confidence based on search results
+                    total_score = sum(r.score for r in search_results if hasattr(r, 'score'))
+                    current_confidence = min(total_score * 10, 100)  # Scale to percentage
+                    
+                    # Update database with current confidence
+                    conn = sqlite3.connect(DB_PATH)
+                    cursor = conn.cursor()
+                    cursor.execute("""
+                        UPDATE videos SET 
+                            current_confidence = ?, 
+                            iteration_count = ?,
+                            updated_at = CURRENT_TIMESTAMP
+                        WHERE id = ?
+                    """, (current_confidence, current_iteration, video_id))
+                    conn.commit()
+                    conn.close()
+                    
+                    # STEP 6: Generate next iteration prompt if needed
+                    if current_confidence < target_confidence and current_iteration < max_iterations:
+                        genai.configure(api_key=GEMINI_API_KEY)
+                        model = genai.GenerativeModel('gemini-2.0-flash-exp')
+                        
+                        next_prompt = f"""
+                        Current iteration: {current_iteration}
+                        Current confidence: {current_confidence:.1f}%
+                        Target confidence: {target_confidence:.1f}%
+                        
+                        Previous prompt: {current_prompt}
+                        
+                        Generate an improved prompt for iteration {current_iteration + 1} that addresses:
+                        - Remaining quality issues
+                        - Areas needing improvement
+                        - Specific enhancements to reach target confidence
+                        
+                        Make the prompt more specific and detailed.
+                        Return ONLY the improved prompt.
+                        """
+                        
+                        response = model.generate_content(next_prompt)
+                        current_prompt = response.text.strip()
+                        logger.info(f"📝 Generated prompt for iteration {current_iteration + 1}")
+                    
+                except Exception as e:
+                    logger.error(f"❌ Analysis failed: {e}")
+                    current_confidence = 0.0
+                
+                previous_video_id = new_video_id
+            
+            current_iteration += 1
+            
+            # Check if we've reached target
+            if current_confidence >= target_confidence:
+                logger.info(f"✅ Target confidence {target_confidence}% reached at iteration {current_iteration - 1}")
+                break
+        
+        # Final status update
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute("""
+            UPDATE videos SET 
+                status = 'completed',
+                progress = 100,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        """, (video_id,))
+        conn.commit()
+        conn.close()
+        
+        logger.info(f"🎯 Iterative generation completed: {current_iteration - 1} iterations, {current_confidence:.1f}% confidence")
+    
+    @staticmethod
+    async def generate_video(prompt: str, video_id: int, index_id: str, twelvelabs_api_key: str, gemini_api_key: Optional[str] = None, iteration: int = 1):
+        """Generate single video using Veo2 with iterative tracking"""
         try:
-            log_progress(video_id, "🎬 Starting Veo2 generation", 10)
+            log_progress(video_id, f"🎬 Starting Veo2 generation (Iteration {iteration})", 10)
             
             # Update status to generating
             conn = sqlite3.connect(DB_PATH)
@@ -273,18 +409,19 @@ class VideoGenerationService:
             generated_video = operation.response.generated_videos[0]
             video_data = client.files.download(file=generated_video.video)
             
-            # Save video
+            # Save video with iteration tracking
             timestamp = int(time.time())
-            video_filename = f"veo_generated_{video_id}_{timestamp}.mp4"
+            iteration = getattr(VideoGenerationService, '_current_iteration', 1)
+            video_filename = f"veo_generated_{video_id}_iter{iteration}_{timestamp}.mp4"
             video_path = os.path.join("uploads", video_filename)
             os.makedirs("uploads", exist_ok=True)
             
             with open(video_path, "wb") as f:
                 f.write(video_data)
             
-            # Upload to TwelveLabs
-            log_progress(video_id, "📤 Uploading video to TwelveLabs", 50)
-            twelvelabs_video_id = await VideoGenerationService.upload_to_twelvelabs(video_path, index_id, twelvelabs_api_key, video_id)
+            # STEP 3: Upload to TwelveLabs test index with version indicator
+            log_progress(video_id, f"📤 Uploading video to TwelveLabs test index (Iteration {iteration})", 50)
+            twelvelabs_video_id = await VideoGenerationService.upload_to_twelvelabs(video_path, index_id, twelvelabs_api_key, video_id, iteration)
             
             # Check for usage limit
             if twelvelabs_video_id == "USAGE_LIMIT_EXCEEDED":
@@ -414,10 +551,10 @@ class VideoGenerationService:
             conn.close()
     
     @staticmethod
-    async def upload_to_twelvelabs(video_path: str, index_id: str, api_key: str, video_id: int):
-        """Upload video to TwelveLabs for indexing"""
+    async def upload_to_twelvelabs(video_path: str, index_id: str, api_key: str, video_id: int, iteration: int = 1):
+        """Upload video to TwelveLabs for indexing with version tracking"""
         try:
-            logger.info(f"📤 Uploading video to TwelveLabs index {index_id}")
+            logger.info(f"📤 Uploading video iteration {iteration} to TwelveLabs index {index_id}")
             
             client = TwelveLabs(api_key=api_key)
             
@@ -432,11 +569,12 @@ class VideoGenerationService:
             task_id = task_response.id
             logger.info(f"📋 Task created: {task_id}")
             
-            # Wait for task completion using the built-in wait_for_done method
+            # STEP 4: Wait for complete indexing before next iteration
+            log_progress(video_id, f"⏳ Waiting for video indexing (Iteration {iteration})", 55)
             completed_task = client.tasks.wait_for_done(
                 task_id=task_id,
                 sleep_interval=5.0,
-                callback=lambda task: logger.info(f"⏳ Task status: {task.status}")
+                callback=lambda task: logger.info(f"⏳ Indexing status: {task.status}")
             )
             
             if completed_task.status == "ready":
@@ -759,7 +897,7 @@ async def health_check():
 
 @app.post("/api/videos/generate")
 async def generate_video(request: VideoGenerationRequest, background_tasks: BackgroundTasks):
-    """Generate a new video with quality validation"""
+    """Generate a new video with iterative enhancement"""
     try:
         logger.info(f"🎬 Video generation request: {request.prompt}")
         
@@ -767,73 +905,116 @@ async def generate_video(request: VideoGenerationRequest, background_tasks: Back
         index_id = request.index_id or DEFAULT_INDEX_ID
         twelvelabs_api_key = request.twelvelabs_api_key or TWELVELABS_API_KEY
         
+        # Initialize iteration tracking
+        iteration_number = 1
+        analysis_data = {}
+        
         # If this is a playground video, analyze it first
         enhanced_prompt = request.prompt
         if request.is_playground_video and request.video_id:
-            logger.info(f"📊 Analyzing playground video {request.video_id} for enhancement")
+            logger.info(f"📊 Starting iterative enhancement for video {request.video_id}")
             try:
                 # Get video details from TwelveLabs
                 client = TwelveLabs(api_key=twelvelabs_api_key)
                 
-                # Get the video from the playground index
-                playground_index_id = "68d0f9f2e23608ddb86fba7a"  # Recurser Prod index (for source videos)
+                # Determine which index to search based on iteration
+                search_index_id = "68d0f9f2e23608ddb86fba7a"  # Start with prod index for source videos
                 
-                # Analyze the video content using TwelveLabs
-                search_result = client.search.query(
-                    index_id=playground_index_id,
-                    query_text=f"Describe the content and style of video {request.video_id}",
-                    search_options=["visual", "conversation", "text_in_video"],
-                    page_limit=1
+                # STEP 1: Search and analyze the video
+                logger.info(f"🔍 Step 1: Searching video {request.video_id} for content analysis")
+                search_results = client.search.query(
+                    index_id=search_index_id,
+                    query_text=f"Analyze this video in detail: visual elements, style, composition, lighting, movement, subjects, mood, and quality",
+                    search_options=["visual", "audio"],
+                    page_limit=5  # Get more comprehensive results
                 )
                 
-                # Use Gemini to generate an enhanced prompt based on the analysis
+                # Collect search results
+                search_data = []
+                for result in search_results:
+                    search_data.append({
+                        "score": result.score if hasattr(result, 'score') else 0,
+                        "start_time": result.start_time if hasattr(result, 'start_time') else 0,
+                        "end_time": result.end_time if hasattr(result, 'end_time') else 0,
+                        "metadata": result.metadata if hasattr(result, 'metadata') else {}
+                    })
+                
+                analysis_data["search_results"] = search_data
+                logger.info(f"✅ Collected {len(search_data)} search results")
+                
+                # STEP 2: Feed analysis to Gemini Flash for enhancement
+                logger.info(f"🧠 Step 2: Processing with Gemini Flash for prompt enhancement")
                 genai.configure(api_key=GEMINI_API_KEY)
                 model = genai.GenerativeModel('gemini-2.0-flash-exp')
                 
                 analysis_prompt = f"""
-                Analyze this existing video and create an enhanced version prompt:
-                Video Title: {request.prompt}
+                You are analyzing iteration #{iteration_number} of a video enhancement process.
                 
-                Based on this video, generate a detailed prompt for creating an improved version that:
-                1. Maintains the core concept and theme
-                2. Enhances visual quality and coherence
-                3. Improves pacing and storytelling
-                4. Adds more detail and refinement
+                Original request: {request.prompt}
+                Video ID: {request.video_id}
                 
-                Return ONLY the enhanced prompt, no explanations.
+                Search Analysis Results:
+                {json.dumps(search_data, indent=2)}
+                
+                Based on this analysis, create an ENHANCED prompt for the next iteration that:
+                1. Identifies specific weaknesses in the current video
+                2. Maintains core concept but improves:
+                   - Visual quality and coherence
+                   - Cinematography and composition
+                   - Lighting and color grading
+                   - Motion smoothness and realism
+                   - Subject details and consistency
+                3. Adds specific technical improvements
+                4. Includes version indicator: "Iteration {iteration_number + 1}"
+                
+                Return ONLY the enhanced prompt for video generation, no explanations.
+                Be specific and detailed about improvements needed.
                 """
                 
                 response = model.generate_content(analysis_prompt)
                 enhanced_prompt = response.text.strip()
-                logger.info(f"✨ Enhanced prompt generated for playground video")
+                analysis_data["enhanced_prompt"] = enhanced_prompt
+                logger.info(f"✨ Enhanced prompt generated: {enhanced_prompt[:100]}...")
                 
             except Exception as e:
-                logger.warning(f"⚠️ Could not analyze playground video: {e}")
-                # Fall back to the original prompt if analysis fails
-                enhanced_prompt = request.prompt
+                logger.warning(f"⚠️ Analysis failed: {e}")
+                # Fall back to basic enhancement
+                enhanced_prompt = f"{request.prompt} - Enhanced Iteration {iteration_number}"
         
-        # Store video request in database
+        # Store video request in database with iteration tracking
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
         
         generation_id = str(uuid.uuid4())
         cursor.execute("""
-            INSERT INTO videos (prompt, status, confidence_threshold, progress, generation_id, index_id)
-            VALUES (?, ?, ?, ?, ?, ?)
-        """, (enhanced_prompt, "pending", request.confidence_threshold, 0, generation_id, index_id))
+            INSERT INTO videos (
+                prompt, enhanced_prompt, status, confidence_threshold, 
+                progress, generation_id, index_id, iteration_count,
+                source_video_id, max_iterations
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            request.prompt, enhanced_prompt, "pending", request.confidence_threshold, 
+            0, generation_id, index_id, iteration_number,
+            request.video_id, request.max_retries or 5
+        ))
         
         video_id = cursor.lastrowid
         conn.commit()
         conn.close()
         
-        # Start background video generation
+        # Start background iterative video generation
         background_tasks.add_task(
-            VideoGenerationService.generate_video, 
+            VideoGenerationService.generate_iterative_video, 
             enhanced_prompt,  # Use the enhanced prompt
             video_id, 
             index_id, 
             twelvelabs_api_key,
-            request.gemini_api_key
+            request.gemini_api_key,
+            iteration_number,
+            request.confidence_threshold,
+            request.max_retries or 5,
+            analysis_data
         )
         
         logger.info(f"🚀 Started video generation for video {video_id}")
