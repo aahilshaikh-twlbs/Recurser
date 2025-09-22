@@ -72,8 +72,8 @@ export default function PlaygroundView({ onVideoSelected }: PlaygroundViewProps)
   }
 
   const filteredVideos = videos.filter(video => {
-    return video.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-           video.description.toLowerCase().includes(searchTerm.toLowerCase())
+    return (video.title || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+           (video.description || '').toLowerCase().includes(searchTerm.toLowerCase())
   })
 
   const formatDuration = (seconds: number | string | null | undefined): string => {

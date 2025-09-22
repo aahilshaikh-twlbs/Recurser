@@ -29,7 +29,7 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 TWELVELABS_API_KEY = os.getenv("TWELVELABS_API_KEY", "tlk_3JEVNXJ253JH062DSN3ZX1A6SXKG")
 
 # Hardcoded values for testing
-DEFAULT_INDEX_ID = "68bb521dc600d3d8baf629a4"
+DEFAULT_INDEX_ID = "68d0f9e55705aa622335acb0"  # Recurser Test index (for iterations)
 
 # Default to Veo2 (cheaper option)
 DEFAULT_VEO_MODEL = "veo-2.0-generate-001"
@@ -286,6 +286,38 @@ class VideoGenerationService:
             log_progress(video_id, "📤 Uploading video to TwelveLabs", 50)
             twelvelabs_video_id = await VideoGenerationService.upload_to_twelvelabs(video_path, index_id, twelvelabs_api_key, video_id)
             
+            # Check for usage limit
+            if twelvelabs_video_id == "USAGE_LIMIT_EXCEEDED":
+                logger.warning("⚠️ TwelveLabs usage limit reached - skipping analysis")
+                log_progress(video_id, "⚠️ TwelveLabs usage limit reached - video saved locally", 90)
+                
+                # Update status to completed without analysis
+                conn = sqlite3.connect(DB_PATH)
+                cursor = conn.cursor()
+                cursor.execute("""
+                    UPDATE videos SET 
+                        status = ?, 
+                        progress = ?, 
+                        video_path = ?, 
+                        ai_detection_score = 0.0, 
+                        ai_detection_confidence = 0.0,
+                        ai_detection_details = ?,
+                        updated_at = CURRENT_TIMESTAMP 
+                    WHERE id = ?
+                """, ("completed", 100, video_path, 
+                      json.dumps({"error": "TwelveLabs usage limit reached - analysis skipped"}),
+                      video_id))
+                conn.commit()
+                conn.close()
+                
+                return {
+                    "video_id": video_id,
+                    "status": "completed",
+                    "video_path": video_path,
+                    "message": "Video generated successfully but TwelveLabs usage limit reached - analysis skipped",
+                    "error": "usage_limit_exceeded"
+                }
+            
             # Update status to analyzing
             conn = sqlite3.connect(DB_PATH)
             cursor = conn.cursor()
@@ -438,7 +470,16 @@ class VideoGenerationService:
             return twelvelabs_video_id
             
         except Exception as e:
-            logger.error(f"❌ TwelveLabs upload error: {str(e)}")
+            error_message = str(e)
+            logger.error(f"❌ TwelveLabs upload error: {error_message}")
+            
+            # Check for usage limit error
+            if "usage_limit_exceeded" in error_message or "exceeds your plan" in error_message:
+                logger.warning("⚠️ TwelveLabs usage limit reached - cannot upload more videos")
+                # Return a special marker to indicate usage limit
+                return "USAGE_LIMIT_EXCEEDED"
+            
+            # Re-raise other errors
             raise e
 
 class AIDetectionService:
@@ -735,7 +776,7 @@ async def generate_video(request: VideoGenerationRequest, background_tasks: Back
                 client = TwelveLabs(api_key=twelvelabs_api_key)
                 
                 # Get the video from the playground index
-                playground_index_id = "68cd2969ca672ec899e0d9b7"  # Recurser Prod index
+                playground_index_id = "68d0f9f2e23608ddb86fba7a"  # Recurser Prod index (for source videos)
                 
                 # Analyze the video content using TwelveLabs
                 search_result = client.search.query(
@@ -862,7 +903,36 @@ async def upload_video(
         
         # Upload to TwelveLabs
         try:
-            await VideoGenerationService.upload_to_twelvelabs(filepath, index_id, twelvelabs_api_key, video_id)
+            twelvelabs_video_id = await VideoGenerationService.upload_to_twelvelabs(filepath, index_id, twelvelabs_api_key, video_id)
+            
+            # Check for usage limit
+            if twelvelabs_video_id == "USAGE_LIMIT_EXCEEDED":
+                logger.warning("⚠️ TwelveLabs usage limit reached - skipping analysis")
+                
+                # Update status to completed without analysis
+                conn = sqlite3.connect(DB_PATH)
+                cursor = conn.cursor()
+                cursor.execute("""
+                    UPDATE videos SET 
+                        status = ?, 
+                        progress = ?, 
+                        ai_detection_score = 0.0,
+                        ai_detection_confidence = 0.0,
+                        ai_detection_details = ?,
+                        updated_at = CURRENT_TIMESTAMP 
+                    WHERE id = ?
+                """, ("completed", 100, 
+                      json.dumps({"error": "TwelveLabs usage limit reached - analysis skipped"}),
+                      video_id))
+                conn.commit()
+                conn.close()
+                
+                return {
+                    "success": True,
+                    "video_id": video_id,
+                    "message": "Video uploaded successfully but TwelveLabs usage limit reached - analysis skipped",
+                    "error": "usage_limit_exceeded"
+                }
             
             # Update status to completed
             conn = sqlite3.connect(DB_PATH)

@@ -57,7 +57,8 @@ export default function ProjectStatus({ project: initialProject }: ProjectStatus
   }, [project?.video_id, isPolling])
 
   const getStatusIcon = (status: string) => {
-    switch (status.toLowerCase()) {
+    const normalizedStatus = (status || '').toLowerCase()
+    switch (normalizedStatus) {
       case 'completed':
         return <CheckCircle className="w-5 h-5 text-success-600" />
       case 'processing':
@@ -70,7 +71,8 @@ export default function ProjectStatus({ project: initialProject }: ProjectStatus
   }
 
   const getStatusColor = (status: string) => {
-    switch (status.toLowerCase()) {
+    const normalizedStatus = (status || '').toLowerCase()
+    switch (normalizedStatus) {
       case 'completed':
         return 'status-completed'
       case 'processing':

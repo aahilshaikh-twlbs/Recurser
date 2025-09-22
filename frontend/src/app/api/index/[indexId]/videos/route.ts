@@ -27,7 +27,15 @@ export async function GET(
   } catch (error) {
     console.error('Failed to fetch videos from index:', error)
     
-    // Return empty array instead of error to prevent app crash
-    return NextResponse.json([], { status: 200 })
+    // Return proper structure instead of empty array to prevent app crash
+    return NextResponse.json({
+      success: false,
+      data: {
+        index_id: indexId,
+        video_count: 0,
+        videos: []
+      },
+      error: 'Backend unavailable'
+    }, { status: 200 })
   }
 }
