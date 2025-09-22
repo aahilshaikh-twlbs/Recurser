@@ -201,6 +201,7 @@ def init_db():
             ai_detection_score REAL DEFAULT 0.0,
             ai_detection_confidence REAL DEFAULT 0.0,
             ai_detection_details TEXT,
+            detailed_logs TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
@@ -238,6 +239,15 @@ def init_db():
             FOREIGN KEY (video_id) REFERENCES videos (id)
         )
     """)
+    
+    # Add detailed_logs column if it doesn't exist (migration)
+    try:
+        cursor.execute("ALTER TABLE videos ADD COLUMN detailed_logs TEXT")
+        conn.commit()
+        logger.info("✅ Added detailed_logs column to videos table")
+    except sqlite3.OperationalError:
+        # Column already exists
+        pass
     
     conn.commit()
     conn.close()
@@ -302,9 +312,23 @@ class VideoGenerationService:
                     
                     ai_detection_score = ai_analysis.get('ai_detection_score', 100.0)
                     quality_score = ai_analysis.get('quality_score', 0.0)
+                    detailed_logs = ai_analysis.get('detailed_logs', [])
                     
                     logger.info(f"🤖 AI Detection Score: {ai_detection_score:.1f}%")
                     logger.info(f"📊 Quality Score: {quality_score:.1f}%")
+                    
+                    # Store detailed logs in database
+                    if detailed_logs:
+                        conn = sqlite3.connect(DB_PATH)
+                        cursor = conn.cursor()
+                        cursor.execute("""
+                            UPDATE videos SET 
+                                detailed_logs = ?,
+                                updated_at = CURRENT_TIMESTAMP
+                            WHERE id = ?
+                        """, (json.dumps(detailed_logs), video_id))
+                        conn.commit()
+                        conn.close()
                     
                     # Check if video passes as real (no AI indicators found)
                     if ai_detection_score == 0:
@@ -663,7 +687,7 @@ class VideoGenerationService:
 class AIDetectionService:
     @staticmethod
     async def detect_ai_generation(index_id: str, video_id: str, api_key: str):
-        """Detect AI generation using Marengo and Pegasus"""
+        """Detect AI generation using Marengo and Pegasus with detailed logging"""
         try:
             logger.info(f"🔍 Starting AI detection for video {video_id}")
             
@@ -671,12 +695,12 @@ class AIDetectionService:
             search_client = client.search
             analyze_client = client  # Direct client for analyze method
             
-            # Marengo search
+            # Marengo search with detailed logging
             search_results = await AIDetectionService._search_for_ai_indicators(
                 search_client, index_id, video_id
             )
             
-            # Pegasus analysis
+            # Pegasus analysis with detailed logging
             analysis_results = await AIDetectionService._analyze_with_pegasus(
                 analyze_client, video_id
             )
@@ -685,11 +709,17 @@ class AIDetectionService:
             quality_score = AIDetectionService._calculate_quality_score(search_results, analysis_results)
             ai_detection_score = AIDetectionService._calculate_ai_detection_score(search_results, analysis_results)
             
+            # Create detailed log entries
+            detailed_logs = AIDetectionService._create_detailed_logs(
+                search_results, analysis_results, quality_score, ai_detection_score
+            )
+            
             return {
                 "search_results": search_results,
                 "analysis_results": analysis_results,
                 "quality_score": quality_score,
-                "ai_detection_score": ai_detection_score
+                "ai_detection_score": ai_detection_score,
+                "detailed_logs": detailed_logs
             }
             
         except Exception as e:
@@ -701,19 +731,19 @@ class AIDetectionService:
         """Search for AI indicators using Marengo - optimized with batched queries"""
         # Batch queries into categories for more efficient searching
         ai_detection_categories = {
-            "facial_artifacts": "unnatural facial symmetry, artificial facial proportions, synthetic facial structure, unnatural eye movements, artificial pupil dilation, mechanical blinking patterns, artificial skin texture, synthetic skin tone, unnatural skin smoothness, robotic facial expressions, artificial cheekbones, synthetic eye reflections",
+            "facial_artifacts": "unnatural facial symmetry, artificial facial proportions, synthetic facial structure, unnatural eye movements, artificial skin texture, robotic facial expressions",
             
-            "motion_artifacts": "jerky movements, unnatural motion blur, artificial motion smoothing, synthetic frame transitions, mechanical object tracking, perfectly timed actions, temporal inconsistencies, artificial time progression, synthetic temporal patterns",
+            "motion_artifacts": "jerky movements, unnatural motion blur, artificial motion smoothing, synthetic frame transitions, mechanical object tracking, temporal inconsistencies",
             
-            "lighting_artifacts": "inconsistent lighting, artificial shadow patterns, unnatural light sources, synthetic illumination, artificial ambient lighting, inconsistent shadow directions, artificial depth of field",
+            "lighting_artifacts": "inconsistent lighting, artificial shadow patterns, unnatural light sources, synthetic illumination, artificial ambient lighting",
             
-            "audio_artifacts": "robotic speech patterns, artificial voice modulation, synthetic intonation, unnatural speech rhythm, artificial pronunciation, synthetic accent patterns",
+            "audio_artifacts": "robotic speech patterns, artificial voice modulation, synthetic intonation, unnatural speech rhythm, artificial pronunciation",
             
-            "environmental_artifacts": "inconsistent environmental details, artificial background elements, synthetic scene composition, unnatural object placement, impossible physics scenarios, unnatural gravity effects, artificial floating objects",
+            "environmental_artifacts": "inconsistent environmental details, artificial background elements, synthetic scene composition, unnatural object placement, impossible physics scenarios",
             
-            "ai_generation_artifacts": "GAN artifacts, diffusion model artifacts, deep learning artifacts, machine learning artifacts, AI generation artifacts, artificial compression patterns, AI generated art, synthetic creative content, artificial artistic expression, generated creative works, synthetic artistic style, artificial creative patterns",
+            "ai_generation_artifacts": "GAN artifacts, diffusion model artifacts, deep learning artifacts, machine learning artifacts, AI generation artifacts, artificial compression patterns",
             
-            "behavioral_artifacts": "cat drinking tea, animals doing human activities, impossible animal behavior, unnatural animal interactions, synthetic animal movements, artificial pet behavior, unnatural social interactions, artificial human behavior, synthetic social patterns",
+            "behavioral_artifacts": "cat drinking tea, animals doing human activities, impossible animal behavior, unnatural animal interactions, synthetic animal movements",
             
             "quality_artifacts": "inconsistent video quality, artificial quality patterns, synthetic quality variations"
         }
@@ -813,6 +843,7 @@ class AIDetectionService:
     @staticmethod
     def _calculate_ai_detection_score(search_results, analysis_results):
         """Calculate AI detection score"""
+        # If no results at all, score is 0 (no AI detected)
         if not search_results and not analysis_results:
             return 0.0
         
@@ -820,7 +851,59 @@ class AIDetectionService:
         search_score = min(len(search_results) * 5, 100) if search_results else 0
         analysis_score = min(len(analysis_results) * 15, 100) if analysis_results else 0
         
+        # If both are 0, return 0
+        if search_score == 0 and analysis_score == 0:
+            return 0.0
+        
         return (search_score + analysis_score) / 2
+    
+    @staticmethod
+    def _create_detailed_logs(search_results, analysis_results, quality_score, ai_detection_score):
+        """Create detailed log entries for live display"""
+        logs = []
+        
+        # Marengo search results
+        if search_results:
+            logs.append(f"🔍 MarenGO Search Results: {len(search_results)} AI indicators detected")
+            for i, result in enumerate(search_results[:5]):  # Show top 5
+                category = result.get('category', 'Unknown')
+                confidence = result.get('confidence', 0)
+                query = result.get('query', 'Unknown query')
+                logs.append(f"  • {category}: {query} (confidence: {confidence:.1f}%)")
+            
+            if len(search_results) > 5:
+                logs.append(f"  ... and {len(search_results) - 5} more indicators")
+        else:
+            logs.append("✅ MarenGO Search: No AI indicators detected")
+        
+        # Pegasus analysis results
+        if analysis_results:
+            logs.append(f"🧠 Pegasus Analysis: {len(analysis_results)} quality issues found")
+            for i, result in enumerate(analysis_results[:3]):  # Show top 3
+                issue_type = result.get('issue_type', 'Unknown')
+                description = result.get('description', 'No description')
+                severity = result.get('severity', 'Unknown')
+                logs.append(f"  • {issue_type} ({severity}): {description[:100]}...")
+            
+            if len(analysis_results) > 3:
+                logs.append(f"  ... and {len(analysis_results) - 3} more issues")
+        else:
+            logs.append("✅ Pegasus Analysis: No quality issues detected")
+        
+        # Summary scores
+        logs.append(f"📊 Quality Score: {quality_score:.1f}%")
+        logs.append(f"🤖 AI Detection Score: {ai_detection_score:.1f}%")
+        
+        if ai_detection_score == 0:
+            logs.append("🎉 SUCCESS: Video passes as real - no AI indicators detected!")
+        elif ai_detection_score < 30:
+            logs.append("🟢 GOOD: Low AI detection score - video appears mostly natural")
+        elif ai_detection_score < 70:
+            logs.append("🟡 MODERATE: Some AI indicators detected - needs improvement")
+        else:
+            logs.append("🔴 HIGH: Strong AI indicators detected - significant improvement needed")
+        
+        return logs
 
 class PromptEnhancementService:
     @staticmethod
@@ -1557,6 +1640,56 @@ async def list_videos():
         
     except Exception as e:
         logger.error(f"❌ List videos error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/videos/{video_id}/logs")
+async def get_video_logs(video_id: int):
+    """Get detailed logs for a video"""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT detailed_logs, status, current_confidence, ai_detection_score, 
+                   iteration_count, max_iterations, created_at, updated_at
+            FROM videos WHERE id = ?
+        """, (video_id,))
+        
+        result = cursor.fetchone()
+        conn.close()
+        
+        if not result:
+            raise HTTPException(status_code=404, detail="Video not found")
+        
+        detailed_logs, status, current_confidence, ai_detection_score, iteration_count, max_iterations, created_at, updated_at = result
+        
+        # Parse detailed logs
+        logs = []
+        if detailed_logs:
+            try:
+                logs = json.loads(detailed_logs)
+            except:
+                logs = []
+        
+        return {
+            "success": True,
+            "data": {
+                "video_id": video_id,
+                "status": status,
+                "current_confidence": current_confidence,
+                "ai_detection_score": ai_detection_score,
+                "iteration_count": iteration_count,
+                "max_iterations": max_iterations,
+                "logs": logs,
+                "created_at": created_at,
+                "updated_at": updated_at
+            }
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Get video logs error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/videos/{video_id}/play")

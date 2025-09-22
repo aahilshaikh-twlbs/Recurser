@@ -187,21 +187,68 @@ export default function ProjectStatus({ project: initialProject }: ProjectStatus
         </div>
       </div>
 
-      {/* Process Logs */}
+      {/* Enhanced Process Logs */}
       {logs.length > 0 && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           className="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200"
         >
-          <h3 className="font-semibold text-gray-900 mb-3">Processing Logs</h3>
-          <div className="max-h-40 overflow-y-auto">
-            <div className="space-y-1">
-              {logs.map((log, index) => (
-                <div key={index} className="text-xs text-gray-600 font-mono">
-                  {log}
-                </div>
-              ))}
+          <h3 className="font-semibold text-gray-900 mb-3 flex items-center">
+            <BarChart3 className="w-4 h-4 mr-2" />
+            Live Enhancement Logs
+          </h3>
+          <div className="max-h-60 overflow-y-auto">
+            <div className="space-y-2">
+              {logs.map((log, index) => {
+                // Parse log type for better formatting
+                const isSuccess = log.includes('✅') || log.includes('SUCCESS')
+                const isError = log.includes('❌') || log.includes('ERROR')
+                const isWarning = log.includes('⚠️') || log.includes('WARNING')
+                const isInfo = log.includes('ℹ️') || log.includes('INFO')
+                const isMarengo = log.includes('MarenGO') || log.includes('🔍')
+                const isPegasus = log.includes('Pegasus') || log.includes('🧠')
+                const isScore = log.includes('Score') || log.includes('📊') || log.includes('🤖')
+                
+                let bgColor = 'bg-gray-100'
+                let textColor = 'text-gray-700'
+                let icon = ''
+                
+                if (isSuccess) {
+                  bgColor = 'bg-green-100'
+                  textColor = 'text-green-800'
+                  icon = '✅'
+                } else if (isError) {
+                  bgColor = 'bg-red-100'
+                  textColor = 'text-red-800'
+                  icon = '❌'
+                } else if (isWarning) {
+                  bgColor = 'bg-yellow-100'
+                  textColor = 'text-yellow-800'
+                  icon = '⚠️'
+                } else if (isMarengo) {
+                  bgColor = 'bg-blue-100'
+                  textColor = 'text-blue-800'
+                  icon = '🔍'
+                } else if (isPegasus) {
+                  bgColor = 'bg-purple-100'
+                  textColor = 'text-purple-800'
+                  icon = '🧠'
+                } else if (isScore) {
+                  bgColor = 'bg-indigo-100'
+                  textColor = 'text-indigo-800'
+                  icon = '📊'
+                }
+                
+                return (
+                  <div key={index} className={`p-2 rounded ${bgColor} ${textColor}`}>
+                    <div className="text-xs font-mono flex items-start">
+                      <span className="mr-2">{icon}</span>
+                      <span className="flex-1">{log}</span>
+                    </div>
+                  </div>
+                )
+              })}
             </div>
           </div>
         </motion.div>
