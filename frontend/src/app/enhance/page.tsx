@@ -24,7 +24,7 @@ export default function EnhancePage() {
   useEffect(() => {
     const checkBackend = async () => {
       try {
-        const response = await apiRequest('/health')
+        const response = await apiRequest('/api/health')
         if (response && response.status === 'healthy') {
           setBackendStatus('online')
         } else {

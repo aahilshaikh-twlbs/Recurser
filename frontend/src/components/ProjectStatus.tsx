@@ -23,6 +23,7 @@ export default function ProjectStatus({ project: initialProject }: ProjectStatus
   const [currentIteration, setCurrentIteration] = useState(String(project?.current_iteration || 1))
   const [isExpanded, setIsExpanded] = useState(false)
   const [isPolling, setIsPolling] = useState(true)
+  const [logs, setLogs] = useState<string[]>([])
 
   // Poll for status updates
   useEffect(() => {
@@ -30,6 +31,7 @@ export default function ProjectStatus({ project: initialProject }: ProjectStatus
 
     const pollStatus = async () => {
       try {
+        // Fetch status
         const response = await apiRequest(API_CONFIG.endpoints.videoStatus(project.video_id))
         const result = await response.json()
         
@@ -41,6 +43,14 @@ export default function ProjectStatus({ project: initialProject }: ProjectStatus
           if (result.data.status === 'completed' || result.data.status === 'failed') {
             setIsPolling(false)
           }
+        }
+        
+        // Fetch logs
+        const logsResponse = await apiRequest(API_CONFIG.endpoints.videoLogs(project.video_id))
+        const logsResult = await logsResponse.json()
+        
+        if (logsResult.success && logsResult.data) {
+          setLogs(logsResult.data.logs || [])
         }
       } catch (error) {
         console.error('Error polling status:', error)
@@ -176,6 +186,26 @@ export default function ProjectStatus({ project: initialProject }: ProjectStatus
           </p>
         </div>
       </div>
+
+      {/* Process Logs */}
+      {logs.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200"
+        >
+          <h3 className="font-semibold text-gray-900 mb-3">Processing Logs</h3>
+          <div className="max-h-40 overflow-y-auto">
+            <div className="space-y-1">
+              {logs.map((log, index) => (
+                <div key={index} className="text-xs text-gray-600 font-mono">
+                  {log}
+                </div>
+              ))}
+            </div>
+          </div>
+        </motion.div>
+      )}
 
       {/* Expanded Details */}
       {isExpanded && project.iterations && project.iterations.length > 0 ? (

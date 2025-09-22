@@ -320,8 +320,9 @@ class VideoGenerationService:
                     
                     # STEP 6: Generate next iteration prompt if needed
                     if current_confidence < target_confidence and current_iteration < max_iterations:
-                        genai.configure(api_key=GEMINI_API_KEY)
-                        model = genai.GenerativeModel('gemini-2.0-flash-exp')
+                        import google.generativeai as genai2
+                        genai2.configure(api_key=GEMINI_API_KEY)
+                        model = genai2.GenerativeModel('gemini-2.0-flash-exp')
                         
                         next_prompt = f"""
                         Current iteration: {current_iteration}
@@ -944,8 +945,9 @@ async def generate_video(request: VideoGenerationRequest, background_tasks: Back
                 
                 # STEP 2: Feed analysis to Gemini Flash for enhancement
                 logger.info(f"🧠 Step 2: Processing with Gemini Flash for prompt enhancement")
-                genai.configure(api_key=GEMINI_API_KEY)
-                model = genai.GenerativeModel('gemini-2.0-flash-exp')
+                import google.generativeai as genai2
+                genai2.configure(api_key=GEMINI_API_KEY)
+                model = genai2.GenerativeModel('gemini-2.0-flash-exp')
                 
                 analysis_prompt = f"""
                 You are analyzing iteration #{iteration_number} of a video enhancement process.
