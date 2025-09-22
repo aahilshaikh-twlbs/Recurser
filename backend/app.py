@@ -348,9 +348,8 @@ class VideoGenerationService:
                     
                     # STEP 6: Generate next iteration prompt if needed
                     if current_confidence < target_confidence and current_iteration < max_iterations:
-                        import google.generativeai as genai2
-                        genai2.configure(api_key=GEMINI_API_KEY)
-                        model = genai2.GenerativeModel('gemini-2.0-flash-exp')
+                        from google.genai import Client
+                        client = Client(api_key=GEMINI_API_KEY)
                         
                         next_prompt = f"""
                         Current iteration: {current_iteration}
@@ -373,7 +372,10 @@ class VideoGenerationService:
                         Return ONLY the improved prompt.
                         """
                         
-                        response = model.generate_content(next_prompt)
+                        response = client.models.generate_content(
+                            model='gemini-2.0-flash-exp',
+                            contents=next_prompt
+                        )
                         current_prompt = response.text.strip()
                         logger.info(f"📝 Generated prompt for iteration {current_iteration + 1}")
                     
@@ -425,9 +427,8 @@ class VideoGenerationService:
             conn.close()
             
             # Generate video with Veo2 (cheaper option)
-            import google.generativeai as genai
-            genai.configure(api_key=GEMINI_API_KEY)
-            client = genai.Client(api_key=GEMINI_API_KEY)
+            from google.genai import Client
+            client = Client(api_key=GEMINI_API_KEY)
             operation = client.models.generate_videos(
                 model=DEFAULT_VEO_MODEL,
                 prompt=f"Generate a high-quality video based on this description: {prompt}. Make it cinematic, realistic, and engaging."
@@ -843,11 +844,10 @@ class PromptEnhancementService:
     async def _generate_enhanced_prompt(original_prompt: str, analysis_results: Dict[str, Any]):
         """Generate enhanced prompt using Gemini"""
         try:
-            import google.generativeai as genai
+            from google.genai import Client
             
             # Configure Gemini
-            genai.configure(api_key=GEMINI_API_KEY)
-            model = genai.GenerativeModel('gemini-2.5-flash')
+            client = Client(api_key=GEMINI_API_KEY)
             
             prompt_text = f"""You are an expert video generation prompt engineer. Analyze the given prompt and AI detection results to create an improved prompt that will generate higher quality, more realistic videos with fewer AI artifacts.
 
@@ -863,7 +863,10 @@ Create an enhanced prompt that addresses the detected issues and improves video 
 
 Return only the enhanced prompt, no additional text."""
             
-            response = model.generate_content(prompt_text)
+            response = client.models.generate_content(
+                model='gemini-2.5-flash',
+                contents=prompt_text
+            )
             
             if response.text:
                 return response.text.strip()
@@ -983,9 +986,8 @@ async def generate_video(request: VideoGenerationRequest, background_tasks: Back
                 
                 # STEP 2: Feed analysis to Gemini Flash for enhancement
                 logger.info(f"🧠 Step 2: Processing with Gemini Flash for prompt enhancement")
-                import google.generativeai as genai2
-                genai2.configure(api_key=GEMINI_API_KEY)
-                model = genai2.GenerativeModel('gemini-2.0-flash-exp')
+                from google.genai import Client
+                client = Client(api_key=GEMINI_API_KEY)
                 
                 analysis_prompt = f"""
                 You are analyzing iteration #{iteration_number} of a video enhancement process.
@@ -1011,7 +1013,10 @@ async def generate_video(request: VideoGenerationRequest, background_tasks: Back
                 Be specific and detailed about improvements needed.
                 """
                 
-                response = model.generate_content(analysis_prompt)
+                response = client.models.generate_content(
+                    model='gemini-2.0-flash-exp',
+                    contents=analysis_prompt
+                )
                 enhanced_prompt = response.text.strip()
                 analysis_data["enhanced_prompt"] = enhanced_prompt
                 logger.info(f"✨ Enhanced prompt generated: {enhanced_prompt[:100]}...")
