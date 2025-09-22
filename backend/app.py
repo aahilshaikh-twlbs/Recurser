@@ -12,7 +12,7 @@ import uuid
 from datetime import datetime
 import logging
 from dotenv import load_dotenv
-from google import genai
+# Remove incorrect genai import - using google.generativeai where needed
 import httpx
 from twelvelabs import TwelveLabs
 from contextlib import asynccontextmanager
