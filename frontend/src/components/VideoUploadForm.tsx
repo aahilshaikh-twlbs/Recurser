@@ -74,7 +74,7 @@ export default function VideoUploadForm({ onProjectCreated }: VideoUploadFormPro
       formData.append('original_prompt', data.originalPrompt || '')
       formData.append('confidence_threshold', '50') // Default threshold
       formData.append('max_retries', data.maxAttempts === 'unlimited' ? '999' : data.maxAttempts)
-      formData.append('index_id', '68bb521dc600d3d8baf629a4') // Recurser test index for iterations
+      formData.append('index_id', '68d0f9e55705aa622335acb0') // Recurser test index for iterations
 
       const response = await fetch('/api/videos/upload', {
         method: 'POST',

@@ -66,7 +66,7 @@ export default function PlaygroundEnhanceForm({
         project_name: `Enhance_${videoTitle.replace(/[^a-zA-Z0-9]/g, '_')}_${String(Date.now())}`,
         confidence_threshold: 50,
         max_retries: data.maxAttempts === 'unlimited' ? 999 : parseInt(data.maxAttempts, 10),
-        index_id: '68bb521dc600d3d8baf629a4', // Recurser test index for iterations
+        index_id: '68d0f9e55705aa622335acb0', // Recurser test index for iterations
         video_id: videoId, // Pass the original video ID for analysis
         is_playground_video: true // Flag to indicate this is from playground
       }

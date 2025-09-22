@@ -71,7 +71,7 @@ export default function VideoGenerationForm({
         project_name: `Enhancement_${String(Date.now())}`, // Auto-generated project name
         confidence_threshold: 50, // Default threshold
         max_retries: data.maxAttempts === 'unlimited' ? 999 : parseInt(data.maxAttempts, 10),
-        index_id: '68bb521dc600d3d8baf629a4' // Recurser test index for iterations
+        index_id: '68d0f9e55705aa622335acb0' // Recurser test index for iterations
       }
 
       const response = await fetch('/api/videos/generate', {

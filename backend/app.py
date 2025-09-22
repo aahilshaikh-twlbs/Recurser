@@ -781,8 +781,8 @@ async def generate_video(request: VideoGenerationRequest, background_tasks: Back
                 # Analyze the video content using TwelveLabs
                 search_result = client.search.query(
                     index_id=playground_index_id,
-                    query=f"Describe the content and style of video {request.video_id}",
-                    options=["visual", "conversation", "text_in_video"],
+                    query_text=f"Describe the content and style of video {request.video_id}",
+                    search_options=["visual", "conversation", "text_in_video"],
                     page_limit=1
                 )
                 
