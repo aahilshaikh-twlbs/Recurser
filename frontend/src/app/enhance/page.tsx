@@ -15,6 +15,7 @@ export default function EnhancePage() {
   const [videoToEnhance, setVideoToEnhance] = useState<any>(null)
   const [isClient, setIsClient] = useState(false)
   const [backendStatus, setBackendStatus] = useState<'checking' | 'online' | 'offline'>('checking')
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     setIsClient(true)
@@ -61,7 +62,17 @@ export default function EnhancePage() {
     // Store project in sessionStorage and navigate to status page
     if (typeof window !== 'undefined') {
       sessionStorage.setItem('currentProject', JSON.stringify(project))
-      router.push(`/status?id=${project.video_id}`)
+      
+      // Check if we have a valid video_id before redirecting
+      if (project.data && project.data.video_id) {
+        router.push(`/status?id=${project.data.video_id}`)
+      } else if (project.video_id) {
+        router.push(`/status?id=${project.video_id}`)
+      } else {
+        console.error('No video_id found in project:', project)
+        // Stay on the same page and show error
+        setError('Failed to get video ID from response')
+      }
     }
   }
 
@@ -147,6 +158,29 @@ export default function EnhancePage() {
                     The backend server is currently unavailable. Video generation and upload features will not work until the backend is running. 
                     Please ensure the backend server is started at the configured endpoint.
                   </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Error Display */}
+          {error && (
+            <div className="bg-red-50 border-l-4 border-red-400 p-4 rounded-lg">
+              <div className="flex">
+                <AlertCircle className="h-5 w-5 text-red-400" />
+                <div className="ml-3">
+                  <h3 className="text-sm font-medium text-red-800">
+                    Error
+                  </h3>
+                  <p className="mt-1 text-sm text-red-700">
+                    {error}
+                  </p>
+                  <button
+                    onClick={() => setError(null)}
+                    className="mt-2 text-sm text-red-600 hover:text-red-800 underline"
+                  >
+                    Dismiss
+                  </button>
                 </div>
               </div>
             </div>

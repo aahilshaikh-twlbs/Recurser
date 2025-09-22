@@ -425,6 +425,8 @@ class VideoGenerationService:
             conn.close()
             
             # Generate video with Veo2 (cheaper option)
+            import google.generativeai as genai
+            genai.configure(api_key=GEMINI_API_KEY)
             client = genai.Client(api_key=GEMINI_API_KEY)
             operation = client.models.generate_videos(
                 model=DEFAULT_VEO_MODEL,

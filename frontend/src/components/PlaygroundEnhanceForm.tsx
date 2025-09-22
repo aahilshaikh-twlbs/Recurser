@@ -36,15 +36,15 @@ export default function PlaygroundEnhanceForm({
     setShowUnlimitedWarning(watchedMaxAttempts === 'unlimited')
   }, [watchedMaxAttempts])
 
-  // Auto-submit on mount for playground videos
-  useEffect(() => {
-    if (selectedVideo && selectedVideo.id) {
-      const timer = setTimeout(() => {
-        handleSubmit(onSubmit)()
-      }, 500)
-      return () => clearTimeout(timer)
-    }
-  }, [selectedVideo])
+  // Don't auto-submit - let user configure first
+  // useEffect(() => {
+  //   if (selectedVideo && selectedVideo.id) {
+  //     const timer = setTimeout(() => {
+  //       handleSubmit(onSubmit)()
+  //     }, 500)
+  //     return () => clearTimeout(timer)
+  //   }
+  // }, [selectedVideo])
 
   const onSubmit = async (data: FormData) => {
     if (!selectedVideo || !selectedVideo.id) {
