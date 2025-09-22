@@ -262,6 +262,7 @@ class VideoGenerationService:
         current_confidence = 0.0
         current_prompt = prompt
         previous_video_id = None
+        ai_detection_score = 100.0  # Start with assumption of AI-generated
         
         while current_iteration <= max_iterations and current_confidence < target_confidence:
             logger.info(f"🔄 Starting iteration {current_iteration}/{max_iterations}")
@@ -293,17 +294,43 @@ class VideoGenerationService:
                 try:
                     client = TwelveLabs(api_key=twelvelabs_api_key)
                     
-                    # Search in test index for the newly generated video
-                    search_results = client.search.query(
-                        index_id=index_id,  # Test index
-                        query_text=f"Analyze improvements and remaining issues in this video",
-                        search_options=["visual", "audio"],
-                        page_limit=5
+                    # Run AI detection analysis on the new video
+                    logger.info(f"🔍 Running AI detection analysis for iteration {current_iteration}")
+                    ai_analysis = await AIDetectionService.detect_ai_generation(
+                        index_id, new_video_id, twelvelabs_api_key
                     )
                     
-                    # Calculate confidence based on search results
-                    total_score = sum(r.score for r in search_results if hasattr(r, 'score'))
-                    current_confidence = min(total_score * 10, 100)  # Scale to percentage
+                    ai_detection_score = ai_analysis.get('ai_detection_score', 100.0)
+                    quality_score = ai_analysis.get('quality_score', 0.0)
+                    
+                    logger.info(f"🤖 AI Detection Score: {ai_detection_score:.1f}%")
+                    logger.info(f"📊 Quality Score: {quality_score:.1f}%")
+                    
+                    # Check if video passes as real (no AI indicators found)
+                    if ai_detection_score == 0:
+                        logger.info(f"🎉 SUCCESS! Video passes as real - No AI indicators detected at iteration {current_iteration}")
+                        current_confidence = 100.0  # Maximum confidence since it passes as real
+                        
+                        # Update database with success
+                        conn = sqlite3.connect(DB_PATH)
+                        cursor = conn.cursor()
+                        cursor.execute("""
+                            UPDATE videos SET 
+                                current_confidence = 100.0, 
+                                iteration_count = ?,
+                                ai_detection_score = 0.0,
+                                status = 'completed',
+                                updated_at = CURRENT_TIMESTAMP
+                            WHERE id = ?
+                        """, (current_iteration, video_id))
+                        conn.commit()
+                        conn.close()
+                        
+                        break  # Stop iterations - we've achieved success!
+                    
+                    # Calculate confidence based on inverse of AI detection score
+                    # Lower AI detection score = higher confidence that it looks real
+                    current_confidence = max(0, 100 - ai_detection_score)
                     
                     # Update database with current confidence
                     conn = sqlite3.connect(DB_PATH)
@@ -312,9 +339,10 @@ class VideoGenerationService:
                         UPDATE videos SET 
                             current_confidence = ?, 
                             iteration_count = ?,
+                            ai_detection_score = ?,
                             updated_at = CURRENT_TIMESTAMP
                         WHERE id = ?
-                    """, (current_confidence, current_iteration, video_id))
+                    """, (current_confidence, current_iteration, ai_detection_score, video_id))
                     conn.commit()
                     conn.close()
                     
@@ -328,15 +356,20 @@ class VideoGenerationService:
                         Current iteration: {current_iteration}
                         Current confidence: {current_confidence:.1f}%
                         Target confidence: {target_confidence:.1f}%
+                        AI Detection Score: {ai_detection_score:.1f}% (lower is better - 0% means undetectable as AI)
                         
                         Previous prompt: {current_prompt}
                         
-                        Generate an improved prompt for iteration {current_iteration + 1} that addresses:
-                        - Remaining quality issues
-                        - Areas needing improvement
-                        - Specific enhancements to reach target confidence
+                        AI Analysis found these indicators: {ai_analysis.get('search_results', [])}
                         
-                        Make the prompt more specific and detailed.
+                        Generate an improved prompt for iteration {current_iteration + 1} that:
+                        - Reduces AI detection indicators
+                        - Makes the video appear more natural and realistic
+                        - Addresses specific artifacts that make it detectable as AI
+                        - Improves photorealistic quality
+                        - Adds natural imperfections and organic movement
+                        
+                        Focus on making the video UNDETECTABLE as AI-generated.
                         Return ONLY the improved prompt.
                         """
                         
@@ -352,9 +385,12 @@ class VideoGenerationService:
             
             current_iteration += 1
             
-            # Check if we've reached target
+            # Check if we've reached target or video passes as real
             if current_confidence >= target_confidence:
-                logger.info(f"✅ Target confidence {target_confidence}% reached at iteration {current_iteration - 1}")
+                if ai_detection_score == 0:
+                    logger.info(f"🎉 VIDEO PASSES AS REAL! No AI indicators detected at iteration {current_iteration - 1}")
+                else:
+                    logger.info(f"✅ Target confidence {target_confidence}% reached at iteration {current_iteration - 1}")
                 break
         
         # Final status update
