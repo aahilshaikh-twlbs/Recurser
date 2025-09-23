@@ -145,3 +145,4 @@ secrets.json
 *.bak
 *.backup
 *.old
+*.db
