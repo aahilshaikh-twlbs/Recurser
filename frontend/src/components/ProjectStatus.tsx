@@ -20,10 +20,11 @@ interface ProjectStatusProps {
 
 export default function ProjectStatus({ project: initialProject }: ProjectStatusProps) {
   const [project, setProject] = useState(initialProject)
-  const [currentIteration, setCurrentIteration] = useState(String(project?.current_iteration || 1))
   const [isExpanded, setIsExpanded] = useState(false)
   const [isPolling, setIsPolling] = useState(true)
   const [logs, setLogs] = useState<string[]>([])
+  const [lastUpdateTime, setLastUpdateTime] = useState<Date>(new Date())
+  const [isConnected, setIsConnected] = useState(true)
 
   // Persist state to sessionStorage for reload handling
   useEffect(() => {
@@ -39,7 +40,6 @@ export default function ProjectStatus({ project: initialProject }: ProjectStatus
       try {
         const parsedProject = JSON.parse(savedProject)
         setProject(parsedProject)
-        setCurrentIteration(parsedProject.current_iteration || 1)
         // Resume polling if not completed
         if (parsedProject.status !== 'completed' && parsedProject.status !== 'failed') {
           setIsPolling(true)
@@ -62,7 +62,8 @@ export default function ProjectStatus({ project: initialProject }: ProjectStatus
         
         if (result.success && result.data) {
           setProject(result.data)
-          setCurrentIteration(result.data.current_iteration || 1)
+          setLastUpdateTime(new Date())
+          setIsConnected(true)
           
           // Stop polling if completed or failed
           if (result.data.status === 'completed' || result.data.status === 'failed') {
@@ -73,35 +74,49 @@ export default function ProjectStatus({ project: initialProject }: ProjectStatus
         // Fetch logs
         const logsResponse = await apiRequest(API_CONFIG.endpoints.videoLogs(project.video_id))
         const logsResult = await logsResponse.json()
-        
+
         if (logsResult.success && logsResult.data) {
           setLogs(logsResult.data.logs || [])
         }
       } catch (error) {
         console.error('Error polling status:', error)
+        setIsConnected(false)
       }
     }
 
     // Initial poll
     pollStatus()
 
-    // Set up interval for polling
-    const interval = setInterval(pollStatus, 3000) // Poll every 3 seconds
+    // Set up interval for polling - more frequent for better responsiveness
+    const interval = setInterval(pollStatus, 2000) // Poll every 2 seconds
 
     return () => clearInterval(interval)
   }, [project?.video_id, isPolling])
 
-  const getStatusIcon = (status: string) => {
-    const normalizedStatus = (status || '').toLowerCase()
-    switch (normalizedStatus) {
+  const getStatusMessage = () => {
+    if (!project) return "Loading..."
+    
+    const status = (project.status || '').toLowerCase()
+    const progress = project.progress || 0
+    
+    switch (status) {
+      case 'starting':
+        return "🚀 Initializing video generation..."
+      case 'generating':
+        return "🎬 Generating video with AI..."
+      case 'uploading':
+        return "📤 Uploading video to analysis platform..."
+      case 'analyzing':
+        return "🔍 Analyzing video for AI indicators..."
       case 'completed':
-        return <CheckCircle className="w-5 h-5 text-success-600" />
-      case 'processing':
-        return <Clock className="w-5 h-5 text-primary-600 animate-pulse" />
+        return "✅ Video enhancement completed successfully!"
       case 'failed':
-        return <AlertCircle className="w-5 h-5 text-error-600" />
+        return "❌ Video generation failed"
       default:
-        return <Play className="w-5 h-5 text-warning-600" />
+        if (progress > 0) {
+          return `⚡ Processing... (${progress}%)`
+        }
+        return "⏳ Starting video enhancement..."
     }
   }
 
@@ -109,26 +124,20 @@ export default function ProjectStatus({ project: initialProject }: ProjectStatus
     const normalizedStatus = (status || '').toLowerCase()
     switch (normalizedStatus) {
       case 'completed':
-        return 'status-completed'
-      case 'processing':
-        return 'status-processing'
+        return 'text-green-600 bg-green-100'
       case 'failed':
-        return 'status-failed'
+        return 'text-red-600 bg-red-100'
+      case 'generating':
+      case 'analyzing':
+        return 'text-blue-600 bg-blue-100'
       default:
-        return 'status-pending'
+        return 'text-yellow-600 bg-yellow-100'
     }
   }
 
-  const formatProgress = () => {
-    if (!project.iterations || project.iterations.length === 0) return '0'
-    const completed = project.iterations.filter((iter: any) => iter.status === 'completed').length
-    return String(Math.round((completed / project.iterations.length) * 100))
-  }
-
-  const getCurrentConfidence = () => {
-    if (!project.iterations || project.iterations.length === 0) return '0'
-    const latest = project.iterations[project.iterations.length - 1]
-    return String(latest.confidence_score || 0)
+  const getLastLogMessage = () => {
+    if (logs.length === 0) return "No activity yet..."
+    return logs[logs.length - 1]
   }
 
   return (
@@ -137,96 +146,60 @@ export default function ProjectStatus({ project: initialProject }: ProjectStatus
       animate={{ opacity: 1, y: 0 }}
       className="card"
     >
+      {/* Header with Connection Status */}
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-xl font-bold text-gray-900">Project Status</h2>
+        <div>
+          <h2 className="text-xl font-bold text-gray-900">Enhancement Status</h2>
+          <div className="flex items-center space-x-2 mt-1">
+            <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`} />
+            <span className="text-sm text-gray-600">
+              {isConnected ? 'Connected' : 'Disconnected'} • 
+              Last update: {lastUpdateTime.toLocaleTimeString()}
+            </span>
+          </div>
+        </div>
         <button
           onClick={() => setIsExpanded(!isExpanded)}
           className="text-primary-600 hover:text-primary-700 text-sm font-medium"
         >
-          {isExpanded ? 'Show Less' : 'Show Details'}
+          {isExpanded ? 'Hide Details' : 'Show Details'}
         </button>
       </div>
 
-      {/* Project Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <div className="text-center p-4 bg-gray-50 rounded-lg">
-          <div className="text-2xl font-bold text-primary-600">
-            {String(project.total_iterations || '0')}
-          </div>
-          <div className="text-sm text-gray-600">Total Iterations</div>
-        </div>
-        
-        <div className="text-center p-4 bg-gray-50 rounded-lg">
-          <div className="text-2xl font-bold text-primary-600">
-            {String(currentIteration)}
-          </div>
-          <div className="text-sm text-gray-600">Current Iteration</div>
-        </div>
-        
-        <div className="text-center p-4 bg-gray-50 rounded-lg">
-          <div className="text-2xl font-bold text-success-600">
-            {`${parseFloat(getCurrentConfidence()).toFixed(1)}%`}
-          </div>
-          <div className="text-sm text-gray-600">Current Confidence</div>
-        </div>
-        
-        <div className="text-center p-4 bg-gray-50 rounded-lg">
-          <div className="text-2xl font-bold text-warning-600">
-            {`${String(project.target_confidence || 85)}%`}
-          </div>
-          <div className="text-sm text-gray-600">Target Confidence</div>
-        </div>
-      </div>
-
-      {/* Progress Bar */}
+      {/* Dynamic Status Display */}
       <div className="mb-6">
-        <div className="flex justify-between items-center mb-2">
-          <span className="text-sm font-medium text-gray-700">Progress</span>
-          <span className="text-sm text-gray-600">{formatProgress()}%</span>
+        <div className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-medium ${getStatusColor(project?.status)}`}>
+          <div className="w-2 h-2 rounded-full bg-current mr-2 animate-pulse" />
+          {getStatusMessage()}
         </div>
-        <div className="w-full bg-gray-200 rounded-full h-2">
-          <motion.div
-            className="bg-primary-600 h-2 rounded-full"
-            initial={{ width: 0 }}
-            animate={{ width: `${formatProgress()}%` }}
-            transition={{ duration: 0.5 }}
-          />
-        </div>
-      </div>
-
-      {/* Status */}
-      <div className="flex items-center space-x-3 mb-6">
-        {getStatusIcon(project.status)}
-        <div>
-          <span className={`status-badge ${getStatusColor(project.status)}`}>
-            {project.status}
-          </span>
-          <p className="text-sm text-gray-600 mt-1">
-            {project.status === 'completed' 
-              ? 'Project completed successfully!'
-              : project.status === 'processing'
-              ? 'Currently processing video...'
-              : 'Project is pending or failed'
-            }
-          </p>
+        
+        {/* Progress Bar */}
+        <div className="mt-4">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm font-medium text-gray-700">Progress</span>
+            <span className="text-sm text-gray-600">{project?.progress || 0}%</span>
+          </div>
+          <div className="w-full bg-gray-200 rounded-full h-2">
+            <motion.div
+              className="bg-primary-600 h-2 rounded-full"
+              initial={{ width: 0 }}
+              animate={{ width: `${project?.progress || 0}%` }}
+              transition={{ duration: 0.5 }}
+            />
+          </div>
         </div>
       </div>
 
-      {/* Enhanced Process Logs */}
-      {logs.length > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200"
-        >
-          <h3 className="font-semibold text-gray-900 mb-3 flex items-center">
-            <BarChart3 className="w-4 h-4 mr-2" />
-            Live Enhancement Logs
-          </h3>
-          <div className="max-h-60 overflow-y-auto">
+      {/* Live Activity Feed */}
+      <div className="mb-6">
+        <h3 className="font-semibold text-gray-900 mb-3 flex items-center">
+          <BarChart3 className="w-4 h-4 mr-2" />
+          Live Activity
+        </h3>
+        <div className="bg-gray-50 rounded-lg p-4 min-h-[100px] max-h-[200px] overflow-y-auto">
+          {logs.length > 0 ? (
             <div className="space-y-2">
-              {logs.map((log, index) => {
-                // Parse log type for better formatting
+              {logs.slice(-10).map((log, index) => {
                 const isSuccess = log.includes('✅') || log.includes('SUCCESS')
                 const isError = log.includes('❌') || log.includes('ERROR')
                 const isWarning = log.includes('⚠️') || log.includes('WARNING')
@@ -275,106 +248,101 @@ export default function ProjectStatus({ project: initialProject }: ProjectStatus
                 )
               })}
             </div>
-          </div>
-        </motion.div>
-      )}
+          ) : (
+            <div className="text-center text-gray-500 py-8">
+              <Clock className="w-8 h-8 mx-auto mb-2 opacity-50" />
+              <p>Waiting for activity...</p>
+            </div>
+          )}
+        </div>
+      </div>
+
 
       {/* Expanded Details */}
-      {isExpanded && project.iterations && project.iterations.length > 0 ? (
+      {isExpanded && (
         <motion.div
           initial={{ opacity: 0, height: 0 }}
           animate={{ opacity: 1, height: 'auto' }}
-          className="space-y-4"
+          className="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200"
         >
-          <h3 className="font-semibold text-gray-900">Iteration Details</h3>
+          <h3 className="font-semibold text-gray-900 mb-4">Technical Details</h3>
           
-          {project.iterations.map((iteration: any, index: number) => (
-            <motion.div
-              key={index}
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: index * 0.1 }}
-              className="border border-gray-200 rounded-lg p-4 bg-gray-50"
-            >
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center text-primary-600 font-bold text-sm">
-                    {String(iteration.iteration_number)}
-                  </div>
-                  <div>
-                    <h4 className="font-medium text-gray-900">
-                      Iteration {String(iteration.iteration_number)}
-                    </h4>
-                    <p className="text-sm text-gray-600">
-                      {iteration.status === 'uploaded_video' ? 'Uploaded Video' : 'Generated Video'}
-                    </p>
-                  </div>
-                </div>
-                
-                <div className="text-right">
-                  <div className="text-lg font-bold text-primary-600">
-                    {`${iteration.confidence_score?.toFixed(1) || '0'}%`}
-                  </div>
-                  <div className="text-sm text-gray-600">Confidence</div>
-                </div>
+          {/* Key Metrics */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <div className="text-center p-3 bg-white rounded-lg">
+              <div className="text-lg font-bold text-blue-600">
+                {project?.ai_detection_score?.toFixed(1) || '0.0'}%
               </div>
+              <div className="text-xs text-gray-600">AI Detection</div>
+            </div>
+            
+            <div className="text-center p-3 bg-white rounded-lg">
+              <div className="text-lg font-bold text-green-600">
+                {project?.final_confidence?.toFixed(1) || '0.0'}%
+              </div>
+              <div className="text-xs text-gray-600">Final Confidence</div>
+            </div>
+            
+            <div className="text-center p-3 bg-white rounded-lg">
+              <div className="text-lg font-bold text-purple-600">
+                {project?.iteration_count || 1}
+              </div>
+              <div className="text-xs text-gray-600">Iterations</div>
+            </div>
+            
+            <div className="text-center p-3 bg-white rounded-lg">
+              <div className="text-lg font-bold text-orange-600">
+                {project?.max_iterations || 5}
+              </div>
+              <div className="text-xs text-gray-600">Max Iterations</div>
+            </div>
+          </div>
 
-              {/* Prompt */}
-              <div className="mb-3">
-                <label className="text-sm font-medium text-gray-700">Prompt:</label>
-                <p className="text-sm text-gray-600 bg-white p-2 rounded border">
-                  {iteration.prompt}
+          {/* Video Information */}
+          {project?.video_path && (
+            <div className="mb-4">
+              <h4 className="font-medium text-gray-900 mb-2">Generated Video</h4>
+              <div className="bg-white p-3 rounded-lg border">
+                <p className="text-sm text-gray-600 mb-2">
+                  <strong>File:</strong> {project.video_path.split('/').pop()}
                 </p>
-              </div>
-
-              {/* Scores */}
-              <div className="grid grid-cols-2 gap-4 mb-3">
-                <div>
-                  <label className="text-sm font-medium text-gray-700">Marengo Score:</label>
-                  <div className="text-lg font-bold text-blue-600">
-                    {`${iteration.marengo_score?.toFixed(1) || '0'}%`}
-                  </div>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-700">Status:</label>
-                  <span className={`status-badge ${getStatusColor(iteration.status)}`}>
-                    {iteration.status}
-                  </span>
-                </div>
-              </div>
-
-              {/* Actions */}
-              <div className="flex space-x-2">
-                {iteration.video_path && (
-                  <>
-                    <button className="flex items-center space-x-2 text-sm text-primary-600 hover:text-primary-700">
-                      <Eye className="w-4 h-4" />
-                      <span>View</span>
-                    </button>
-                    <button className="flex items-center space-x-2 text-sm text-primary-600 hover:text-primary-700">
-                      <Download className="w-4 h-4" />
-                      <span>Download</span>
-                    </button>
-                  </>
+                <p className="text-sm text-gray-600 mb-2">
+                  <strong>Status:</strong> {project.status}
+                </p>
+                {project.twelvelabs_video_id && (
+                  <p className="text-sm text-gray-600">
+                    <strong>TwelveLabs ID:</strong> {project.twelvelabs_video_id}
+                  </p>
                 )}
               </div>
+            </div>
+          )}
 
-              {/* Analysis */}
-              {iteration.pegasus_analysis && (
-                <div className="mt-3 p-3 bg-blue-50 rounded border border-blue-200">
-                  <label className="text-sm font-medium text-blue-900">Pegasus Analysis:</label>
-                  <p className="text-sm text-blue-800 mt-1">
-                    {iteration.pegasus_analysis.length > 200
-                      ? `${iteration.pegasus_analysis.substring(0, 200)}...`
-                      : iteration.pegasus_analysis
-                    }
-                  </p>
-                </div>
-              )}
-            </motion.div>
-          ))}
+          {/* Enhanced Prompt */}
+          {project?.enhanced_prompt && (
+            <div className="mb-4">
+              <h4 className="font-medium text-gray-900 mb-2">Enhanced Prompt</h4>
+              <div className="bg-white p-3 rounded-lg border">
+                <p className="text-sm text-gray-700">
+                  {project.enhanced_prompt}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Analysis Results */}
+          {project?.analysis_results && (
+            <div>
+              <h4 className="font-medium text-gray-900 mb-2">Analysis Results</h4>
+              <div className="bg-white p-3 rounded-lg border">
+                <pre className="text-xs text-gray-600 overflow-x-auto">
+                  {JSON.stringify(project.analysis_results, null, 2)}
+                </pre>
+              </div>
+            </div>
+          )}
         </motion.div>
-      ) : null}
+      )}
 
       {/* Final Results */}
       {project.status === 'completed' && (
@@ -444,3 +412,4 @@ export default function ProjectStatus({ project: initialProject }: ProjectStatus
     </motion.div>
   )
 }
+
