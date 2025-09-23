@@ -24,26 +24,30 @@ export const dynamic = 'force-dynamic'
 
 export default function PlaygroundPage() {
   const router = useRouter()
-  const [selectedVideo, setSelectedVideo] = useState<VideoData | null>(null)
 
-  const handleEnhanceVideo = () => {
-    if (selectedVideo) {
+  const handleEnhanceVideo = (video: VideoData) => {
+    if (video) {
       // Ensure all properties are safe strings before storing
       const safeVideo = {
-        id: String(selectedVideo.id || ''),
-        title: String(selectedVideo.title || 'Untitled'),
-        description: String(selectedVideo.description || ''),
-        thumbnail: selectedVideo.thumbnail || null,
-        hls_url: selectedVideo.hls_url || null,
-        duration: Number(selectedVideo.duration) || 0,
-        confidence_score: selectedVideo.confidence_score ? Number(selectedVideo.confidence_score) : null,
-        created_at: String(selectedVideo.created_at || ''),
-        updated_at: selectedVideo.updated_at ? String(selectedVideo.updated_at) : undefined
+        id: String(video.id || ''),
+        title: String(video.title || 'Untitled'),
+        description: String(video.description || ''),
+        thumbnail: video.thumbnail || null,
+        hls_url: video.hls_url || null,
+        duration: Number(video.duration) || 0,
+        confidence_score: video.confidence_score ? Number(video.confidence_score) : null,
+        created_at: String(video.created_at || ''),
+        updated_at: video.updated_at ? String(video.updated_at) : undefined
       }
       // Store video in sessionStorage to pass to enhance page
       sessionStorage.setItem('videoToEnhance', JSON.stringify(safeVideo))
       router.push('/enhance')
     }
+  }
+
+  const handleVideoSelected = (video: VideoData) => {
+    // Automatically start enhancement when video is selected from modal
+    handleEnhanceVideo(video)
   }
 
   return (
@@ -84,45 +88,9 @@ export default function PlaygroundPage() {
         >
           {/* Video Grid */}
           <div className="card">
-            <PlaygroundView onVideoSelected={setSelectedVideo} />
+            <PlaygroundView onVideoSelected={handleVideoSelected} />
           </div>
 
-          {/* Selected Video */}
-          {selectedVideo && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-              className="card bg-blue-50 border-blue-200"
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-4">
-                  {selectedVideo.thumbnail && (
-                    <img
-                      src={selectedVideo.thumbnail}
-                      alt={selectedVideo.title}
-                      className="w-20 h-20 object-cover rounded-lg"
-                    />
-                  )}
-                  <div>
-                    <h3 className="font-semibold text-gray-900">
-                      {selectedVideo.title}
-                    </h3>
-                    <p className="text-sm text-gray-600">
-                      Ready for recursive enhancement
-                    </p>
-                  </div>
-                </div>
-                <button
-                  onClick={handleEnhanceVideo}
-                  className="px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors flex items-center space-x-2"
-                >
-                  <span>Enhance This Video</span>
-                  <ArrowRight className="w-5 h-5" />
-                </button>
-              </div>
-            </motion.div>
-          )}
         </motion.div>
       </main>
     </div>

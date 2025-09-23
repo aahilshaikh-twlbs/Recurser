@@ -27,6 +27,7 @@ export default function PlaygroundView({ onVideoSelected }: PlaygroundViewProps)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [selectedVideo, setSelectedVideo] = useState<Video | null>(null)
+  const [isEnhancing, setIsEnhancing] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
 
   useEffect(() => {
@@ -304,16 +305,27 @@ export default function PlaygroundView({ onVideoSelected }: PlaygroundViewProps)
                 Close
               </button>
               <button 
-                className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
+                className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={isEnhancing}
                 onClick={() => {
-                  if (onVideoSelected) {
+                  if (onVideoSelected && !isEnhancing) {
+                    setIsEnhancing(true)
                     onVideoSelected(selectedVideo)
+                    setSelectedVideo(null)
                   }
-                  setSelectedVideo(null)
                 }}
               >
-                <ArrowRight className="w-4 h-4 inline mr-2" />
-                Use for Recursive Enhancement
+                {isEnhancing ? (
+                  <>
+                    <div className="w-4 h-4 inline mr-2 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                    Starting Enhancement...
+                  </>
+                ) : (
+                  <>
+                    <ArrowRight className="w-4 h-4 inline mr-2" />
+                    Use for Recursive Enhancement
+                  </>
+                )}
               </button>
             </div>
           </motion.div>
