@@ -194,7 +194,7 @@ export default function ProjectStatus({ project: initialProject }: ProjectStatus
       <div className="mb-6">
         <h3 className="font-semibold text-gray-900 mb-3 flex items-center">
           <BarChart3 className="w-4 h-4 mr-2" />
-          Live Activity
+          Live Activity ({logs.length} logs)
         </h3>
         <div className="bg-gray-50 rounded-lg p-4 min-h-[100px] max-h-[200px] overflow-y-auto">
           {logs.length > 0 ? (
@@ -252,6 +252,7 @@ export default function ProjectStatus({ project: initialProject }: ProjectStatus
             <div className="text-center text-gray-500 py-8">
               <Clock className="w-8 h-8 mx-auto mb-2 opacity-50" />
               <p>Waiting for activity...</p>
+              <p className="text-xs mt-2">Debug: {project?.video_id ? `Video ID: ${project.video_id}` : 'No video ID'}</p>
             </div>
           )}
         </div>
@@ -372,7 +373,7 @@ export default function ProjectStatus({ project: initialProject }: ProjectStatus
                   className="w-full max-w-2xl mx-auto rounded-lg"
                   poster={project.thumbnail_url}
                 >
-                  <source src={`http://127.0.0.1:8080/${project.video_path.split('/').pop()}`} type="video/mp4" />
+                  <source src={`/api/videos/${project.video_id}/play`} type="video/mp4" />
                   Your browser does not support the video tag.
                 </video>
               </div>
@@ -380,7 +381,7 @@ export default function ProjectStatus({ project: initialProject }: ProjectStatus
               {/* Video Actions */}
               <div className="mt-3 flex space-x-2">
                 <a 
-                  href={`http://127.0.0.1:8080/${project.video_path.split('/').pop()}`}
+                  href={`/api/videos/${project.video_id}/download`}
                   download
                   className="btn-primary text-sm"
                 >
@@ -388,23 +389,13 @@ export default function ProjectStatus({ project: initialProject }: ProjectStatus
                   Download Video
                 </a>
                 <button 
-                  onClick={() => window.open(`http://127.0.0.1:8080/${project.video_path.split('/').pop()}`, '_blank')}
+                  onClick={() => window.open(`/api/videos/${project.video_id}/play`, '_blank')}
                   className="btn-secondary text-sm"
                 >
                   <Eye className="w-4 h-4 mr-2" />
                   Open in New Tab
                 </button>
               </div>
-            </div>
-          )}
-          
-          {/* Final Prompt */}
-          {project.enhanced_prompt && (
-            <div className="mt-4">
-              <h4 className="font-medium text-gray-900 mb-2">Final Enhanced Prompt:</h4>
-              <p className="text-sm text-gray-600 bg-white p-3 rounded border">
-                {project.enhanced_prompt}
-              </p>
             </div>
           )}
         </motion.div>

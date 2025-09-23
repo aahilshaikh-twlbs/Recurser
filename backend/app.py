@@ -1403,12 +1403,39 @@ async def grade_video(video_id: int, index_id: str = None, twelvelabs_api_key: s
 async def get_video_logs(video_id: int):
     """Get progress logs for a video"""
     try:
-        logs = progress_logs.get(video_id, [])
+        # Get logs from memory first (real-time)
+        memory_logs = progress_logs.get(video_id, [])
+        
+        # Also get logs from database (persistent)
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        
+        cursor.execute("SELECT detailed_logs FROM videos WHERE id = ?", (video_id,))
+        result = cursor.fetchone()
+        conn.close()
+        
+        db_logs = []
+        if result and result[0]:
+            try:
+                db_logs = json.loads(result[0]) if isinstance(result[0], str) else result[0]
+            except:
+                db_logs = []
+        
+        # Combine logs, prioritizing memory logs (more recent)
+        all_logs = memory_logs + db_logs
+        # Remove duplicates while preserving order
+        seen = set()
+        unique_logs = []
+        for log in all_logs:
+            if log not in seen:
+                seen.add(log)
+                unique_logs.append(log)
+        
         return {
             "success": True,
             "data": {
                 "video_id": video_id,
-                "logs": logs
+                "logs": unique_logs
             }
         }
     except Exception as e:
@@ -1739,55 +1766,6 @@ async def list_videos():
         logger.error(f"❌ List videos error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/api/videos/{video_id}/logs")
-async def get_video_logs(video_id: int):
-    """Get detailed logs for a video"""
-    try:
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
-        
-        cursor.execute("""
-            SELECT detailed_logs, status, current_confidence, ai_detection_score, 
-                   iteration_count, max_iterations, created_at, updated_at
-            FROM videos WHERE id = ?
-        """, (video_id,))
-        
-        result = cursor.fetchone()
-        conn.close()
-        
-        if not result:
-            raise HTTPException(status_code=404, detail="Video not found")
-        
-        detailed_logs, status, current_confidence, ai_detection_score, iteration_count, max_iterations, created_at, updated_at = result
-        
-        # Parse detailed logs
-        logs = []
-        if detailed_logs:
-            try:
-                logs = json.loads(detailed_logs)
-            except:
-                logs = []
-        
-        return {
-            "success": True,
-            "data": {
-                "video_id": video_id,
-                "status": status,
-                "current_confidence": current_confidence,
-                "ai_detection_score": ai_detection_score,
-                "iteration_count": iteration_count,
-                "max_iterations": max_iterations,
-                "logs": logs,
-                "created_at": created_at,
-                "updated_at": updated_at
-            }
-        }
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"❌ Get video logs error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/videos/{video_id}/play")
 async def play_video(video_id: int):
@@ -1816,6 +1794,36 @@ async def play_video(video_id: int):
         
     except Exception as e:
         logger.error(f"❌ Video playback error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/videos/{video_id}/download")
+async def download_video(video_id: int):
+    """Download a generated video file"""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        
+        cursor.execute("SELECT video_path FROM videos WHERE id = ?", (video_id,))
+        video = cursor.fetchone()
+        
+        if not video:
+            raise HTTPException(status_code=404, detail="Video not found")
+        
+        video_path = video[0]
+        conn.close()
+        
+        if not video_path or not os.path.exists(video_path):
+            raise HTTPException(status_code=404, detail="Video file not found")
+        
+        filename = os.path.basename(video_path)
+        return FileResponse(
+            path=video_path,
+            media_type="video/mp4",
+            filename=filename
+        )
+        
+    except Exception as e:
+        logger.error(f"❌ Video download error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
