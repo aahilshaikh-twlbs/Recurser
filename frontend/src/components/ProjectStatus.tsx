@@ -25,6 +25,31 @@ export default function ProjectStatus({ project: initialProject }: ProjectStatus
   const [isPolling, setIsPolling] = useState(true)
   const [logs, setLogs] = useState<string[]>([])
 
+  // Persist state to sessionStorage for reload handling
+  useEffect(() => {
+    if (project?.video_id) {
+      sessionStorage.setItem('currentProject', JSON.stringify(project))
+    }
+  }, [project])
+
+  // Recovery mechanism for page reloads
+  useEffect(() => {
+    const savedProject = sessionStorage.getItem('currentProject')
+    if (savedProject && !project?.video_id) {
+      try {
+        const parsedProject = JSON.parse(savedProject)
+        setProject(parsedProject)
+        setCurrentIteration(parsedProject.current_iteration || 1)
+        // Resume polling if not completed
+        if (parsedProject.status !== 'completed' && parsedProject.status !== 'failed') {
+          setIsPolling(true)
+        }
+      } catch (error) {
+        console.error('Failed to recover project state:', error)
+      }
+    }
+  }, [])
+
   // Poll for status updates
   useEffect(() => {
     if (!project?.video_id || !isPolling) return
@@ -363,22 +388,55 @@ export default function ProjectStatus({ project: initialProject }: ProjectStatus
             <div>
               <h3 className="font-semibold text-success-900">Project Completed!</h3>
               <p className="text-sm text-success-700">
-                Final confidence: {`${project.final_confidence?.toFixed(1)}%`} | 
-                Best prompt: {project.best_prompt?.substring(0, 100)}...
+                Final confidence: {`${project.final_confidence?.toFixed(1) || '0.0'}%`} | 
+                AI Detection Score: {`${project.ai_detection_score?.toFixed(1) || '0.0'}%`}
               </p>
             </div>
           </div>
           
-          {project.final_video_path && (
-            <div className="mt-3 flex space-x-2">
-              <button className="btn-primary text-sm">
-                <Download className="w-4 h-4 mr-2" />
-                Download Final Video
-              </button>
-              <button className="btn-secondary text-sm">
-                <Eye className="w-4 h-4 mr-2" />
-                View Final Video
-              </button>
+          {/* Video Display */}
+          {project.video_path && (
+            <div className="mt-4">
+              <h4 className="font-medium text-gray-900 mb-2">Generated Video:</h4>
+              <div className="bg-white rounded-lg border border-gray-200 p-4">
+                <video 
+                  controls 
+                  className="w-full max-w-2xl mx-auto rounded-lg"
+                  poster={project.thumbnail_url}
+                >
+                  <source src={`http://127.0.0.1:8080/${project.video_path.split('/').pop()}`} type="video/mp4" />
+                  Your browser does not support the video tag.
+                </video>
+              </div>
+              
+              {/* Video Actions */}
+              <div className="mt-3 flex space-x-2">
+                <a 
+                  href={`http://127.0.0.1:8080/${project.video_path.split('/').pop()}`}
+                  download
+                  className="btn-primary text-sm"
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  Download Video
+                </a>
+                <button 
+                  onClick={() => window.open(`http://127.0.0.1:8080/${project.video_path.split('/').pop()}`, '_blank')}
+                  className="btn-secondary text-sm"
+                >
+                  <Eye className="w-4 h-4 mr-2" />
+                  Open in New Tab
+                </button>
+              </div>
+            </div>
+          )}
+          
+          {/* Final Prompt */}
+          {project.enhanced_prompt && (
+            <div className="mt-4">
+              <h4 className="font-medium text-gray-900 mb-2">Final Enhanced Prompt:</h4>
+              <p className="text-sm text-gray-600 bg-white p-3 rounded border">
+                {project.enhanced_prompt}
+              </p>
             </div>
           )}
         </motion.div>

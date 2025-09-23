@@ -291,7 +291,7 @@ class VideoGenerationService:
         twelvelabs_api_key: str, 
         gemini_api_key: Optional[str] = None,
         starting_iteration: int = 1,
-        target_confidence: float = 85.0,
+        target_confidence: float = 100.0,
         max_iterations: int = 5,
         initial_analysis_data: dict = None
     ):
@@ -769,7 +769,21 @@ class AIDetectionService:
             
             "behavioral_artifacts": "cat drinking tea, animals doing human activities, impossible animal behavior, unnatural animal interactions, synthetic animal movements",
             
-            "quality_artifacts": "inconsistent video quality, artificial quality patterns, synthetic quality variations"
+            "quality_artifacts": "inconsistent video quality, artificial quality patterns, synthetic quality variations",
+            
+            "texture_artifacts": "artificial texture patterns, synthetic material properties, unnatural surface details, artificial fabric textures, synthetic skin textures",
+            
+            "color_artifacts": "unnatural color saturation, artificial color grading, synthetic color palettes, unnatural color transitions, artificial color consistency",
+            
+            "perspective_artifacts": "impossible perspective angles, artificial depth perception, synthetic 3D rendering, unnatural camera angles, artificial spatial relationships",
+            
+            "temporal_artifacts": "unnatural time progression, artificial frame rates, synthetic temporal consistency, unnatural scene transitions, artificial pacing",
+            
+            "composition_artifacts": "artificial scene composition, synthetic framing, unnatural visual balance, artificial rule of thirds, synthetic visual hierarchy",
+            
+            "detail_artifacts": "artificial fine details, synthetic micro-movements, unnatural precision, artificial sharpness, synthetic clarity patterns",
+            
+            "interaction_artifacts": "unnatural object interactions, artificial physics, synthetic collision detection, unnatural gravity effects, artificial material responses"
         }
         
         all_results = []
@@ -854,32 +868,53 @@ class AIDetectionService:
     
     @staticmethod
     def _calculate_quality_score(search_results, analysis_results):
-        """Calculate quality score based on results"""
+        """Calculate quality score based on video quality indicators"""
         if not search_results and not analysis_results:
-            return 0.0
+            return 100.0  # Perfect quality if no issues found
         
-        # Simple scoring based on number of indicators found
-        search_score = min(len(search_results) * 2, 100) if search_results else 0
-        analysis_score = min(len(analysis_results) * 10, 100) if analysis_results else 0
+        # Quality score decreases with more issues found
+        search_penalty = min(len(search_results) * 3, 50) if search_results else 0
+        analysis_penalty = min(len(analysis_results) * 8, 50) if analysis_results else 0
         
-        return (search_score + analysis_score) / 2
+        # Start with 100 and subtract penalties
+        quality_score = max(100 - search_penalty - analysis_penalty, 0)
+        return quality_score
     
     @staticmethod
     def _calculate_ai_detection_score(search_results, analysis_results):
-        """Calculate AI detection score"""
+        """Calculate AI detection score based on confidence and severity"""
         # If no results at all, score is 0 (no AI detected)
         if not search_results and not analysis_results:
             return 0.0
         
-        # Higher score means more likely to be AI generated
-        search_score = min(len(search_results) * 5, 100) if search_results else 0
-        analysis_score = min(len(analysis_results) * 15, 100) if analysis_results else 0
+        # Calculate search score based on confidence levels
+        search_score = 0
+        if search_results:
+            total_confidence = 0
+            for result in search_results:
+                confidence = getattr(result, 'confidence', 0) or result.get('confidence', 0) or 0
+                total_confidence += confidence
+            search_score = min(total_confidence / len(search_results), 100)
         
-        # If both are 0, return 0
-        if search_score == 0 and analysis_score == 0:
+        # Calculate analysis score based on severity
+        analysis_score = 0
+        if analysis_results:
+            severity_weights = {'high': 30, 'medium': 20, 'low': 10}
+            total_severity = 0
+            for result in analysis_results:
+                severity = getattr(result, 'severity', 'medium') or result.get('severity', 'medium') or 'medium'
+                total_severity += severity_weights.get(severity.lower(), 20)
+            analysis_score = min(total_severity / len(analysis_results), 100)
+        
+        # Weighted average with search results being more important
+        if search_score > 0 and analysis_score > 0:
+            return (search_score * 0.7 + analysis_score * 0.3)
+        elif search_score > 0:
+            return search_score
+        elif analysis_score > 0:
+            return analysis_score
+        else:
             return 0.0
-        
-        return (search_score + analysis_score) / 2
     
     @staticmethod
     def _create_detailed_logs(search_results, analysis_results, quality_score, ai_detection_score):
