@@ -13,18 +13,28 @@ export async function GET(
   const backendUrl = `${BACKEND_URL}/api/${path}${url.search}`
   
   try {
+    console.log('Proxying request to:', backendUrl)
     const response = await fetch(backendUrl, {
       headers: {
         'Content-Type': 'application/json',
       },
     })
     
+    if (!response.ok) {
+      console.error('Backend response not ok:', response.status, response.statusText)
+      return NextResponse.json(
+        { error: `Backend error: ${response.status} ${response.statusText}` },
+        { status: response.status }
+      )
+    }
+    
     const data = await response.json()
+    console.log('Proxy response successful for:', path)
     return NextResponse.json(data, { status: response.status })
   } catch (error) {
-    console.error('API proxy error:', error)
+    console.error('API proxy error for', path, ':', error)
     return NextResponse.json(
-      { error: 'Failed to connect to backend' },
+      { error: 'Failed to connect to backend', details: error instanceof Error ? error.message : String(error) },
       { status: 502 }
     )
   }
@@ -62,7 +72,7 @@ export async function POST(
   } catch (error) {
     console.error('API proxy error:', error)
     return NextResponse.json(
-      { error: 'Failed to connect to backend' },
+      { error: 'Failed to connect to backend', details: error instanceof Error ? error.message : String(error) },
       { status: 502 }
     )
   }
@@ -90,7 +100,7 @@ export async function PUT(
   } catch (error) {
     console.error('API proxy error:', error)
     return NextResponse.json(
-      { error: 'Failed to connect to backend' },
+      { error: 'Failed to connect to backend', details: error instanceof Error ? error.message : String(error) },
       { status: 502 }
     )
   }
@@ -116,7 +126,7 @@ export async function DELETE(
   } catch (error) {
     console.error('API proxy error:', error)
     return NextResponse.json(
-      { error: 'Failed to connect to backend' },
+      { error: 'Failed to connect to backend', details: error instanceof Error ? error.message : String(error) },
       { status: 502 }
     )
   }

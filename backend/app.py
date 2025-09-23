@@ -150,8 +150,8 @@ DB_PATH = "recurser_validator.db"
 # Progress tracking
 progress_logs = {}
 
-def log_progress(video_id: int, message: str, progress: int = None):
-    """Log progress for a video with timestamp"""
+def log_progress(video_id: int, message: str, progress: int = None, status: str = None):
+    """Log progress for a video with timestamp and update database"""
     timestamp = time.strftime("%H:%M:%S")
     log_entry = f"[{timestamp}] {message}"
     
@@ -160,13 +160,41 @@ def log_progress(video_id: int, message: str, progress: int = None):
     
     progress_logs[video_id].append(log_entry)
     
-    # Update progress in database if provided
+    # Update database with progress, status, and logs
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    
+    # Update progress if provided
     if progress is not None:
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
         cursor.execute("UPDATE videos SET progress = ? WHERE id = ?", (progress, video_id))
-        conn.commit()
-        conn.close()
+    
+    # Update status if provided
+    if status is not None:
+        cursor.execute("UPDATE videos SET status = ? WHERE id = ?", (status, video_id))
+    
+    # Update detailed logs
+    try:
+        # Get current logs from database
+        cursor.execute("SELECT detailed_logs FROM videos WHERE id = ?", (video_id,))
+        result = cursor.fetchone()
+        current_logs = []
+        if result and result[0]:
+            try:
+                current_logs = json.loads(result[0]) if isinstance(result[0], str) else result[0]
+            except:
+                current_logs = []
+        
+        # Add new log entry
+        current_logs.append(log_entry)
+        
+        # Store updated logs
+        cursor.execute("UPDATE videos SET detailed_logs = ? WHERE id = ?", 
+                      (json.dumps(current_logs), video_id))
+    except Exception as e:
+        logger.error(f"Error updating logs: {e}")
+    
+    conn.commit()
+    conn.close()
     
     logger.info(f"📊 Video {video_id}: {message}")
 
@@ -438,17 +466,8 @@ class VideoGenerationService:
     async def generate_video(prompt: str, video_id: int, index_id: str, twelvelabs_api_key: str, gemini_api_key: Optional[str] = None, iteration: int = 1):
         """Generate single video using Veo2 with iterative tracking"""
         try:
-            log_progress(video_id, f"🎬 Starting Veo2 generation (Iteration {iteration})", 10)
-            
             # Update status to generating
-            conn = sqlite3.connect(DB_PATH)
-            cursor = conn.cursor()
-            cursor.execute("""
-                UPDATE videos SET status = ?, progress = ?, updated_at = CURRENT_TIMESTAMP 
-                WHERE id = ?
-            """, ("generating", 10, video_id))
-            conn.commit()
-            conn.close()
+            log_progress(video_id, f"🎬 Starting Veo2 generation (Iteration {iteration})", 10, "generating")
             
             # Generate video with Veo2 (cheaper option)
             from google.genai import Client
@@ -459,6 +478,7 @@ class VideoGenerationService:
             )
             
             logger.info(f"🎬 Using {DEFAULT_VEO_MODEL} model")
+            log_progress(video_id, f"🎬 Using {DEFAULT_VEO_MODEL} model for generation", 15)
             
             # Poll for completion
             while not operation.done:
@@ -484,13 +504,13 @@ class VideoGenerationService:
                 f.write(video_data)
             
             # STEP 3: Upload to TwelveLabs test index with version indicator
-            log_progress(video_id, f"📤 Uploading video to TwelveLabs test index (Iteration {iteration})", 50)
+            log_progress(video_id, f"📤 Uploading video to TwelveLabs test index (Iteration {iteration})", 50, "uploading")
             twelvelabs_video_id = await VideoGenerationService.upload_to_twelvelabs(video_path, index_id, twelvelabs_api_key, video_id, iteration)
             
             # Check for usage limit
             if twelvelabs_video_id == "USAGE_LIMIT_EXCEEDED":
                 logger.warning("⚠️ TwelveLabs usage limit reached - skipping analysis")
-                log_progress(video_id, "⚠️ TwelveLabs usage limit reached - video saved locally", 90)
+                log_progress(video_id, "⚠️ TwelveLabs usage limit reached - video saved locally", 90, "completed")
                 
                 # Update status to completed without analysis
                 conn = sqlite3.connect(DB_PATH)
@@ -520,19 +540,21 @@ class VideoGenerationService:
                 }
             
             # Update status to analyzing
+            log_progress(video_id, "🔍 Starting AI detection analysis", 60, "analyzing")
+            
+            # Update database with video path and twelvelabs ID
             conn = sqlite3.connect(DB_PATH)
             cursor = conn.cursor()
             cursor.execute("""
-                UPDATE videos SET status = ?, progress = ?, video_path = ?, twelvelabs_video_id = ?, updated_at = CURRENT_TIMESTAMP 
+                UPDATE videos SET video_path = ?, twelvelabs_video_id = ?, updated_at = CURRENT_TIMESTAMP 
                 WHERE id = ?
-            """, ("analyzing", 60, video_path, twelvelabs_video_id, video_id))
+            """, (video_path, twelvelabs_video_id, video_id))
             conn.commit()
             conn.close()
             
-            log_progress(video_id, "🔍 Starting AI detection analysis", 65)
-            
             # Run AI detection with detailed logging
             try:
+                log_progress(video_id, "🔍 Searching for AI indicators with Marengo", 65)
                 ai_analysis = await AIDetectionService.detect_ai_generation(
                     index_id, twelvelabs_video_id, twelvelabs_api_key
                 )
@@ -541,8 +563,8 @@ class VideoGenerationService:
                 quality_score = ai_analysis.get('quality_score', 0.0)
                 detailed_logs = ai_analysis.get('detailed_logs', [])
                 
-                logger.info(f"🤖 AI Detection Score: {ai_detection_score:.1f}%")
-                logger.info(f"📊 Quality Score: {quality_score:.1f}%")
+                log_progress(video_id, f"🤖 AI Detection Score: {ai_detection_score:.1f}%", 70)
+                log_progress(video_id, f"📊 Quality Score: {quality_score:.1f}%", 75)
                 
                 # Store detailed logs in database
                 if detailed_logs:
@@ -564,22 +586,7 @@ class VideoGenerationService:
                     logger.info(f"🎉 SUCCESS! Video passes as real - No AI indicators detected")
                     current_confidence = 100.0
                     
-                    # Update database with success
-                    conn = sqlite3.connect(DB_PATH)
-                    cursor = conn.cursor()
-                    cursor.execute("""
-                        UPDATE videos SET 
-                            current_confidence = 100.0,
-                            ai_detection_score = 0.0,
-                            status = 'completed',
-                            progress = 100,
-                            updated_at = CURRENT_TIMESTAMP
-                        WHERE id = ?
-                    """, (video_id,))
-                    conn.commit()
-                    conn.close()
-                    
-                    log_progress(video_id, "🎉 SUCCESS! Video passes as real - No AI indicators detected", 100)
+                    log_progress(video_id, "🎉 SUCCESS! Video passes as real - No AI indicators detected", 100, "completed")
                     
                     return {
                         "video_id": video_id,
@@ -596,7 +603,7 @@ class VideoGenerationService:
                 detailed_logs = [f"❌ AI detection failed: {str(e)}"]
             
             # Generate enhanced prompts using Gemini
-            log_progress(video_id, "🔧 Generating enhanced prompts with Gemini", 70)
+            log_progress(video_id, "🔧 Generating enhanced prompts with Gemini", 80)
             try:
                 enhanced_prompt = await PromptEnhancementService.enhance_prompt(prompt, {})
                 logger.info(f"✅ Enhanced prompt generated: {enhanced_prompt[:100]}...")
@@ -615,55 +622,8 @@ class VideoGenerationService:
                 logger.warning(f"⚠️ Prompt enhancement failed: {str(prompt_error)}")
                 enhanced_prompt = prompt  # Use original prompt as fallback
             
-            # Run AI detection analysis
-            try:
-                log_progress(video_id, "🔍 Searching for AI indicators with Marengo", 75)
-                analysis_results = await AIDetectionService.detect_ai_generation(
-                    index_id, twelvelabs_video_id, twelvelabs_api_key
-                )
-                log_progress(video_id, "✅ AI detection analysis completed", 85)
-                
-                # Store analysis results
-                conn = sqlite3.connect(DB_PATH)
-                cursor = conn.cursor()
-                cursor.execute("""
-                    INSERT INTO analysis_results (video_id, search_results, analysis_results, quality_score, ai_detection_score, created_at)
-                    VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-                """, (
-                    video_id,
-                    json.dumps(analysis_results.get("search_results", [])),
-                    json.dumps(analysis_results.get("analysis_results", [])),
-                    analysis_results.get("quality_score", 0.0),
-                    analysis_results.get("ai_detection_score", 0.0)
-                ))
-                conn.commit()
-                conn.close()
-                
-                logger.info(f"✅ AI detection analysis completed for video {video_id}")
-                logger.info(f"📊 Quality Score: {analysis_results.get('quality_score', 0.0):.1f}%")
-                logger.info(f"🤖 AI Detection Score: {analysis_results.get('ai_detection_score', 0.0):.1f}%")
-                
-                # Update final status
-                conn = sqlite3.connect(DB_PATH)
-                cursor = conn.cursor()
-                cursor.execute("""
-                    UPDATE videos SET status = ?, progress = ?, updated_at = CURRENT_TIMESTAMP 
-                    WHERE id = ?
-                """, ("completed", 100, video_id))
-                conn.commit()
-                conn.close()
-                
-            except Exception as analysis_error:
-                logger.error(f"❌ AI detection analysis failed: {str(analysis_error)}")
-                # Update status to completed even if analysis failed
-                conn = sqlite3.connect(DB_PATH)
-                cursor = conn.cursor()
-                cursor.execute("""
-                    UPDATE videos SET status = ?, progress = ?, error_message = ?, updated_at = CURRENT_TIMESTAMP 
-                    WHERE id = ?
-                """, ("completed", 100, f"Analysis failed: {str(analysis_error)}", video_id))
-                conn.commit()
-                conn.close()
+            # Final completion
+            log_progress(video_id, "✅ AI detection analysis completed", 100, "completed")
             
             logger.info(f"✅ Video generation and analysis completed for video {video_id}")
             
@@ -1449,16 +1409,40 @@ async def get_video_status(video_id: int):
                 "created_at": analysis[6]
             }
         
+        # Parse detailed logs if available
+        detailed_logs = []
+        if video[18]:
+            try:
+                detailed_logs = json.loads(video[18]) if isinstance(video[18], str) else video[18]
+            except:
+                detailed_logs = []
+        
+        # Calculate final confidence (100 - ai_detection_score)
+        final_confidence = 100.0 - (video[15] or 0.0)
+        
+        # Determine better status display
+        status = video[3]
+        if status == "pending":
+            status = "starting"
+        elif status == "generating":
+            status = "generating"
+        elif status == "analyzing":
+            status = "analyzing"
+        elif status == "completed":
+            status = "completed"
+        elif status == "failed":
+            status = "failed"
+        
         return {
             "success": True,
             "data": {
                 "video_id": video[0],
                 "prompt": video[1],
                 "enhanced_prompt": video[2],
-                "status": video[3],
+                "status": status,
                 "video_path": video[4],
-                "confidence_threshold": video[5],
-                "current_confidence": video[6],
+                "confidence_threshold": 100.0,  # Always 100% target (no AI indicators)
+                "current_confidence": final_confidence,
                 "progress": video[7] or 0,
                 "generation_id": video[8],
                 "error_message": video[9],
@@ -1470,12 +1454,15 @@ async def get_video_status(video_id: int):
                 "ai_detection_score": video[15] or 0.0,
                 "ai_detection_confidence": video[16] or 0.0,
                 "ai_detection_details": video[17],
-                "detailed_logs": video[18],
+                "detailed_logs": detailed_logs,
                 "created_at": video[19],
                 "updated_at": video[20],
                 "current_iteration": video[12] or 1,
+                "total_iterations": video[12] or 1,  # Same as current for now
+                "target_confidence": 100.0,  # Always 100% (no AI indicators)
+                "final_confidence": final_confidence,
                 "analysis_results": analysis_data,
-                "iterations": []  # Empty for now, will be populated later
+                "iterations": []  # Will be populated with iteration results
             }
         }
         
