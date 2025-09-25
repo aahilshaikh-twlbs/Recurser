@@ -1,8 +1,9 @@
 {
-  "buildCommand": "cd frontend && npm install && npm run build",
+  "buildCommand": "cd frontend && bun install && bun run build",
   "outputDirectory": "frontend/.next",
-  "installCommand": "cd frontend && npm install",
+  "installCommand": "cd frontend && bun install",
   "framework": "nextjs",
+  "rootDirectory": "frontend",
   "functions": {
     "frontend/src/app/api/**/*.ts": {
       "runtime": "nodejs18.x"
