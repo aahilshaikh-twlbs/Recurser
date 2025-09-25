@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 
 // Backend URL - must be HTTPS in production
-const BACKEND_URL = process.env.BACKEND_URL || 'http://127.0.0.1:8000'
+const BACKEND_URL = process.env.BACKEND_URL || 'http://64.227.97.134:8000'
+
+// Helper function to get the correct backend path
+function getBackendPath(path: string): string {
+  return path === 'health' ? 'health' : `api/${path}`
+}
 
 // Proxy all API requests to the backend
 export async function GET(
@@ -10,27 +15,39 @@ export async function GET(
 ) {
   const path = params.path.join('/')
   const url = new URL(request.url)
-  const backendUrl = `${BACKEND_URL}/api/${path}${url.search}`
+  const backendPath = getBackendPath(path)
+  const backendUrl = `${BACKEND_URL}/${backendPath}${url.search}`
   
   try {
-    console.log('Proxying request to:', backendUrl)
+    console.log(`Proxying GET request: ${path} -> ${backendUrl}`)
     const response = await fetch(backendUrl, {
       headers: {
         'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache', // Prevent caching of API responses
       },
+      // Add timeout to prevent hanging requests
+      signal: AbortSignal.timeout(30000),
     })
     
     if (!response.ok) {
-      console.error('Backend response not ok:', response.status, response.statusText)
+      const errorText = await response.text().catch(() => 'Unknown error')
+      console.error('Backend response not ok:', response.status, response.statusText, errorText)
       return NextResponse.json(
-        { error: `Backend error: ${response.status} ${response.statusText}` },
+        { error: `Backend error: ${response.status} ${response.statusText}`, details: errorText },
         { status: response.status }
       )
     }
     
     const data = await response.json()
     console.log('Proxy response successful for:', path)
-    return NextResponse.json(data, { status: response.status })
+    return NextResponse.json(data, { 
+      status: response.status,
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      }
+    })
   } catch (error) {
     console.error('API proxy error for', path, ':', error)
     return NextResponse.json(
@@ -45,7 +62,8 @@ export async function POST(
   { params }: { params: { path: string[] } }
 ) {
   const path = params.path.join('/')
-  const backendUrl = `${BACKEND_URL}/api/${path}`
+  const backendPath = getBackendPath(path)
+  const backendUrl = `${BACKEND_URL}/${backendPath}`
   
   try {
     const contentType = request.headers.get('content-type')
@@ -83,7 +101,8 @@ export async function PUT(
   { params }: { params: { path: string[] } }
 ) {
   const path = params.path.join('/')
-  const backendUrl = `${BACKEND_URL}/api/${path}`
+  const backendPath = getBackendPath(path)
+  const backendUrl = `${BACKEND_URL}/${backendPath}`
   
   try {
     const body = await request.json()
@@ -111,7 +130,8 @@ export async function DELETE(
   { params }: { params: { path: string[] } }
 ) {
   const path = params.path.join('/')
-  const backendUrl = `${BACKEND_URL}/api/${path}`
+  const backendPath = getBackendPath(path)
+  const backendUrl = `${BACKEND_URL}/${backendPath}`
   
   try {
     const response = await fetch(backendUrl, {
