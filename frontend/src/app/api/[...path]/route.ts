@@ -19,7 +19,23 @@ export async function GET(
   const backendUrl = `${BACKEND_URL}/${backendPath}${url.search}`
   
   try {
+    console.log(`Environment: NODE_ENV=${process.env.NODE_ENV}`)
+    console.log(`Backend URL: ${BACKEND_URL}`)
     console.log(`Proxying GET request: ${path} -> ${backendUrl}`)
+    
+    // Check if BACKEND_URL is properly set
+    if (!process.env.BACKEND_URL) {
+      console.error('BACKEND_URL environment variable is not set!')
+      return NextResponse.json(
+        { 
+          error: 'BACKEND_URL environment variable not configured',
+          details: 'Please set BACKEND_URL in Vercel dashboard',
+          backendUrl: BACKEND_URL
+        },
+        { status: 500 }
+      )
+    }
+    
     const response = await fetch(backendUrl, {
       headers: {
         'Content-Type': 'application/json',
