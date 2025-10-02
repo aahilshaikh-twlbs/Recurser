@@ -240,28 +240,20 @@ export default function ProjectStatus({ project: initialProject }: ProjectStatus
         </button>
       </div>
 
-      {/* Dynamic Status Display */}
+      {/* Current Step Indicator */}
       <div className="mb-6">
-        <div className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-medium ${getStatusColor(project?.status)}`}>
-          <div className="w-2 h-2 rounded-full bg-current mr-2 animate-pulse" />
-          {getStatusMessage()}
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-sm font-medium text-gray-700">Current Step</span>
+          <span className="text-sm text-gray-600">
+            {project?.iteration_count ? `Iteration ${project.iteration_count}/${project?.max_iterations || 5}` : 'Starting'}
+          </span>
         </div>
-        
-        {/* Current Step Indicator */}
-        <div className="mt-4">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-gray-700">Current Step</span>
-            <span className="text-sm text-gray-600">
-              {project?.iteration_count ? `Iteration ${project.iteration_count}/${project?.max_iterations || 5}` : 'Starting'}
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+          <div className="flex items-center space-x-2">
+            <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+            <span className="text-sm font-medium text-blue-800">
+              {getCurrentStepMessage()}
             </span>
-          </div>
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-            <div className="flex items-center space-x-2">
-              <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
-              <span className="text-sm font-medium text-blue-800">
-                {getCurrentStepMessage()}
-              </span>
-            </div>
           </div>
         </div>
       </div>
