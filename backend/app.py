@@ -945,12 +945,41 @@ class AIDetectionService:
         if not search_results and not analysis_results:
             return 100.0  # Perfect quality if no issues found
         
-        # Quality score decreases with more issues found
+        # Only count search results as quality issues (AI indicators)
         search_penalty = min(len(search_results) * 3, 50) if search_results else 0
-        analysis_penalty = min(len(analysis_results) * 8, 50) if analysis_results else 0
+        
+        # Count analysis results that actually indicate quality problems
+        analysis_penalty = 0
+        if analysis_results:
+            quality_issues = 0
+            for result in analysis_results:
+                # Only count analysis results that indicate quality problems
+                if isinstance(result, dict):
+                    content = result.get('content', '').lower()
+                    # Look for quality issues in the analysis
+                    if any(issue in content for issue in [
+                        'poor quality', 'low quality', 'artificial', 'synthetic',
+                        'rendering artifacts', 'compression issues', 'blurry',
+                        'inconsistent', 'unnatural', 'mechanical', 'robotic'
+                    ]):
+                        quality_issues += 1
+                elif hasattr(result, 'content'):
+                    content = str(result.content).lower()
+                    if any(issue in content for issue in [
+                        'poor quality', 'low quality', 'artificial', 'synthetic',
+                        'rendering artifacts', 'compression issues', 'blurry',
+                        'inconsistent', 'unnatural', 'mechanical', 'robotic'
+                    ]):
+                        quality_issues += 1
+            
+            analysis_penalty = min(quality_issues * 8, 50)
         
         # Start with 100 and subtract penalties
         quality_score = max(100 - search_penalty - analysis_penalty, 0)
+        
+        # Debug logging
+        logger.info(f"📊 Quality Score Calculation: Search penalty={search_penalty}, Analysis penalty={analysis_penalty}, Final={quality_score}")
+        
         return quality_score
     
     @staticmethod
@@ -1308,6 +1337,15 @@ async def generate_video(request: VideoGenerationRequest, background_tasks: Back
         
         logger.info(f"🚀 Started video generation for video {video_id}")
         
+        # Add initial logs to memory for immediate frontend display
+        log_detailed(video_id, f"Video generation request received: {request.prompt[:100]}...", "INFO")
+        log_detailed(video_id, f"Starting iterative enhancement for video {request.video_id}", "INFO")
+        log_detailed(video_id, f"Target confidence: {request.confidence_threshold}%", "INFO")
+        log_detailed(video_id, f"Max iterations: {request.max_retries or 5}", "INFO")
+        
+        # Debug: Check if logs are being stored
+        logger.info(f"📊 Video {video_id}: Stored {len(progress_logs.get(video_id, []))} logs in memory")
+        
         return VideoResponse(
             success=True,
             message="Video generation started! Check status endpoint for progress.",
@@ -1515,6 +1553,18 @@ async def test_logs():
         }
     }
 
+@app.get("/api/debug-logs")
+async def debug_logs():
+    """Debug endpoint to check what's in progress_logs memory"""
+    return {
+        "success": True,
+        "data": {
+            "progress_logs": progress_logs,
+            "total_videos": len(progress_logs),
+            "video_ids": list(progress_logs.keys())
+        }
+    }
+
 @app.get("/api/videos/{video_id}/logs")
 async def get_video_logs(video_id: int):
     """Get progress logs for a video"""
@@ -1563,7 +1613,14 @@ async def get_video_logs(video_id: int):
         }
     except Exception as e:
         logger.error(f"❌ Logs retrieval error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        # Return empty logs instead of throwing error
+        return {
+            "success": True,
+            "data": {
+                "video_id": video_id,
+                "logs": []
+            }
+        }
 
 @app.get("/api/videos/{video_id}/status")
 async def get_video_status(video_id: int):
@@ -1576,7 +1633,25 @@ async def get_video_status(video_id: int):
         video = cursor.fetchone()
         
         if not video:
-            raise HTTPException(status_code=404, detail="Video not found")
+            # Video not found yet, return pending status
+            logger.info(f"📊 Video {video_id}: Not found in database yet, returning pending status")
+            return {
+                "success": True,
+                "data": {
+                    "id": video_id,
+                    "status": "pending",
+                    "progress": 0,
+                    "iteration_count": 0,
+                    "max_iterations": 5,  # Will be updated when video is created
+                    "ai_detection_score": 0.0,
+                    "final_confidence": 0.0,
+                    "video_path": None,
+                    "twelvelabs_video_id": None,
+                    "enhanced_prompt": None,
+                    "analysis_results": None,
+                    "detailed_logs": []
+                }
+            }
         
         # Get analysis results if available
         cursor.execute("SELECT * FROM analysis_results WHERE video_id = ? ORDER BY created_at DESC LIMIT 1", (video_id,))

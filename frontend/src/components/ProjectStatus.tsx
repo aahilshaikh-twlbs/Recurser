@@ -386,19 +386,70 @@ export default function ProjectStatus({ project: initialProject }: ProjectStatus
             </div>
           )}
 
-          {/* Quality Score Explanation */}
+          {/* Enhanced Quality Score Explanation */}
           <div className="mb-4">
-            <h4 className="font-medium text-gray-900 mb-2">Quality Score Formula</h4>
-            <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
-              <div className="text-sm text-blue-800 space-y-2">
-                <p><strong>AI Detection Score:</strong> (Search Score + Analysis Score) ÷ 2</p>
-                <p><strong>Quality Score:</strong> 100 - (Search Penalty + Analysis Penalty)</p>
-                <p><strong>Final Confidence:</strong> 100 - AI Detection Score</p>
-                <div className="text-xs text-blue-600 mt-2">
-                  <p>• Search Penalty: 3 points per AI indicator (max 50)</p>
-                  <p>• Analysis Penalty: 8 points per quality issue (max 50)</p>
-                  <p>• 0% = No AI detected, 100% = Strong AI indicators</p>
+            <h4 className="font-medium text-gray-900 mb-3">Quality Assessment Algorithm</h4>
+            <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-4 rounded-lg border border-blue-200">
+              <div className="text-sm text-blue-900 space-y-4">
+                
+                {/* AI Detection Score Section */}
+                <div className="bg-white p-3 rounded border border-blue-100">
+                  <h5 className="font-semibold text-blue-800 mb-2">🎯 AI Detection Score (0-100%)</h5>
+                  <div className="text-xs space-y-1">
+                    <p><strong>Formula:</strong> (Search Score + Analysis Score) ÷ 2</p>
+                    <p><strong>Search Score:</strong> min(total_confidence ÷ num_results, 100)</p>
+                    <p><strong>Analysis Score:</strong> min(total_severity ÷ num_results, 100)</p>
+                    <div className="mt-2 p-2 bg-gray-50 rounded text-xs">
+                      <p><strong>Severity Weights:</strong> High=30, Medium=20, Low=10</p>
+                      <p><strong>Interpretation:</strong> 0% = No AI detected, 100% = Strong AI indicators</p>
+                    </div>
+                  </div>
                 </div>
+
+                {/* Quality Score Section */}
+                <div className="bg-white p-3 rounded border border-blue-100">
+                  <h5 className="font-semibold text-green-800 mb-2">📊 Quality Score (0-100%)</h5>
+                  <div className="text-xs space-y-1">
+                    <p><strong>Formula:</strong> max(100 - search_penalty - analysis_penalty, 0)</p>
+                    <p><strong>Search Penalty:</strong> min(num_search_results × 3, 50)</p>
+                    <p><strong>Analysis Penalty:</strong> min(num_analysis_results × 8, 50)</p>
+                    <div className="mt-2 p-2 bg-gray-50 rounded text-xs">
+                      <p><strong>Purpose:</strong> Measures overall video quality and human-likeness</p>
+                      <p><strong>Higher is better:</strong> 100% = Perfect quality, 0% = Poor quality</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Final Confidence Section */}
+                <div className="bg-white p-3 rounded border border-blue-100">
+                  <h5 className="font-semibold text-purple-800 mb-2">🎯 Final Confidence (0-100%)</h5>
+                  <div className="text-xs space-y-1">
+                    <p><strong>Formula:</strong> 100 - AI Detection Score</p>
+                    <p><strong>Purpose:</strong> System's confidence that video "passes as real"</p>
+                    <div className="mt-2 p-2 bg-gray-50 rounded text-xs">
+                      <p><strong>100%:</strong> Video passes as real (no AI detected)</p>
+                      <p><strong>80%+:</strong> High quality, minimal AI indicators</p>
+                      <p><strong>50%+:</strong> Generally acceptable quality</p>
+                      <p><strong>0%:</strong> Video clearly AI-generated</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Example Calculation */}
+                <div className="bg-yellow-50 p-3 rounded border border-yellow-200">
+                  <h5 className="font-semibold text-yellow-800 mb-2">🧮 Example Calculation</h5>
+                  <div className="text-xs space-y-1 font-mono">
+                    <p><strong>Scenario:</strong> 2 search results (60%, 40% confidence), 1 analysis result (medium severity)</p>
+                    <p><strong>Search Score:</strong> (60 + 40) ÷ 2 = 50</p>
+                    <p><strong>Analysis Score:</strong> 20 (medium severity)</p>
+                    <p><strong>AI Detection:</strong> (50 + 20) ÷ 2 = 35%</p>
+                    <p><strong>Search Penalty:</strong> min(2 × 3, 50) = 6</p>
+                    <p><strong>Analysis Penalty:</strong> min(1 × 8, 50) = 8</p>
+                    <p><strong>Quality Score:</strong> max(100 - 6 - 8, 0) = 86%</p>
+                    <p><strong>Final Confidence:</strong> 100 - 35 = 65%</p>
+                  </div>
+                </div>
+
               </div>
             </div>
           </div>
