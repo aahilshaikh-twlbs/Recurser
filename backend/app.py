@@ -1677,6 +1677,9 @@ async def get_video_status(video_id: int):
             except:
                 detailed_logs = []
         
+        # Debug: Log the max_iterations value
+        logger.info(f"📊 Video {video_id}: Database max_iterations = {video[13]}")
+        
         # Calculate final confidence (100 - ai_detection_score)
         final_confidence = 100.0 - (video[15] or 0.0)
         

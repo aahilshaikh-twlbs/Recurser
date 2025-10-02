@@ -235,7 +235,7 @@ export default function ProjectStatus({ project: initialProject }: ProjectStatus
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm font-medium text-gray-700">Current Step</span>
             <span className="text-sm text-gray-600">
-              {project?.iteration_count ? `Iteration ${project.iteration_count}` : 'Starting'}
+              {project?.iteration_count ? `Iteration ${project.iteration_count}/${project?.max_iterations || 5}` : 'Starting'}
             </span>
           </div>
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
@@ -251,10 +251,28 @@ export default function ProjectStatus({ project: initialProject }: ProjectStatus
 
       {/* Live Activity Feed */}
       <div className="mb-6">
-        <h3 className="font-semibold text-gray-900 mb-3 flex items-center">
-          <BarChart3 className="w-4 h-4 mr-2" />
-          Live Activity ({logs.length} logs)
-        </h3>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="font-semibold text-gray-900 flex items-center">
+            <BarChart3 className="w-4 h-4 mr-2" />
+            Live Activity ({logs.length} logs)
+          </h3>
+          <button 
+            onClick={async () => {
+              try {
+                console.log('Manual log fetch for video:', project?.video_id)
+                const response = await apiRequest(API_CONFIG.endpoints.videoLogs(project?.video_id || '1'))
+                const result = await response.json()
+                console.log('Manual logs response:', result)
+                setLogs(result.data?.logs || [])
+              } catch (error) {
+                console.error('Manual log fetch failed:', error)
+              }
+            }}
+            className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded hover:bg-blue-200"
+          >
+            Refresh Logs
+          </button>
+        </div>
         <div className="bg-gray-900 rounded-lg p-4 min-h-[100px] max-h-[300px] overflow-y-auto font-mono text-sm">
           <div className="text-green-400 text-xs mb-2 border-b border-gray-700 pb-1">
             ~/recurser-backend$ tail -f server.log
@@ -386,70 +404,31 @@ export default function ProjectStatus({ project: initialProject }: ProjectStatus
             </div>
           )}
 
-          {/* Enhanced Quality Score Explanation */}
+          {/* Condensed Quality Score Overview */}
           <div className="mb-4">
-            <h4 className="font-medium text-gray-900 mb-3">Quality Assessment Algorithm</h4>
-            <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-4 rounded-lg border border-blue-200">
-              <div className="text-sm text-blue-900 space-y-4">
-                
-                {/* AI Detection Score Section */}
-                <div className="bg-white p-3 rounded border border-blue-100">
-                  <h5 className="font-semibold text-blue-800 mb-2">🎯 AI Detection Score (0-100%)</h5>
-                  <div className="text-xs space-y-1">
-                    <p><strong>Formula:</strong> (Search Score + Analysis Score) ÷ 2</p>
-                    <p><strong>Search Score:</strong> min(total_confidence ÷ num_results, 100)</p>
-                    <p><strong>Analysis Score:</strong> min(total_severity ÷ num_results, 100)</p>
-                    <div className="mt-2 p-2 bg-gray-50 rounded text-xs">
-                      <p><strong>Severity Weights:</strong> High=30, Medium=20, Low=10</p>
-                      <p><strong>Interpretation:</strong> 0% = No AI detected, 100% = Strong AI indicators</p>
-                    </div>
+            <h4 className="font-medium text-gray-900 mb-2">Quality Assessment Overview</h4>
+            <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
+              <div className="text-sm text-blue-800 space-y-2">
+                <div className="grid grid-cols-3 gap-3 text-xs">
+                  <div className="bg-white p-2 rounded">
+                    <p className="font-semibold text-blue-700">🎯 AI Detection</p>
+                    <p>(Search + Analysis) ÷ 2</p>
+                    <p className="text-gray-600">0% = Real, 100% = AI</p>
+                  </div>
+                  <div className="bg-white p-2 rounded">
+                    <p className="font-semibold text-green-700">📊 Quality</p>
+                    <p>100 - Penalties</p>
+                    <p className="text-gray-600">Higher = Better</p>
+                  </div>
+                  <div className="bg-white p-2 rounded">
+                    <p className="font-semibold text-purple-700">🎯 Confidence</p>
+                    <p>100 - AI Detection</p>
+                    <p className="text-gray-600">Passes as real</p>
                   </div>
                 </div>
-
-                {/* Quality Score Section */}
-                <div className="bg-white p-3 rounded border border-blue-100">
-                  <h5 className="font-semibold text-green-800 mb-2">📊 Quality Score (0-100%)</h5>
-                  <div className="text-xs space-y-1">
-                    <p><strong>Formula:</strong> max(100 - search_penalty - analysis_penalty, 0)</p>
-                    <p><strong>Search Penalty:</strong> min(num_search_results × 3, 50)</p>
-                    <p><strong>Analysis Penalty:</strong> min(num_analysis_results × 8, 50)</p>
-                    <div className="mt-2 p-2 bg-gray-50 rounded text-xs">
-                      <p><strong>Purpose:</strong> Measures overall video quality and human-likeness</p>
-                      <p><strong>Higher is better:</strong> 100% = Perfect quality, 0% = Poor quality</p>
-                    </div>
-                  </div>
+                <div className="text-xs text-blue-600 mt-2">
+                  <p><strong>Penalties:</strong> Search: 3pts per AI indicator • Analysis: 8pts per quality issue</p>
                 </div>
-
-                {/* Final Confidence Section */}
-                <div className="bg-white p-3 rounded border border-blue-100">
-                  <h5 className="font-semibold text-purple-800 mb-2">🎯 Final Confidence (0-100%)</h5>
-                  <div className="text-xs space-y-1">
-                    <p><strong>Formula:</strong> 100 - AI Detection Score</p>
-                    <p><strong>Purpose:</strong> System's confidence that video "passes as real"</p>
-                    <div className="mt-2 p-2 bg-gray-50 rounded text-xs">
-                      <p><strong>100%:</strong> Video passes as real (no AI detected)</p>
-                      <p><strong>80%+:</strong> High quality, minimal AI indicators</p>
-                      <p><strong>50%+:</strong> Generally acceptable quality</p>
-                      <p><strong>0%:</strong> Video clearly AI-generated</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Example Calculation */}
-                <div className="bg-yellow-50 p-3 rounded border border-yellow-200">
-                  <h5 className="font-semibold text-yellow-800 mb-2">🧮 Example Calculation</h5>
-                  <div className="text-xs space-y-1 font-mono">
-                    <p><strong>Scenario:</strong> 2 search results (60%, 40% confidence), 1 analysis result (medium severity)</p>
-                    <p><strong>Search Score:</strong> (60 + 40) ÷ 2 = 50</p>
-                    <p><strong>Analysis Score:</strong> 20 (medium severity)</p>
-                    <p><strong>AI Detection:</strong> (50 + 20) ÷ 2 = 35%</p>
-                    <p><strong>Search Penalty:</strong> min(2 × 3, 50) = 6</p>
-                    <p><strong>Analysis Penalty:</strong> min(1 × 8, 50) = 8</p>
-                    <p><strong>Quality Score:</strong> max(100 - 6 - 8, 0) = 86%</p>
-                    <p><strong>Final Confidence:</strong> 100 - 35 = 65%</p>
-                  </div>
-                </div>
-
               </div>
             </div>
           </div>
