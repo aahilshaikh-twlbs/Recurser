@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-// Backend URL - must be HTTPS in production
-const BACKEND_URL = (process.env.BACKEND_URL || 'http://64.227.97.134:8000').trim()
+// Backend URL - use localhost for development, production URL for deployment
+const BACKEND_URL = (process.env.BACKEND_URL || 
+  (process.env.NODE_ENV === 'production' ? 'http://64.227.97.134:8000' : 'http://localhost:8000')).trim()
 
 // Helper function to get the correct backend path
 function getBackendPath(path: string): string {

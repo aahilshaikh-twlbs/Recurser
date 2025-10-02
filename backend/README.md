@@ -83,6 +83,79 @@ POST /validate
 }
 ```
 
+## Quality Score Calculation
+
+The Recurser system uses a sophisticated scoring algorithm to evaluate video quality and AI detection. Here's the complete formula:
+
+### AI Detection Score (0-100%)
+**Purpose**: Measures likelihood that the video is AI-generated
+
+**Formula**:
+```
+AI Detection Score = (Search Score + Analysis Score) / 2
+
+Where:
+- Search Score = min(total_confidence / num_results, 100)
+- Analysis Score = min(total_severity / num_results, 100)
+```
+
+**Components**:
+- **Search Results**: Marengo 2.7 searches for AI indicators using visual/audio analysis
+- **Analysis Results**: Pegasus 1.2 provides detailed analysis with severity levels
+- **Confidence Levels**: Each search result has a confidence score (0-100)
+- **Severity Weights**: High=30, Medium=20, Low=10
+
+**Scoring Logic**:
+- `0%` = No AI indicators detected (video appears real)
+- `100%` = Strong AI indicators detected (video appears generated)
+
+### Quality Score (0-100%)
+**Purpose**: Measures overall video quality and consistency
+
+**Formula**:
+```
+Quality Score = max(100 - search_penalty - analysis_penalty, 0)
+
+Where:
+- search_penalty = min(num_search_results × 3, 50)
+- analysis_penalty = min(num_analysis_results × 8, 50)
+```
+
+**Penalty System**:
+- **Search Penalty**: 3 points per AI indicator found (max 50 points)
+- **Analysis Penalty**: 8 points per quality issue found (max 50 points)
+- **Perfect Score**: 100% when no issues are detected
+
+### Final Confidence Score (0-100%)
+**Purpose**: Overall confidence that the video meets quality standards
+
+**Formula**:
+```
+Final Confidence = 100 - AI Detection Score
+```
+
+**Interpretation**:
+- `100%` = Video passes as real (no AI detected)
+- `0%` = Video clearly AI-generated
+- `50%+` = Generally acceptable quality
+- `80%+` = High quality, minimal AI indicators
+
+### Example Calculation
+
+**Scenario**: Video with 2 search results (confidence: 60%, 40%) and 1 analysis result (severity: medium)
+
+```
+Search Score = (60 + 40) / 2 = 50
+Analysis Score = 20 (medium severity)
+AI Detection Score = (50 + 20) / 2 = 35%
+
+Search Penalty = min(2 × 3, 50) = 6
+Analysis Penalty = min(1 × 8, 50) = 8
+Quality Score = max(100 - 6 - 8, 0) = 86%
+
+Final Confidence = 100 - 35 = 65%
+```
+
 ## Architecture
 
 The backend follows the Circuit/Recurser architecture:

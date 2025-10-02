@@ -54,8 +54,13 @@ export default function ProjectStatus({ project: initialProject }: ProjectStatus
   useEffect(() => {
     if (!project?.video_id || !isPolling) return
 
+    let pollCount = 0
+    const maxPollAttempts = 3
+
     const pollStatus = async () => {
       try {
+        pollCount++
+        
         // Fetch status
         const response = await apiRequest(API_CONFIG.endpoints.videoStatus(project.video_id))
         const result = await response.json()
@@ -64,11 +69,14 @@ export default function ProjectStatus({ project: initialProject }: ProjectStatus
           setProject(result.data)
           setLastUpdateTime(new Date())
           setIsConnected(true)
+          pollCount = 0 // Reset on successful poll
           
           // Stop polling if completed or failed
           if (result.data.status === 'completed' || result.data.status === 'failed') {
             setIsPolling(false)
           }
+        } else {
+          throw new Error('Invalid response format')
         }
         
         // Fetch logs
@@ -80,7 +88,11 @@ export default function ProjectStatus({ project: initialProject }: ProjectStatus
         }
       } catch (error) {
         console.error('Error polling status:', error)
-        setIsConnected(false)
+        
+        // Only show disconnected after multiple failed attempts
+        if (pollCount >= maxPollAttempts) {
+          setIsConnected(false)
+        }
       }
     }
 
@@ -140,6 +152,30 @@ export default function ProjectStatus({ project: initialProject }: ProjectStatus
     return logs[logs.length - 1]
   }
 
+  const getCurrentStepMessage = () => {
+    if (!project) return "Initializing..."
+    
+    const status = (project.status || '').toLowerCase()
+    const iteration = project.iteration_count || 1
+    
+    switch (status) {
+      case 'starting':
+        return `Starting video generation (Iteration ${iteration})`
+      case 'generating':
+        return `Generating video with AI (Iteration ${iteration})`
+      case 'uploading':
+        return `Uploading to analysis platform (Iteration ${iteration})`
+      case 'analyzing':
+        return `Analyzing for AI indicators (Iteration ${iteration})`
+      case 'completed':
+        return `Completed - Final confidence: ${project.final_confidence?.toFixed(1) || '0.0'}%`
+      case 'failed':
+        return `Failed - Check logs for details`
+      default:
+        return `Processing (Iteration ${iteration})`
+    }
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -173,19 +209,21 @@ export default function ProjectStatus({ project: initialProject }: ProjectStatus
           {getStatusMessage()}
         </div>
         
-        {/* Progress Bar */}
+        {/* Current Step Indicator */}
         <div className="mt-4">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-gray-700">Progress</span>
-            <span className="text-sm text-gray-600">{project?.progress || 0}%</span>
+            <span className="text-sm font-medium text-gray-700">Current Step</span>
+            <span className="text-sm text-gray-600">
+              {project?.iteration_count ? `Iteration ${project.iteration_count}` : 'Starting'}
+            </span>
           </div>
-          <div className="w-full bg-gray-200 rounded-full h-2">
-            <motion.div
-              className="bg-primary-600 h-2 rounded-full"
-              initial={{ width: 0 }}
-              animate={{ width: `${project?.progress || 0}%` }}
-              transition={{ duration: 0.5 }}
-            />
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+            <div className="flex items-center space-x-2">
+              <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+              <span className="text-sm font-medium text-blue-800">
+                {getCurrentStepMessage()}
+              </span>
+            </div>
           </div>
         </div>
       </div>
@@ -196,10 +234,13 @@ export default function ProjectStatus({ project: initialProject }: ProjectStatus
           <BarChart3 className="w-4 h-4 mr-2" />
           Live Activity ({logs.length} logs)
         </h3>
-        <div className="bg-gray-50 rounded-lg p-4 min-h-[100px] max-h-[200px] overflow-y-auto">
+        <div className="bg-gray-900 rounded-lg p-4 min-h-[100px] max-h-[300px] overflow-y-auto font-mono text-sm">
+          <div className="text-green-400 text-xs mb-2 border-b border-gray-700 pb-1">
+            ~/recurser-backend$ tail -f server.log
+          </div>
           {logs.length > 0 ? (
-            <div className="space-y-2">
-              {logs.slice(-10).map((log, index) => {
+            <div className="space-y-1">
+              {logs.slice(-20).map((log, index) => {
                 const isSuccess = log.includes('✅') || log.includes('SUCCESS')
                 const isError = log.includes('❌') || log.includes('ERROR')
                 const isWarning = log.includes('⚠️') || log.includes('WARNING')
@@ -208,41 +249,34 @@ export default function ProjectStatus({ project: initialProject }: ProjectStatus
                 const isPegasus = log.includes('Pegasus') || log.includes('🧠')
                 const isScore = log.includes('Score') || log.includes('📊') || log.includes('🤖')
                 
-                let bgColor = 'bg-gray-100'
-                let textColor = 'text-gray-700'
+                let textColor = 'text-gray-300'
                 let icon = ''
                 
                 if (isSuccess) {
-                  bgColor = 'bg-green-100'
-                  textColor = 'text-green-800'
+                  textColor = 'text-green-400'
                   icon = '✅'
                 } else if (isError) {
-                  bgColor = 'bg-red-100'
-                  textColor = 'text-red-800'
+                  textColor = 'text-red-400'
                   icon = '❌'
                 } else if (isWarning) {
-                  bgColor = 'bg-yellow-100'
-                  textColor = 'text-yellow-800'
+                  textColor = 'text-yellow-400'
                   icon = '⚠️'
                 } else if (isMarengo) {
-                  bgColor = 'bg-blue-100'
-                  textColor = 'text-blue-800'
+                  textColor = 'text-blue-400'
                   icon = '🔍'
                 } else if (isPegasus) {
-                  bgColor = 'bg-purple-100'
-                  textColor = 'text-purple-800'
+                  textColor = 'text-purple-400'
                   icon = '🧠'
                 } else if (isScore) {
-                  bgColor = 'bg-indigo-100'
-                  textColor = 'text-indigo-800'
+                  textColor = 'text-indigo-400'
                   icon = '📊'
                 }
                 
                 return (
-                  <div key={index} className={`p-2 rounded ${bgColor} ${textColor}`}>
+                  <div key={index} className={`py-1 px-2 ${textColor} hover:bg-gray-800 rounded`}>
                     <div className="text-xs font-mono flex items-start">
-                      <span className="mr-2">{icon}</span>
-                      <span className="flex-1">{log}</span>
+                      <span className="mr-2 text-xs opacity-70">{icon}</span>
+                      <span className="flex-1 leading-relaxed">{log}</span>
                     </div>
                   </div>
                 )
@@ -251,8 +285,8 @@ export default function ProjectStatus({ project: initialProject }: ProjectStatus
           ) : (
             <div className="text-center text-gray-500 py-8">
               <Clock className="w-8 h-8 mx-auto mb-2 opacity-50" />
-              <p>Waiting for activity...</p>
-              <p className="text-xs mt-2">Debug: {project?.video_id ? `Video ID: ${project.video_id}` : 'No video ID'}</p>
+              <p className="text-gray-400">Waiting for activity...</p>
+              <p className="text-xs mt-2 text-gray-600">Debug: {project?.video_id ? `Video ID: ${project.video_id}` : 'No video ID'}</p>
             </div>
           )}
         </div>
@@ -330,6 +364,23 @@ export default function ProjectStatus({ project: initialProject }: ProjectStatus
               </div>
             </div>
           )}
+
+          {/* Quality Score Explanation */}
+          <div className="mb-4">
+            <h4 className="font-medium text-gray-900 mb-2">Quality Score Formula</h4>
+            <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
+              <div className="text-sm text-blue-800 space-y-2">
+                <p><strong>AI Detection Score:</strong> (Search Score + Analysis Score) ÷ 2</p>
+                <p><strong>Quality Score:</strong> 100 - (Search Penalty + Analysis Penalty)</p>
+                <p><strong>Final Confidence:</strong> 100 - AI Detection Score</p>
+                <div className="text-xs text-blue-600 mt-2">
+                  <p>• Search Penalty: 3 points per AI indicator (max 50)</p>
+                  <p>• Analysis Penalty: 8 points per quality issue (max 50)</p>
+                  <p>• 0% = No AI detected, 100% = Strong AI indicators</p>
+                </div>
+              </div>
+            </div>
+          </div>
 
           {/* Analysis Results */}
           {project?.analysis_results && (

@@ -198,6 +198,56 @@ def log_progress(video_id: int, message: str, progress: int = None, status: str 
     
     logger.info(f"📊 Video {video_id}: {message}")
 
+def log_detailed(video_id: int, message: str, level: str = "INFO"):
+    """Log detailed information that appears in both console and frontend"""
+    timestamp = time.strftime("%H:%M:%S")
+    
+    # Format based on level
+    if level == "ERROR":
+        log_entry = f"[{timestamp}] ❌ {message}"
+        logger.error(f"📊 Video {video_id}: {message}")
+    elif level == "WARNING":
+        log_entry = f"[{timestamp}] ⚠️ {message}"
+        logger.warning(f"📊 Video {video_id}: {message}")
+    elif level == "SUCCESS":
+        log_entry = f"[{timestamp}] ✅ {message}"
+        logger.info(f"📊 Video {video_id}: {message}")
+    else:
+        log_entry = f"[{timestamp}] ℹ️ {message}"
+        logger.info(f"📊 Video {video_id}: {message}")
+    
+    # Store in memory for real-time access
+    if video_id not in progress_logs:
+        progress_logs[video_id] = []
+    progress_logs[video_id].append(log_entry)
+    
+    # Store in database for persistence
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    
+    try:
+        # Get current logs from database
+        cursor.execute("SELECT detailed_logs FROM videos WHERE id = ?", (video_id,))
+        result = cursor.fetchone()
+        current_logs = []
+        if result and result[0]:
+            try:
+                current_logs = json.loads(result[0]) if isinstance(result[0], str) else result[0]
+            except:
+                current_logs = []
+        
+        # Add new log entry
+        current_logs.append(log_entry)
+        
+        # Store updated logs
+        cursor.execute("UPDATE videos SET detailed_logs = ? WHERE id = ?", 
+                      (json.dumps(current_logs), video_id))
+    except Exception as e:
+        logger.error(f"Error updating detailed logs: {e}")
+    
+    conn.commit()
+    conn.close()
+
 def init_db():
     """Initialize SQLite database with comprehensive schema"""
     conn = sqlite3.connect(DB_PATH)
@@ -304,6 +354,7 @@ class VideoGenerationService:
         
         while current_iteration <= max_iterations and current_confidence < target_confidence:
             logger.info(f"🔄 Starting iteration {current_iteration}/{max_iterations}")
+            log_detailed(video_id, f"Starting iteration {current_iteration}/{max_iterations} (Target: {target_confidence}% confidence)", "INFO")
             
             # Generate video for this iteration
             await VideoGenerationService.generate_video(
@@ -334,6 +385,7 @@ class VideoGenerationService:
                     
                     # Run AI detection analysis on the new video
                     logger.info(f"🔍 Running AI detection analysis for iteration {current_iteration}")
+                    log_detailed(video_id, f"Running AI detection analysis for iteration {current_iteration}", "INFO")
                     ai_analysis = await AIDetectionService.detect_ai_generation(
                         index_id, new_video_id, twelvelabs_api_key
                     )
@@ -344,6 +396,7 @@ class VideoGenerationService:
                     
                     logger.info(f"🤖 AI Detection Score: {ai_detection_score:.1f}%")
                     logger.info(f"📊 Quality Score: {quality_score:.1f}%")
+                    log_detailed(video_id, f"AI Detection Score: {ai_detection_score:.1f}% | Quality Score: {quality_score:.1f}%", "INFO")
                     
                     # Store detailed logs in database
                     if detailed_logs:
@@ -361,6 +414,7 @@ class VideoGenerationService:
                     # Check if video passes as real (no AI indicators found)
                     if ai_detection_score == 0:
                         logger.info(f"🎉 SUCCESS! Video passes as real - No AI indicators detected at iteration {current_iteration}")
+                        log_detailed(video_id, f"SUCCESS! Video passes as real - No AI indicators detected at iteration {current_iteration}", "SUCCESS")
                         current_confidence = 100.0  # Maximum confidence since it passes as real
                         
                         # Update database with success
@@ -479,17 +533,21 @@ class VideoGenerationService:
             
             logger.info(f"🎬 Using {DEFAULT_VEO_MODEL} model")
             log_progress(video_id, f"🎬 Using {DEFAULT_VEO_MODEL} model for generation", 15)
+            log_detailed(video_id, f"Using {DEFAULT_VEO_MODEL} model for video generation", "INFO")
             
             # Poll for completion
             while not operation.done:
                 log_progress(video_id, "⏳ Waiting for video generation...", 20)
+                log_detailed(video_id, "Polling Google Veo2 API for generation completion", "INFO")
                 await asyncio.sleep(10)
                 operation = client.operations.get(operation)
             
             log_progress(video_id, "✅ Video generation completed", 30)
+            log_detailed(video_id, "Video generation completed successfully", "SUCCESS")
             
             # Download video
             log_progress(video_id, "📥 Downloading generated video", 40)
+            log_detailed(video_id, "Downloading generated video from Google Veo2", "INFO")
             generated_video = operation.response.generated_videos[0]
             video_data = client.files.download(file=generated_video.video)
             
@@ -551,6 +609,9 @@ class VideoGenerationService:
             """, (video_path, twelvelabs_video_id, video_id))
             conn.commit()
             conn.close()
+            
+            log_detailed(video_id, f"Video saved to: {video_path}", "SUCCESS")
+            log_detailed(video_id, f"TwelveLabs ID: {twelvelabs_video_id}", "INFO")
             
             # Run AI detection with detailed logging
             try:
@@ -643,6 +704,7 @@ class VideoGenerationService:
         """Upload video to TwelveLabs for indexing with version tracking"""
         try:
             logger.info(f"📤 Uploading video iteration {iteration} to TwelveLabs index {index_id}")
+            log_detailed(video_id, f"Uploading video iteration {iteration} to TwelveLabs index {index_id}", "INFO")
             
             client = TwelveLabs(api_key=api_key)
             
@@ -656,9 +718,11 @@ class VideoGenerationService:
             # Wait for task completion and get video ID
             task_id = task_response.id
             logger.info(f"📋 Task created: {task_id}")
+            log_detailed(video_id, f"TwelveLabs task created with ID: {task_id}", "SUCCESS")
             
             # STEP 4: Wait for complete indexing before next iteration
             log_progress(video_id, f"⏳ Waiting for video indexing (Iteration {iteration})", 55)
+            log_detailed(video_id, f"Waiting for TwelveLabs indexing to complete (Iteration {iteration})", "INFO")
             completed_task = client.tasks.wait_for_done(
                 task_id=task_id,
                 sleep_interval=5.0,
@@ -714,6 +778,7 @@ class AIDetectionService:
         """Detect AI generation using Marengo and Pegasus with detailed logging"""
         try:
             logger.info(f"🔍 Starting AI detection for video {video_id}")
+            log_detailed(video_id, f"Starting AI detection analysis for video {video_id}", "INFO")
             
             client = TwelveLabs(api_key=api_key)
             search_client = client.search
@@ -732,6 +797,12 @@ class AIDetectionService:
             # Calculate quality scores
             quality_score = AIDetectionService._calculate_quality_score(search_results, analysis_results)
             ai_detection_score = AIDetectionService._calculate_ai_detection_score(search_results, analysis_results)
+            
+            # Log detailed calculation breakdown
+            search_count = len(search_results) if search_results else 0
+            analysis_count = len(analysis_results) if analysis_results else 0
+            log_detailed(video_id, f"AI Detection Breakdown: {search_count} search results, {analysis_count} analysis results", "INFO")
+            log_detailed(video_id, f"Final Scores: AI Detection={ai_detection_score:.1f}%, Quality={quality_score:.1f}%", "INFO")
             
             # Create detailed log entries
             detailed_logs = AIDetectionService._create_detailed_logs(
@@ -791,6 +862,7 @@ class AIDetectionService:
         for category, query_text in ai_detection_categories.items():
             try:
                 logger.info(f"🔍 Searching for {category} indicators...")
+                log_detailed(video_id, f"Searching for {category} AI indicators in video", "INFO")
                 
                 # Use the correct SDK method: search.query
                 results = search_client.query(
@@ -818,6 +890,7 @@ class AIDetectionService:
                 logger.warning(f"Search query failed for {category}: {e}")
         
         logger.info(f"🔍 Total AI indicators found: {len(all_results)}")
+        log_detailed(video_id, f"Search completed: {len(all_results)} AI indicators found", "INFO")
         return all_results
     
     @staticmethod
@@ -899,22 +972,50 @@ class AIDetectionService:
         # Calculate analysis score based on severity
         analysis_score = 0
         if analysis_results:
-            severity_weights = {'high': 30, 'medium': 20, 'low': 10}
-            total_severity = 0
+            # Only count analysis results that actually indicate AI generation
+            ai_indicating_results = []
             for result in analysis_results:
-                severity = getattr(result, 'severity', 'medium') or result.get('severity', 'medium') or 'medium'
-                total_severity += severity_weights.get(severity.lower(), 20)
-            analysis_score = min(total_severity / len(analysis_results), 100)
+                # Check if the analysis result actually indicates AI generation
+                if isinstance(result, dict):
+                    content = result.get('content', '').lower()
+                    # Look for positive AI indicators in the analysis
+                    if any(indicator in content for indicator in [
+                        'ai generated', 'artificial', 'synthetic', 'generated by', 
+                        'neural network', 'machine learning', 'deepfake', 'fake',
+                        'unnatural', 'robotic', 'mechanical', 'artificial intelligence'
+                    ]):
+                        ai_indicating_results.append(result)
+                elif hasattr(result, 'content'):
+                    content = str(result.content).lower()
+                    if any(indicator in content for indicator in [
+                        'ai generated', 'artificial', 'synthetic', 'generated by', 
+                        'neural network', 'machine learning', 'deepfake', 'fake',
+                        'unnatural', 'robotic', 'mechanical', 'artificial intelligence'
+                    ]):
+                        ai_indicating_results.append(result)
+            
+            if ai_indicating_results:
+                severity_weights = {'high': 30, 'medium': 20, 'low': 10}
+                total_severity = 0
+                for result in ai_indicating_results:
+                    severity = getattr(result, 'severity', 'medium') or result.get('severity', 'medium') or 'medium'
+                    total_severity += severity_weights.get(severity.lower(), 20)
+                analysis_score = min(total_severity / len(ai_indicating_results), 100)
         
         # Weighted average with search results being more important
+        final_score = 0.0
         if search_score > 0 and analysis_score > 0:
-            return (search_score * 0.7 + analysis_score * 0.3)
+            final_score = (search_score * 0.7 + analysis_score * 0.3)
         elif search_score > 0:
-            return search_score
+            final_score = search_score
         elif analysis_score > 0:
-            return analysis_score
+            final_score = analysis_score
         else:
-            return 0.0
+            # If no search results and no analysis results, return 0 (no AI detected)
+            final_score = 0.0
+        
+        # Note: video_id not available in this static method, will be logged by caller
+        return final_score
     
     @staticmethod
     def _create_detailed_logs(search_results, analysis_results, quality_score, ai_detection_score):
@@ -1084,6 +1185,7 @@ async def generate_video(request: VideoGenerationRequest, background_tasks: Back
     """Generate a new video with iterative enhancement"""
     try:
         logger.info(f"🎬 Video generation request: {request.prompt}")
+        log_detailed(1, f"Video generation request received: {request.prompt[:100]}...", "INFO")
         
         # Use hardcoded values for testing
         index_id = request.index_id or DEFAULT_INDEX_ID
@@ -1778,14 +1880,23 @@ async def play_video(video_id: int):
         video = cursor.fetchone()
         
         if not video:
+            logger.error(f"❌ Video not found in database: {video_id}")
             raise HTTPException(status_code=404, detail="Video not found")
         
         video_path = video[0]
         conn.close()
         
-        if not video_path or not os.path.exists(video_path):
-            raise HTTPException(status_code=404, detail="Video file not found")
+        logger.info(f"🎬 Video play request: {video_id}, path: {video_path}")
         
+        if not video_path:
+            logger.error(f"❌ Video path is empty for video {video_id}")
+            raise HTTPException(status_code=404, detail="Video path not found")
+            
+        if not os.path.exists(video_path):
+            logger.error(f"❌ Video file does not exist: {video_path}")
+            raise HTTPException(status_code=404, detail=f"Video file not found at {video_path}")
+        
+        logger.info(f"✅ Serving video file: {video_path}")
         return FileResponse(
             path=video_path,
             media_type="video/mp4",
@@ -1807,15 +1918,24 @@ async def download_video(video_id: int):
         video = cursor.fetchone()
         
         if not video:
+            logger.error(f"❌ Video not found in database: {video_id}")
             raise HTTPException(status_code=404, detail="Video not found")
         
         video_path = video[0]
         conn.close()
         
-        if not video_path or not os.path.exists(video_path):
-            raise HTTPException(status_code=404, detail="Video file not found")
+        logger.info(f"📥 Video download request: {video_id}, path: {video_path}")
+        
+        if not video_path:
+            logger.error(f"❌ Video path is empty for video {video_id}")
+            raise HTTPException(status_code=404, detail="Video path not found")
+            
+        if not os.path.exists(video_path):
+            logger.error(f"❌ Video file does not exist: {video_path}")
+            raise HTTPException(status_code=404, detail=f"Video file not found at {video_path}")
         
         filename = os.path.basename(video_path)
+        logger.info(f"✅ Serving video download: {filename}")
         return FileResponse(
             path=video_path,
             media_type="video/mp4",

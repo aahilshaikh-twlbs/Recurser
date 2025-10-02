@@ -25,15 +25,20 @@ export default function EnhancePage() {
   useEffect(() => {
     const checkBackend = async () => {
       try {
+        console.log('Checking backend connectivity...')
         const response = await apiRequest('/api/health')
-        if (response && response.status === 'healthy') {
+        console.log('Backend health response:', response)
+        if (response && (response.status === 'healthy' || response.status === 'ok')) {
           setBackendStatus('online')
+          setError(null)
         } else {
           setBackendStatus('offline')
+          setError('Backend returned unhealthy status')
         }
       } catch (error) {
         console.error('Backend connectivity check failed:', error)
         setBackendStatus('offline')
+        setError(`Backend connection failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
       }
     }
 
