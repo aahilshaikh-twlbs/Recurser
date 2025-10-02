@@ -1314,7 +1314,7 @@ async def generate_video(request: VideoGenerationRequest, background_tasks: Back
         """, (
             request.prompt, enhanced_prompt, "pending", request.confidence_threshold, 
             0, generation_id, index_id, iteration_number,
-            request.video_id, request.max_retries if request.max_retries is not None else 5
+            request.video_id, request.max_retries if request.max_retries and request.max_retries > 0 else 5
         ))
         
         video_id = cursor.lastrowid
@@ -1322,7 +1322,8 @@ async def generate_video(request: VideoGenerationRequest, background_tasks: Back
         conn.close()
         
         # Debug: Log what was stored
-        logger.info(f"📊 Video {video_id}: Stored max_iterations = {request.max_retries if request.max_retries is not None else 5}")
+        stored_value = request.max_retries if request.max_retries and request.max_retries > 0 else 5
+        logger.info(f"📊 Video {video_id}: Stored max_iterations = {stored_value} (request.max_retries = {request.max_retries})")
         
         # Start background iterative video generation
         background_tasks.add_task(
