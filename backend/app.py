@@ -1501,12 +1501,27 @@ async def grade_video(video_id: int, index_id: str = None, twelvelabs_api_key: s
         logger.error(f"❌ AI detection error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/api/test-logs")
+async def test_logs():
+    """Test endpoint to verify logs are working"""
+    return {
+        "success": True,
+        "data": {
+            "logs": [
+                "[01:35:40] ℹ️ Test log message 1",
+                "[01:35:41] ✅ Test success message",
+                "[01:35:42] ⚠️ Test warning message"
+            ]
+        }
+    }
+
 @app.get("/api/videos/{video_id}/logs")
 async def get_video_logs(video_id: int):
     """Get progress logs for a video"""
     try:
         # Get logs from memory first (real-time)
         memory_logs = progress_logs.get(video_id, [])
+        logger.info(f"📊 Video {video_id}: Memory logs count: {len(memory_logs)}")
         
         # Also get logs from database (persistent)
         conn = sqlite3.connect(DB_PATH)
@@ -1520,8 +1535,12 @@ async def get_video_logs(video_id: int):
         if result and result[0]:
             try:
                 db_logs = json.loads(result[0]) if isinstance(result[0], str) else result[0]
-            except:
+                logger.info(f"📊 Video {video_id}: Database logs count: {len(db_logs)}")
+            except Exception as e:
+                logger.error(f"📊 Video {video_id}: Error parsing database logs: {e}")
                 db_logs = []
+        else:
+            logger.info(f"📊 Video {video_id}: No database logs found")
         
         # Combine logs, prioritizing memory logs (more recent)
         all_logs = memory_logs + db_logs
@@ -1532,6 +1551,8 @@ async def get_video_logs(video_id: int):
             if log not in seen:
                 seen.add(log)
                 unique_logs.append(log)
+        
+        logger.info(f"📊 Video {video_id}: Returning {len(unique_logs)} unique logs")
         
         return {
             "success": True,

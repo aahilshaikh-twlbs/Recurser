@@ -50,6 +50,21 @@ export default function ProjectStatus({ project: initialProject }: ProjectStatus
     }
   }, [])
 
+  // Test logs endpoint
+  useEffect(() => {
+    const testLogs = async () => {
+      try {
+        console.log('Testing logs endpoint...')
+        const response = await apiRequest('/api/test-logs')
+        const result = await response.json()
+        console.log('Test logs response:', result)
+      } catch (error) {
+        console.error('Test logs failed:', error)
+      }
+    }
+    testLogs()
+  }, [])
+
   // Poll for status updates
   useEffect(() => {
     if (!project?.video_id || !isPolling) return
@@ -60,6 +75,8 @@ export default function ProjectStatus({ project: initialProject }: ProjectStatus
     const pollStatus = async () => {
       try {
         pollCount++
+        
+        console.log('Polling for video ID:', project.video_id)
         
         // Fetch status
         const response = await apiRequest(API_CONFIG.endpoints.videoStatus(project.video_id))
@@ -83,8 +100,12 @@ export default function ProjectStatus({ project: initialProject }: ProjectStatus
         const logsResponse = await apiRequest(API_CONFIG.endpoints.videoLogs(project.video_id))
         const logsResult = await logsResponse.json()
 
+        console.log('Logs response:', logsResult)
         if (logsResult.success && logsResult.data) {
+          console.log('Setting logs:', logsResult.data.logs)
           setLogs(logsResult.data.logs || [])
+        } else {
+          console.log('No logs data in response')
         }
       } catch (error) {
         console.error('Error polling status:', error)
