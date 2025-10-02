@@ -1569,11 +1569,7 @@ async def debug_logs():
 async def get_video_logs(video_id: int):
     """Get progress logs for a video"""
     try:
-        # Get logs from memory first (real-time)
-        memory_logs = progress_logs.get(video_id, [])
-        logger.info(f"📊 Video {video_id}: Memory logs count: {len(memory_logs)}")
-        
-        # Also get logs from database (persistent)
+        # Get logs from database first (persistent)
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
         
@@ -1592,8 +1588,12 @@ async def get_video_logs(video_id: int):
         else:
             logger.info(f"📊 Video {video_id}: No database logs found")
         
-        # Combine logs, prioritizing memory logs (more recent)
-        all_logs = memory_logs + db_logs
+        # Also get logs from memory (real-time additions)
+        memory_logs = progress_logs.get(video_id, [])
+        logger.info(f"📊 Video {video_id}: Memory logs count: {len(memory_logs)}")
+        
+        # Combine logs, prioritizing database logs (persistent) then memory logs (recent)
+        all_logs = db_logs + memory_logs
         # Remove duplicates while preserving order
         seen = set()
         unique_logs = []

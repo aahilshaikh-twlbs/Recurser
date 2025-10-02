@@ -48,6 +48,23 @@ export default function ProjectStatus({ project: initialProject }: ProjectStatus
         console.error('Failed to recover project state:', error)
       }
     }
+    
+    // If no project but we have a video ID in URL, try to recover
+    if (!project?.video_id && !savedProject) {
+      const urlParams = new URLSearchParams(window.location.search)
+      const videoId = urlParams.get('video_id')
+      if (videoId) {
+        console.log('Recovering project from URL video_id:', videoId)
+        setProject({
+          id: parseInt(videoId),
+          video_id: parseInt(videoId),
+          status: 'pending',
+          iteration_count: 0,
+          max_iterations: 5
+        })
+        setIsPolling(true)
+      }
+    }
   }, [])
 
   // Test logs endpoint
@@ -256,22 +273,45 @@ export default function ProjectStatus({ project: initialProject }: ProjectStatus
             <BarChart3 className="w-4 h-4 mr-2" />
             Live Activity ({logs.length} logs)
           </h3>
-          <button 
-            onClick={async () => {
-              try {
-                console.log('Manual log fetch for video:', project?.video_id)
-                const response = await apiRequest(API_CONFIG.endpoints.videoLogs(project?.video_id || '1'))
-                const result = await response.json()
-                console.log('Manual logs response:', result)
-                setLogs(result.data?.logs || [])
-              } catch (error) {
-                console.error('Manual log fetch failed:', error)
-              }
-            }}
-            className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded hover:bg-blue-200"
-          >
-            Refresh Logs
-          </button>
+          <div className="flex space-x-2">
+            <button 
+              onClick={async () => {
+                try {
+                  console.log('Manual log fetch for video:', project?.video_id)
+                  const response = await apiRequest(API_CONFIG.endpoints.videoLogs(project?.video_id || '1'))
+                  const result = await response.json()
+                  console.log('Manual logs response:', result)
+                  setLogs(result.data?.logs || [])
+                } catch (error) {
+                  console.error('Manual log fetch failed:', error)
+                }
+              }}
+              className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded hover:bg-blue-200"
+            >
+              Refresh Logs
+            </button>
+            <button 
+              onClick={async () => {
+                try {
+                  console.log('Checking for completed videos...')
+                  const response = await apiRequest('/api/videos')
+                  const result = await response.json()
+                  console.log('Videos response:', result)
+                  if (result.success && result.data && result.data.length > 0) {
+                    const latestVideo = result.data[0]
+                    console.log('Found video:', latestVideo)
+                    setProject(latestVideo)
+                    setIsPolling(true)
+                  }
+                } catch (error) {
+                  console.error('Check videos failed:', error)
+                }
+              }}
+              className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded hover:bg-green-200"
+            >
+              Check Videos
+            </button>
+          </div>
         </div>
         <div className="bg-gray-900 rounded-lg p-4 min-h-[100px] max-h-[300px] overflow-y-auto font-mono text-sm">
           <div className="text-green-400 text-xs mb-2 border-b border-gray-700 pb-1">
