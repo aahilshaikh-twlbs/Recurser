@@ -1314,12 +1314,15 @@ async def generate_video(request: VideoGenerationRequest, background_tasks: Back
         """, (
             request.prompt, enhanced_prompt, "pending", request.confidence_threshold, 
             0, generation_id, index_id, iteration_number,
-            request.video_id, request.max_retries or 5
+            request.video_id, request.max_retries if request.max_retries is not None else 5
         ))
         
         video_id = cursor.lastrowid
         conn.commit()
         conn.close()
+        
+        # Debug: Log what was stored
+        logger.info(f"📊 Video {video_id}: Stored max_iterations = {request.max_retries if request.max_retries is not None else 5}")
         
         # Start background iterative video generation
         background_tasks.add_task(
@@ -1678,7 +1681,8 @@ async def get_video_status(video_id: int):
                 detailed_logs = []
         
         # Debug: Log the max_iterations value
-        logger.info(f"📊 Video {video_id}: Database max_iterations = {video[13]}")
+        logger.info(f"📊 Video {video_id}: Database max_iterations = {video[13]} (type: {type(video[13])})")
+        logger.info(f"📊 Video {video_id}: Full video record: {video}")
         
         # Calculate final confidence (100 - ai_detection_score)
         final_confidence = 100.0 - (video[15] or 0.0)
@@ -1712,7 +1716,7 @@ async def get_video_status(video_id: int):
                 "index_id": video[10],
                 "twelvelabs_video_id": video[11],
                 "iteration_count": video[12] or 1,
-                "max_iterations": video[13] or 5,
+                "max_iterations": video[13] if video[13] is not None else 5,
                 "source_video_id": video[14],
                 "ai_detection_score": video[15] or 0.0,
                 "ai_detection_confidence": video[16] or 0.0,
