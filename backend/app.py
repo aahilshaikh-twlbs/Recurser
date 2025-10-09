@@ -1167,7 +1167,9 @@ async def root():
             "video_status": "/api/videos/{video_id}/status",
             "video_logs": "/api/videos/{video_id}/logs",
             "list_videos": "/api/videos",
-            "play_video": "/api/videos/{video_id}/play"
+            "play_video": "/api/videos/{video_id}/play",
+            "stream_video": "/api/videos/{video_id}/stream",
+            "download_video": "/api/videos/{video_id}/download"
         },
         "documentation": "/docs"
     }
@@ -1214,7 +1216,6 @@ async def generate_video(request: VideoGenerationRequest, background_tasks: Back
     """Generate a new video with iterative enhancement"""
     try:
         logger.info(f"🎬 Video generation request: {request.prompt}")
-        log_detailed(1, f"Video generation request received: {request.prompt[:100]}...", "INFO")
         
         # Use hardcoded values for testing
         index_id = request.index_id or DEFAULT_INDEX_ID
@@ -1325,6 +1326,16 @@ async def generate_video(request: VideoGenerationRequest, background_tasks: Back
         stored_value = request.max_retries if request.max_retries and request.max_retries > 0 else 5
         logger.info(f"📊 Video {video_id}: Stored max_iterations = {stored_value} (request.max_retries = {request.max_retries})")
         
+        # Add initial logs BEFORE starting background task so they're immediately available
+        log_detailed(video_id, f"Video generation request received: {request.prompt[:100]}...", "INFO")
+        if request.is_playground_video and request.video_id:
+            log_detailed(video_id, f"Starting iterative enhancement from source video {request.video_id}", "INFO")
+        log_detailed(video_id, f"Target confidence: {request.confidence_threshold}%", "INFO")
+        log_detailed(video_id, f"Max iterations: {request.max_retries or 5}", "INFO")
+        
+        # Debug: Check if logs are being stored
+        logger.info(f"📊 Video {video_id}: Stored {len(progress_logs.get(video_id, []))} logs in memory")
+        
         # Start background iterative video generation
         background_tasks.add_task(
             VideoGenerationService.generate_iterative_video, 
@@ -1340,15 +1351,6 @@ async def generate_video(request: VideoGenerationRequest, background_tasks: Back
         )
         
         logger.info(f"🚀 Started video generation for video {video_id}")
-        
-        # Add initial logs to memory for immediate frontend display
-        log_detailed(video_id, f"Video generation request received: {request.prompt[:100]}...", "INFO")
-        log_detailed(video_id, f"Starting iterative enhancement for video {request.video_id}", "INFO")
-        log_detailed(video_id, f"Target confidence: {request.confidence_threshold}%", "INFO")
-        log_detailed(video_id, f"Max iterations: {request.max_retries or 5}", "INFO")
-        
-        # Debug: Check if logs are being stored
-        logger.info(f"📊 Video {video_id}: Stored {len(progress_logs.get(video_id, []))} logs in memory")
         
         return VideoResponse(
             success=True,
@@ -1701,6 +1703,10 @@ async def get_video_status(video_id: int):
         elif status == "failed":
             status = "failed"
         
+        # Check video playback availability
+        video_available_locally = video[4] and os.path.exists(video[4]) if video[4] else False
+        video_available_twelvelabs = bool(video[11] and video[10])  # Has both twelvelabs_video_id and index_id
+        
         return {
             "success": True,
             "data": {
@@ -1709,6 +1715,8 @@ async def get_video_status(video_id: int):
                 "enhanced_prompt": video[2],
                 "status": status,
                 "video_path": video[4],
+                "video_available_locally": video_available_locally,
+                "video_available_twelvelabs": video_available_twelvelabs,
                 "confidence_threshold": 100.0,  # Always 100% target (no AI indicators)
                 "current_confidence": final_confidence,
                 "progress": video[7] or 0,
@@ -1975,7 +1983,7 @@ async def list_videos():
 
 @app.get("/api/videos/{video_id}/play")
 async def play_video(video_id: int):
-    """Play a generated video file - retrieves from TwelveLabs if available, otherwise serves local file"""
+    """Play a generated video file - serves local file (TwelveLabs HLS handled separately)"""
     try:
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
@@ -1994,70 +2002,89 @@ async def play_video(video_id: int):
         
         logger.info(f"🎬 Video play request: {video_id}, path: {video_path}, tl_id: {twelvelabs_video_id}")
         
-        # Try to get video from TwelveLabs if available (for completed enhanced versions)
-        if twelvelabs_video_id and index_id:
-            try:
-                logger.info(f"📡 Fetching video from TwelveLabs index: {index_id}, video: {twelvelabs_video_id}")
-                client = TwelveLabs(api_key=TWELVELABS_API_KEY)
-                
-                # Get video details from TwelveLabs
-                video_details = client.indexes.videos.retrieve(
-                    index_id=index_id,
-                    id=twelvelabs_video_id
-                )
-                
-                # Try to get HLS video URL
-                hls_url = None
-                if hasattr(video_details, 'hls') and video_details.hls:
-                    if hasattr(video_details.hls, 'video_url') and video_details.hls.video_url:
-                        hls_url = video_details.hls.video_url
-                        logger.info(f"✅ Found HLS URL from TwelveLabs: {hls_url}")
-                
-                # Try dict format if object format didn't work
-                if not hls_url:
-                    try:
-                        video_dict = video_details.dict() if hasattr(video_details, 'dict') else {}
-                        if 'hls' in video_dict and isinstance(video_dict['hls'], dict):
-                            hls_url = video_dict['hls'].get('video_url')
-                            if hls_url:
-                                logger.info(f"✅ Found HLS URL from TwelveLabs dict: {hls_url}")
-                    except Exception as dict_error:
-                        logger.warning(f"Could not parse video dict: {dict_error}")
-                
-                # If we have an HLS URL, return it as JSON for the frontend to stream
-                if hls_url:
-                    logger.info(f"✅ Returning HLS stream URL from TwelveLabs")
-                    return {
-                        "success": True,
-                        "data": {
-                            "video_id": video_id,
-                            "hls_url": hls_url,
-                            "source": "twelvelabs",
-                            "twelvelabs_video_id": twelvelabs_video_id
-                        }
-                    }
-                
-            except Exception as tl_error:
-                logger.warning(f"⚠️ Could not fetch from TwelveLabs: {tl_error}, falling back to local file")
+        # Always serve local file if available
+        if video_path and os.path.exists(video_path):
+            logger.info(f"✅ Serving local video file: {video_path}")
+            return FileResponse(
+                path=video_path,
+                media_type="video/mp4",
+                filename=f"video_{video_id}.mp4"
+            )
         
-        # Fall back to serving local file if TwelveLabs not available or failed
-        if not video_path:
-            logger.error(f"❌ Video path is empty for video {video_id}")
-            raise HTTPException(status_code=404, detail="Video path not found")
-            
-        if not os.path.exists(video_path):
-            logger.error(f"❌ Video file does not exist: {video_path}")
-            raise HTTPException(status_code=404, detail=f"Video file not found at {video_path}")
-        
-        logger.info(f"✅ Serving local video file: {video_path}")
-        return FileResponse(
-            path=video_path,
-            media_type="video/mp4",
-            filename=f"video_{video_id}.mp4"
-        )
+        # If no local file, video might be in TwelveLabs only
+        if not video_path or not os.path.exists(video_path):
+            logger.error(f"❌ Video file not found locally: {video_path}")
+            raise HTTPException(
+                status_code=404, 
+                detail="Video file not available locally. Use /api/videos/{video_id}/stream for TwelveLabs videos."
+            )
         
     except Exception as e:
         logger.error(f"❌ Video playback error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/videos/{video_id}/stream")
+async def stream_video(video_id: int):
+    """Get HLS stream URL from TwelveLabs for videos uploaded there"""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        
+        cursor.execute("SELECT twelvelabs_video_id, index_id FROM videos WHERE id = ?", (video_id,))
+        video = cursor.fetchone()
+        conn.close()
+        
+        if not video:
+            raise HTTPException(status_code=404, detail="Video not found")
+        
+        twelvelabs_video_id = video[0]
+        index_id = video[1]
+        
+        if not twelvelabs_video_id or not index_id:
+            raise HTTPException(status_code=404, detail="Video not available in TwelveLabs")
+        
+        logger.info(f"📡 Fetching HLS stream from TwelveLabs: index={index_id}, video={twelvelabs_video_id}")
+        client = TwelveLabs(api_key=TWELVELABS_API_KEY)
+        
+        # Get video details from TwelveLabs
+        video_details = client.indexes.videos.retrieve(
+            index_id=index_id,
+            id=twelvelabs_video_id
+        )
+        
+        # Try to get HLS video URL
+        hls_url = None
+        if hasattr(video_details, 'hls') and video_details.hls:
+            if hasattr(video_details.hls, 'video_url') and video_details.hls.video_url:
+                hls_url = video_details.hls.video_url
+        
+        # Try dict format if object format didn't work
+        if not hls_url:
+            try:
+                video_dict = video_details.dict() if hasattr(video_details, 'dict') else {}
+                if 'hls' in video_dict and isinstance(video_dict['hls'], dict):
+                    hls_url = video_dict['hls'].get('video_url')
+            except Exception as dict_error:
+                logger.warning(f"Could not parse video dict: {dict_error}")
+        
+        if not hls_url:
+            raise HTTPException(status_code=404, detail="HLS stream URL not available")
+        
+        logger.info(f"✅ Returning HLS stream URL: {hls_url}")
+        return {
+            "success": True,
+            "data": {
+                "video_id": video_id,
+                "hls_url": hls_url,
+                "source": "twelvelabs",
+                "twelvelabs_video_id": twelvelabs_video_id
+            }
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Stream video error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/videos/{video_id}/download")
