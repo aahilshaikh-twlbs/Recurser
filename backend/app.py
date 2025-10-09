@@ -1975,12 +1975,12 @@ async def list_videos():
 
 @app.get("/api/videos/{video_id}/play")
 async def play_video(video_id: int):
-    """Play a generated video file"""
+    """Play a generated video file - retrieves from TwelveLabs if available, otherwise serves local file"""
     try:
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
         
-        cursor.execute("SELECT video_path FROM videos WHERE id = ?", (video_id,))
+        cursor.execute("SELECT video_path, twelvelabs_video_id, index_id FROM videos WHERE id = ?", (video_id,))
         video = cursor.fetchone()
         
         if not video:
@@ -1988,10 +1988,59 @@ async def play_video(video_id: int):
             raise HTTPException(status_code=404, detail="Video not found")
         
         video_path = video[0]
+        twelvelabs_video_id = video[1]
+        index_id = video[2]
         conn.close()
         
-        logger.info(f"🎬 Video play request: {video_id}, path: {video_path}")
+        logger.info(f"🎬 Video play request: {video_id}, path: {video_path}, tl_id: {twelvelabs_video_id}")
         
+        # Try to get video from TwelveLabs if available (for completed enhanced versions)
+        if twelvelabs_video_id and index_id:
+            try:
+                logger.info(f"📡 Fetching video from TwelveLabs index: {index_id}, video: {twelvelabs_video_id}")
+                client = TwelveLabs(api_key=TWELVELABS_API_KEY)
+                
+                # Get video details from TwelveLabs
+                video_details = client.indexes.videos.retrieve(
+                    index_id=index_id,
+                    id=twelvelabs_video_id
+                )
+                
+                # Try to get HLS video URL
+                hls_url = None
+                if hasattr(video_details, 'hls') and video_details.hls:
+                    if hasattr(video_details.hls, 'video_url') and video_details.hls.video_url:
+                        hls_url = video_details.hls.video_url
+                        logger.info(f"✅ Found HLS URL from TwelveLabs: {hls_url}")
+                
+                # Try dict format if object format didn't work
+                if not hls_url:
+                    try:
+                        video_dict = video_details.dict() if hasattr(video_details, 'dict') else {}
+                        if 'hls' in video_dict and isinstance(video_dict['hls'], dict):
+                            hls_url = video_dict['hls'].get('video_url')
+                            if hls_url:
+                                logger.info(f"✅ Found HLS URL from TwelveLabs dict: {hls_url}")
+                    except Exception as dict_error:
+                        logger.warning(f"Could not parse video dict: {dict_error}")
+                
+                # If we have an HLS URL, return it as JSON for the frontend to stream
+                if hls_url:
+                    logger.info(f"✅ Returning HLS stream URL from TwelveLabs")
+                    return {
+                        "success": True,
+                        "data": {
+                            "video_id": video_id,
+                            "hls_url": hls_url,
+                            "source": "twelvelabs",
+                            "twelvelabs_video_id": twelvelabs_video_id
+                        }
+                    }
+                
+            except Exception as tl_error:
+                logger.warning(f"⚠️ Could not fetch from TwelveLabs: {tl_error}, falling back to local file")
+        
+        # Fall back to serving local file if TwelveLabs not available or failed
         if not video_path:
             logger.error(f"❌ Video path is empty for video {video_id}")
             raise HTTPException(status_code=404, detail="Video path not found")
@@ -2000,7 +2049,7 @@ async def play_video(video_id: int):
             logger.error(f"❌ Video file does not exist: {video_path}")
             raise HTTPException(status_code=404, detail=f"Video file not found at {video_path}")
         
-        logger.info(f"✅ Serving video file: {video_path}")
+        logger.info(f"✅ Serving local video file: {video_path}")
         return FileResponse(
             path=video_path,
             media_type="video/mp4",
