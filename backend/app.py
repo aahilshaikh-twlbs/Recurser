@@ -1190,6 +1190,7 @@ async def root():
             "list_videos": "/api/videos",
             "play_video": "/api/videos/{video_id}/play",
             "stream_video": "/api/videos/{video_id}/stream",
+            "stream_twelve": "/api/twelve/{twelvelabs_video_id}/stream (direct TwelveLabs)",
             "debug_twelve": "/api/videos/{video_id}/debug-twelve",
             "download_video": "/api/videos/{video_id}/download"
         },
@@ -2184,7 +2185,7 @@ async def debug_twelve(video_id: int):
 
 @app.get("/api/videos/{video_id}/stream")
 async def stream_video(video_id: int):
-    """Get HLS stream URL from TwelveLabs for videos uploaded there"""
+    """Get HLS stream URL from TwelveLabs for videos uploaded there (by database ID)"""
     try:
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
@@ -2299,6 +2300,111 @@ async def stream_video(video_id: int):
         raise
     except Exception as e:
         logger.error(f"❌ Stream video error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/twelve/{twelvelabs_video_id}/stream")
+async def stream_twelve_video(twelvelabs_video_id: str, index_id: str = None):
+    """Get HLS stream URL directly from TwelveLabs video ID (for frontend use)"""
+    try:
+        # Use provided index_id or default test index
+        target_index_id = index_id or DEFAULT_INDEX_ID
+        
+        logger.info(f"📡 Fetching HLS stream directly from TwelveLabs: index={target_index_id}, video={twelvelabs_video_id}")
+        client = TwelveLabs(api_key=TWELVELABS_API_KEY)
+        
+        # Get video details from TwelveLabs using the correct API structure
+        video_details = client.indexes.videos.retrieve(
+            index_id=target_index_id,
+            id=twelvelabs_video_id
+        )
+        
+        # Extract HLS URL from the response - try multiple approaches
+        hls_url = None
+        thumbnail_urls = []
+        hls_status = None
+        
+        # Method 1: Direct object access
+        if hasattr(video_details, 'hls') and video_details.hls:
+            if hasattr(video_details.hls, 'video_url'):
+                hls_url = video_details.hls.video_url
+                logger.info(f"✅ Found HLS URL via object access: {hls_url}")
+            
+            # Also get thumbnail URLs and status
+            if hasattr(video_details.hls, 'thumbnail_urls') and video_details.hls.thumbnail_urls:
+                thumbnail_urls = video_details.hls.thumbnail_urls
+            if hasattr(video_details.hls, 'status'):
+                hls_status = video_details.hls.status
+        
+        # Method 2: Dict conversion if object access failed
+        if not hls_url:
+            try:
+                video_dict = video_details.dict() if hasattr(video_details, 'dict') else {}
+                logger.info(f"📊 Video dict keys: {list(video_dict.keys())}")
+                
+                if 'hls' in video_dict and isinstance(video_dict['hls'], dict):
+                    hls_data = video_dict['hls']
+                    logger.info(f"📊 HLS dict keys: {list(hls_data.keys())}")
+                    
+                    hls_url = hls_data.get('video_url')
+                    if hls_url:
+                        logger.info(f"✅ Found HLS URL via dict access: {hls_url}")
+                    
+                    # Get thumbnail URLs and status from dict
+                    if 'thumbnail_urls' in hls_data and hls_data['thumbnail_urls']:
+                        thumbnail_urls = hls_data['thumbnail_urls']
+                    if 'status' in hls_data:
+                        hls_status = hls_data['status']
+                        
+            except Exception as dict_error:
+                logger.warning(f"Could not parse video dict: {dict_error}")
+        
+        # Method 3: Raw response inspection
+        if not hls_url:
+            try:
+                # Log the raw response structure for debugging
+                logger.info(f"📊 Video details type: {type(video_details)}")
+                logger.info(f"📊 Video details attributes: {[attr for attr in dir(video_details) if not attr.startswith('_')]}")
+                
+                # Try to access as raw dict
+                if hasattr(video_details, '__dict__'):
+                    raw_dict = video_details.__dict__
+                    logger.info(f"📊 Raw dict keys: {list(raw_dict.keys())}")
+                    
+                    if 'hls' in raw_dict and raw_dict['hls']:
+                        hls_obj = raw_dict['hls']
+                        if hasattr(hls_obj, 'video_url'):
+                            hls_url = hls_obj.video_url
+                        elif isinstance(hls_obj, dict) and 'video_url' in hls_obj:
+                            hls_url = hls_obj['video_url']
+                            
+            except Exception as raw_error:
+                logger.warning(f"Could not access raw response: {raw_error}")
+        
+        if not hls_url:
+            logger.error(f"❌ Could not find HLS URL in TwelveLabs response")
+            logger.error(f"📊 Full response structure: {video_details}")
+            raise HTTPException(status_code=404, detail="HLS stream URL not available in TwelveLabs response")
+        
+        logger.info(f"✅ Successfully extracted HLS stream URL: {hls_url}")
+        logger.info(f"📊 Thumbnail URLs: {thumbnail_urls}")
+        logger.info(f"📊 HLS Status: {hls_status}")
+        
+        return {
+            "success": True,
+            "data": {
+                "twelvelabs_video_id": twelvelabs_video_id,
+                "hls_url": hls_url,
+                "thumbnail_urls": thumbnail_urls,
+                "hls_status": hls_status,
+                "source": "twelvelabs",
+                "index_id": target_index_id
+            }
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Stream twelve video error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/videos/{video_id}/download")
