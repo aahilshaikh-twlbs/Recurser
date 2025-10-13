@@ -1190,6 +1190,7 @@ async def root():
             "list_videos": "/api/videos",
             "play_video": "/api/videos/{video_id}/play",
             "stream_video": "/api/videos/{video_id}/stream",
+            "debug_twelve": "/api/videos/{video_id}/debug-twelve",
             "download_video": "/api/videos/{video_id}/download"
         },
         "documentation": "/docs"
@@ -2130,6 +2131,57 @@ async def play_video(video_id: int):
         logger.error(f"❌ Video playback error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/api/videos/{video_id}/debug-twelve")
+async def debug_twelve(video_id: int):
+    """Debug endpoint to see raw TwelveLabs response"""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        
+        cursor.execute("SELECT twelvelabs_video_id, index_id FROM videos WHERE id = ?", (video_id,))
+        video = cursor.fetchone()
+        conn.close()
+        
+        if not video:
+            raise HTTPException(status_code=404, detail="Video not found")
+        
+        twelvelabs_video_id = video[0]
+        index_id = video[1]
+        
+        if not twelvelabs_video_id or not index_id:
+            raise HTTPException(status_code=404, detail="Video not available in TwelveLabs")
+        
+        logger.info(f"🔍 Debug: Fetching raw TwelveLabs response for video {video_id}")
+        client = TwelveLabs(api_key=TWELVELABS_API_KEY)
+        
+        # Get video details from TwelveLabs
+        video_details = client.indexes.videos.retrieve(
+            index_id=index_id,
+            id=twelvelabs_video_id
+        )
+        
+        # Convert to dict for inspection
+        try:
+            video_dict = video_details.dict() if hasattr(video_details, 'dict') else {}
+        except:
+            video_dict = str(video_details)
+        
+        return {
+            "success": True,
+            "data": {
+                "video_id": video_id,
+                "twelvelabs_video_id": twelvelabs_video_id,
+                "index_id": index_id,
+                "raw_response": video_dict,
+                "response_type": str(type(video_details)),
+                "response_attributes": [attr for attr in dir(video_details) if not attr.startswith('_')]
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"❌ Debug error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/api/videos/{video_id}/stream")
 async def stream_video(video_id: int):
     """Get HLS stream URL from TwelveLabs for videos uploaded there"""
@@ -2162,6 +2214,7 @@ async def stream_video(video_id: int):
         # Extract HLS URL from the response - try multiple approaches
         hls_url = None
         thumbnail_urls = []
+        hls_status = None
         
         # Method 1: Direct object access
         if hasattr(video_details, 'hls') and video_details.hls:
@@ -2169,9 +2222,11 @@ async def stream_video(video_id: int):
                 hls_url = video_details.hls.video_url
                 logger.info(f"✅ Found HLS URL via object access: {hls_url}")
             
-            # Also get thumbnail URLs
+            # Also get thumbnail URLs and status
             if hasattr(video_details.hls, 'thumbnail_urls') and video_details.hls.thumbnail_urls:
                 thumbnail_urls = video_details.hls.thumbnail_urls
+            if hasattr(video_details.hls, 'status'):
+                hls_status = video_details.hls.status
         
         # Method 2: Dict conversion if object access failed
         if not hls_url:
@@ -2187,9 +2242,11 @@ async def stream_video(video_id: int):
                     if hls_url:
                         logger.info(f"✅ Found HLS URL via dict access: {hls_url}")
                     
-                    # Get thumbnail URLs from dict
+                    # Get thumbnail URLs and status from dict
                     if 'thumbnail_urls' in hls_data and hls_data['thumbnail_urls']:
                         thumbnail_urls = hls_data['thumbnail_urls']
+                    if 'status' in hls_data:
+                        hls_status = hls_data['status']
                         
             except Exception as dict_error:
                 logger.warning(f"Could not parse video dict: {dict_error}")
@@ -2223,6 +2280,7 @@ async def stream_video(video_id: int):
         
         logger.info(f"✅ Successfully extracted HLS stream URL: {hls_url}")
         logger.info(f"📊 Thumbnail URLs: {thumbnail_urls}")
+        logger.info(f"📊 HLS Status: {hls_status}")
         
         return {
             "success": True,
@@ -2230,6 +2288,7 @@ async def stream_video(video_id: int):
                 "video_id": video_id,
                 "hls_url": hls_url,
                 "thumbnail_urls": thumbnail_urls,
+                "hls_status": hls_status,
                 "source": "twelvelabs",
                 "twelvelabs_video_id": twelvelabs_video_id,
                 "index_id": index_id
