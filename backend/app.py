@@ -1,6 +1,6 @@
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
 from typing import Dict, Any, Optional
 import sqlite3
@@ -16,6 +16,8 @@ from dotenv import load_dotenv
 import httpx
 from twelvelabs import TwelveLabs
 from contextlib import asynccontextmanager
+from collections import defaultdict
+import queue
 
 # Load environment variables
 load_dotenv()
@@ -150,6 +152,9 @@ DB_PATH = "recurser_validator.db"
 # Progress tracking
 progress_logs = {}
 
+# SSE log streaming - store queues for each video_id
+log_streams = defaultdict(list)  # video_id -> list of asyncio.Queue objects
+
 def log_progress(video_id: int, message: str, progress: int = None, status: str = None):
     """Log progress for a video with timestamp and update database"""
     timestamp = time.strftime("%H:%M:%S")
@@ -199,7 +204,7 @@ def log_progress(video_id: int, message: str, progress: int = None, status: str 
     logger.info(f"📊 Video {video_id}: {message}")
 
 def log_detailed(video_id: int, message: str, level: str = "INFO"):
-    """Log detailed information that appears in both console and frontend"""
+    """Log detailed information that appears in both console and frontend - broadcasts to SSE clients in real-time"""
     timestamp = time.strftime("%H:%M:%S")
     
     # Format based on level
@@ -220,6 +225,21 @@ def log_detailed(video_id: int, message: str, level: str = "INFO"):
     if video_id not in progress_logs:
         progress_logs[video_id] = []
     progress_logs[video_id].append(log_entry)
+    
+    # Broadcast to SSE clients in real-time
+    if video_id in log_streams and log_streams[video_id]:
+        # Send to all connected clients for this video
+        disconnected_queues = []
+        for client_queue in log_streams[video_id]:
+            try:
+                client_queue.put_nowait(log_entry)
+            except:
+                # Queue is full or closed, mark for removal
+                disconnected_queues.append(client_queue)
+        
+        # Clean up disconnected clients
+        for dead_queue in disconnected_queues:
+            log_streams[video_id].remove(dead_queue)
     
     # Store in database for persistence
     conn = sqlite3.connect(DB_PATH)
@@ -1158,7 +1178,7 @@ async def root():
         "message": "Recurser Validator API",
         "version": "2.0.0",
         "status": "production-ready",
-        "features": ["video_generation", "ai_detection", "quality_grading", "prompt_enhancement"],
+        "features": ["video_generation", "ai_detection", "quality_grading", "prompt_enhancement", "real_time_logs"],
         "endpoints": {
             "health": "/health",
             "generate_video": "/api/videos/generate",
@@ -1166,6 +1186,7 @@ async def root():
             "grade_video": "/api/videos/{video_id}/grade",
             "video_status": "/api/videos/{video_id}/status",
             "video_logs": "/api/videos/{video_id}/logs",
+            "stream_logs": "/api/videos/{video_id}/stream-logs (SSE - real-time)",
             "list_videos": "/api/videos",
             "play_video": "/api/videos/{video_id}/play",
             "stream_video": "/api/videos/{video_id}/stream",
@@ -1573,7 +1594,7 @@ async def debug_logs():
 
 @app.get("/api/videos/{video_id}/logs")
 async def get_video_logs(video_id: int):
-    """Get progress logs for a video"""
+    """Get progress logs for a video (deprecated - use /stream-logs for real-time)"""
     try:
         # Get logs from database first (persistent)
         conn = sqlite3.connect(DB_PATH)
@@ -1627,6 +1648,73 @@ async def get_video_logs(video_id: int):
                 "logs": []
             }
         }
+
+@app.get("/api/videos/{video_id}/stream-logs")
+async def stream_video_logs(video_id: int):
+    """Stream logs in real-time using Server-Sent Events (SSE)"""
+    
+    async def event_generator():
+        # Create a queue for this client
+        client_queue = queue.Queue(maxsize=100)
+        log_streams[video_id].append(client_queue)
+        
+        try:
+            # First, send all existing logs
+            conn = sqlite3.connect(DB_PATH)
+            cursor = conn.cursor()
+            cursor.execute("SELECT detailed_logs FROM videos WHERE id = ?", (video_id,))
+            result = cursor.fetchone()
+            conn.close()
+            
+            existing_logs = []
+            if result and result[0]:
+                try:
+                    existing_logs = json.loads(result[0]) if isinstance(result[0], str) else result[0]
+                except:
+                    existing_logs = []
+            
+            # Send existing logs
+            for log_entry in existing_logs:
+                yield f"data: {json.dumps({'log': log_entry})}\n\n"
+            
+            # Send a heartbeat every 15 seconds to keep connection alive
+            last_heartbeat = time.time()
+            
+            # Now stream new logs as they come in
+            while True:
+                try:
+                    # Check for new logs with a short timeout
+                    log_entry = client_queue.get(timeout=1.0)
+                    yield f"data: {json.dumps({'log': log_entry})}\n\n"
+                except queue.Empty:
+                    # Send heartbeat to keep connection alive
+                    if time.time() - last_heartbeat > 15:
+                        yield f": heartbeat\n\n"
+                        last_heartbeat = time.time()
+                    await asyncio.sleep(0.1)
+                    continue
+                
+        except asyncio.CancelledError:
+            # Client disconnected
+            logger.info(f"📊 Video {video_id}: Client disconnected from log stream")
+            if client_queue in log_streams[video_id]:
+                log_streams[video_id].remove(client_queue)
+            raise
+        except Exception as e:
+            logger.error(f"❌ Log streaming error: {str(e)}")
+            if client_queue in log_streams[video_id]:
+                log_streams[video_id].remove(client_queue)
+            raise
+    
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"
+        }
+    )
 
 @app.get("/api/videos/{video_id}/status")
 async def get_video_status(video_id: int):
@@ -1983,7 +2071,7 @@ async def list_videos():
 
 @app.get("/api/videos/{video_id}/play")
 async def play_video(video_id: int):
-    """Play a generated video file - serves local file (TwelveLabs HLS handled separately)"""
+    """Play a generated video file - serves local file, redirects to stream for TwelveLabs videos"""
     try:
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
@@ -2002,21 +2090,40 @@ async def play_video(video_id: int):
         
         logger.info(f"🎬 Video play request: {video_id}, path: {video_path}, tl_id: {twelvelabs_video_id}")
         
-        # Always serve local file if available
-        if video_path and os.path.exists(video_path):
+        # Check if local file exists and is accessible
+        local_file_available = video_path and os.path.exists(video_path)
+        
+        # Check if TwelveLabs video is available
+        twelvelabs_available = bool(twelvelabs_video_id and index_id)
+        
+        if local_file_available:
+            # Serve local file for direct playback
             logger.info(f"✅ Serving local video file: {video_path}")
             return FileResponse(
                 path=video_path,
                 media_type="video/mp4",
                 filename=f"video_{video_id}.mp4"
             )
-        
-        # If no local file, video might be in TwelveLabs only
-        if not video_path or not os.path.exists(video_path):
-            logger.error(f"❌ Video file not found locally: {video_path}")
+        elif twelvelabs_available:
+            # Redirect to stream endpoint for TwelveLabs videos
+            logger.info(f"📡 Local file not available, redirecting to TwelveLabs stream")
+            # Return JSON with stream info instead of redirect
+            return {
+                "success": True,
+                "data": {
+                    "video_id": video_id,
+                    "message": "Video available via TwelveLabs stream",
+                    "stream_endpoint": f"/api/videos/{video_id}/stream",
+                    "local_file_available": False,
+                    "twelvelabs_available": True
+                }
+            }
+        else:
+            # No video available anywhere
+            logger.error(f"❌ Video not available locally or in TwelveLabs: {video_id}")
             raise HTTPException(
                 status_code=404, 
-                detail="Video file not available locally. Use /api/videos/{video_id}/stream for TwelveLabs videos."
+                detail="Video not available locally or in TwelveLabs"
             )
         
     except Exception as e:
@@ -2046,38 +2153,86 @@ async def stream_video(video_id: int):
         logger.info(f"📡 Fetching HLS stream from TwelveLabs: index={index_id}, video={twelvelabs_video_id}")
         client = TwelveLabs(api_key=TWELVELABS_API_KEY)
         
-        # Get video details from TwelveLabs
+        # Get video details from TwelveLabs using the correct API structure
         video_details = client.indexes.videos.retrieve(
             index_id=index_id,
             id=twelvelabs_video_id
         )
         
-        # Try to get HLS video URL
+        # Extract HLS URL from the response - try multiple approaches
         hls_url = None
-        if hasattr(video_details, 'hls') and video_details.hls:
-            if hasattr(video_details.hls, 'video_url') and video_details.hls.video_url:
-                hls_url = video_details.hls.video_url
+        thumbnail_urls = []
         
-        # Try dict format if object format didn't work
+        # Method 1: Direct object access
+        if hasattr(video_details, 'hls') and video_details.hls:
+            if hasattr(video_details.hls, 'video_url'):
+                hls_url = video_details.hls.video_url
+                logger.info(f"✅ Found HLS URL via object access: {hls_url}")
+            
+            # Also get thumbnail URLs
+            if hasattr(video_details.hls, 'thumbnail_urls') and video_details.hls.thumbnail_urls:
+                thumbnail_urls = video_details.hls.thumbnail_urls
+        
+        # Method 2: Dict conversion if object access failed
         if not hls_url:
             try:
                 video_dict = video_details.dict() if hasattr(video_details, 'dict') else {}
+                logger.info(f"📊 Video dict keys: {list(video_dict.keys())}")
+                
                 if 'hls' in video_dict and isinstance(video_dict['hls'], dict):
-                    hls_url = video_dict['hls'].get('video_url')
+                    hls_data = video_dict['hls']
+                    logger.info(f"📊 HLS dict keys: {list(hls_data.keys())}")
+                    
+                    hls_url = hls_data.get('video_url')
+                    if hls_url:
+                        logger.info(f"✅ Found HLS URL via dict access: {hls_url}")
+                    
+                    # Get thumbnail URLs from dict
+                    if 'thumbnail_urls' in hls_data and hls_data['thumbnail_urls']:
+                        thumbnail_urls = hls_data['thumbnail_urls']
+                        
             except Exception as dict_error:
                 logger.warning(f"Could not parse video dict: {dict_error}")
         
+        # Method 3: Raw response inspection
         if not hls_url:
-            raise HTTPException(status_code=404, detail="HLS stream URL not available")
+            try:
+                # Log the raw response structure for debugging
+                logger.info(f"📊 Video details type: {type(video_details)}")
+                logger.info(f"📊 Video details attributes: {[attr for attr in dir(video_details) if not attr.startswith('_')]}")
+                
+                # Try to access as raw dict
+                if hasattr(video_details, '__dict__'):
+                    raw_dict = video_details.__dict__
+                    logger.info(f"📊 Raw dict keys: {list(raw_dict.keys())}")
+                    
+                    if 'hls' in raw_dict and raw_dict['hls']:
+                        hls_obj = raw_dict['hls']
+                        if hasattr(hls_obj, 'video_url'):
+                            hls_url = hls_obj.video_url
+                        elif isinstance(hls_obj, dict) and 'video_url' in hls_obj:
+                            hls_url = hls_obj['video_url']
+                            
+            except Exception as raw_error:
+                logger.warning(f"Could not access raw response: {raw_error}")
         
-        logger.info(f"✅ Returning HLS stream URL: {hls_url}")
+        if not hls_url:
+            logger.error(f"❌ Could not find HLS URL in TwelveLabs response")
+            logger.error(f"📊 Full response structure: {video_details}")
+            raise HTTPException(status_code=404, detail="HLS stream URL not available in TwelveLabs response")
+        
+        logger.info(f"✅ Successfully extracted HLS stream URL: {hls_url}")
+        logger.info(f"📊 Thumbnail URLs: {thumbnail_urls}")
+        
         return {
             "success": True,
             "data": {
                 "video_id": video_id,
                 "hls_url": hls_url,
+                "thumbnail_urls": thumbnail_urls,
                 "source": "twelvelabs",
-                "twelvelabs_video_id": twelvelabs_video_id
+                "twelvelabs_video_id": twelvelabs_video_id,
+                "index_id": index_id
             }
         }
         
