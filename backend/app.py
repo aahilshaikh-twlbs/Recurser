@@ -1594,6 +1594,32 @@ async def debug_logs():
         }
     }
 
+@app.get("/api/logs/stream")
+async def stream_logs():
+    """Stream real-time logs from the backend server"""
+    def generate_logs():
+        # Read the server.log file and stream it
+        log_file = "server.log"
+        if os.path.exists(log_file):
+            with open(log_file, 'r') as f:
+                # Start from the end of the file
+                f.seek(0, 2)  # Go to end of file
+                while True:
+                    line = f.readline()
+                    if line:
+                        yield f"data: {json.dumps({'log': line.strip(), 'timestamp': datetime.now().isoformat()})}\n\n"
+                    else:
+                        time.sleep(0.1)  # Wait for new content
+        else:
+            # If no log file, generate some sample logs
+            while True:
+                timestamp = datetime.now().strftime("%H:%M:%S")
+                log_message = f"[{timestamp}] Backend server running..."
+                yield f"data: {json.dumps({'log': log_message, 'timestamp': datetime.now().isoformat()})}\n\n"
+                time.sleep(2)
+    
+    return StreamingResponse(generate_logs(), media_type="text/plain")
+
 @app.get("/api/videos/{video_id}/logs")
 async def get_video_logs(video_id: int):
     """Get progress logs for a video (deprecated - use /stream-logs for real-time)"""

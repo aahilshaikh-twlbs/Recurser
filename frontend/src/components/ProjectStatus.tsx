@@ -13,6 +13,8 @@ import {
   Eye
 } from 'lucide-react'
 import { API_CONFIG, apiRequest } from '@/lib/config'
+import TerminalLogs from './TerminalLogs'
+import HLSVideoPlayer from './HLSVideoPlayer'
 
 interface ProjectStatusProps {
   project: any
@@ -60,7 +62,7 @@ export default function ProjectStatus({ project: initialProject }: ProjectStatus
           video_id: parseInt(videoId),
           status: 'pending',
           iteration_count: 0,
-          max_iterations: 5
+          max_iterations: 3 // Default to 3, will be updated from server response
         })
         setIsPolling(true)
       }
@@ -245,7 +247,7 @@ export default function ProjectStatus({ project: initialProject }: ProjectStatus
         <div className="flex items-center justify-between mb-2">
           <span className="text-sm font-medium text-gray-700">Current Step</span>
           <span className="text-sm text-gray-600">
-            {project?.iteration_count ? `Iteration ${project.iteration_count}/${project?.max_iterations || 5}` : 'Starting'}
+            {project?.iteration_count ? `Iteration ${project.iteration_count}/${project?.max_iterations || 3}` : 'Starting'}
           </span>
         </div>
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
@@ -263,104 +265,10 @@ export default function ProjectStatus({ project: initialProject }: ProjectStatus
         <div className="flex items-center justify-between mb-3">
           <h3 className="font-semibold text-gray-900 flex items-center">
             <BarChart3 className="w-4 h-4 mr-2" />
-            Live Activity ({logs.length} logs)
+            Live Backend Terminal
           </h3>
-          <div className="flex space-x-2">
-            <button 
-              onClick={async () => {
-                try {
-                  console.log('Manual log fetch for video:', project?.video_id)
-                  const response = await apiRequest(API_CONFIG.endpoints.videoLogs(project?.video_id || '1'))
-                  const result = await response.json()
-                  console.log('Manual logs response:', result)
-                  setLogs(result.data?.logs || [])
-                } catch (error) {
-                  console.error('Manual log fetch failed:', error)
-                }
-              }}
-              className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded hover:bg-blue-200"
-            >
-              Refresh Logs
-            </button>
-            <button 
-              onClick={async () => {
-                try {
-                  console.log('Checking for completed videos...')
-                  const response = await apiRequest('/api/videos')
-                  const result = await response.json()
-                  console.log('Videos response:', result)
-                  if (result.success && result.data && result.data.length > 0) {
-                    const latestVideo = result.data[0]
-                    console.log('Found video:', latestVideo)
-                    setProject(latestVideo)
-                    setIsPolling(true)
-                  }
-                } catch (error) {
-                  console.error('Check videos failed:', error)
-                }
-              }}
-              className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded hover:bg-green-200"
-            >
-              Check Videos
-            </button>
-          </div>
         </div>
-        <div className="bg-gray-900 rounded-lg p-4 min-h-[100px] max-h-[300px] overflow-y-auto font-mono text-sm">
-          <div className="text-green-400 text-xs mb-2 border-b border-gray-700 pb-1">
-            ~/recurser-backend$ tail -f server.log
-          </div>
-          {logs.length > 0 ? (
-            <div className="space-y-1">
-              {logs.slice(-20).map((log, index) => {
-                const isSuccess = log.includes('✅') || log.includes('SUCCESS')
-                const isError = log.includes('❌') || log.includes('ERROR')
-                const isWarning = log.includes('⚠️') || log.includes('WARNING')
-                const isInfo = log.includes('ℹ️') || log.includes('INFO')
-                const isMarengo = log.includes('MarenGO') || log.includes('🔍')
-                const isPegasus = log.includes('Pegasus') || log.includes('🧠')
-                const isScore = log.includes('Score') || log.includes('📊') || log.includes('🤖')
-                
-                let textColor = 'text-gray-300'
-                let icon = ''
-                
-                if (isSuccess) {
-                  textColor = 'text-green-400'
-                  icon = '✅'
-                } else if (isError) {
-                  textColor = 'text-red-400'
-                  icon = '❌'
-                } else if (isWarning) {
-                  textColor = 'text-yellow-400'
-                  icon = '⚠️'
-                } else if (isMarengo) {
-                  textColor = 'text-blue-400'
-                  icon = '🔍'
-                } else if (isPegasus) {
-                  textColor = 'text-purple-400'
-                  icon = '🧠'
-                } else if (isScore) {
-                  textColor = 'text-indigo-400'
-                  icon = '📊'
-                }
-                
-                return (
-                  <div key={index} className={`py-1 px-2 ${textColor} hover:bg-gray-800 rounded`}>
-                    <div className="text-xs font-mono flex items-start">
-                      <span className="mr-2 text-xs opacity-70">{icon}</span>
-                      <span className="flex-1 leading-relaxed">{log}</span>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          ) : (
-            <div className="text-center text-gray-500 py-8">
-              <Clock className="w-8 h-8 mx-auto mb-2 opacity-50" />
-              <p className="text-gray-400">Waiting for activity...</p>
-              <p className="text-xs mt-2 text-gray-600">Debug: {project?.video_id ? `Video ID: ${project.video_id}` : 'No video ID'}</p>
-            </div>
-          )}
-        </div>
+        <TerminalLogs className="min-h-[200px]" />
       </div>
 
 
@@ -398,7 +306,7 @@ export default function ProjectStatus({ project: initialProject }: ProjectStatus
             
             <div className="text-center p-3 bg-white rounded-lg">
               <div className="text-lg font-bold text-orange-600">
-                {project?.max_iterations || 5}
+                {project?.max_iterations || 3}
               </div>
               <div className="text-xs text-gray-600">Max Iterations</div>
             </div>
@@ -498,18 +406,15 @@ export default function ProjectStatus({ project: initialProject }: ProjectStatus
           </div>
           
           {/* Video Display */}
-          {project.video_path && (
+          {(project.video_path || project.twelvelabs_video_id) && (
             <div className="mt-4">
               <h4 className="font-medium text-gray-900 mb-2">Generated Video:</h4>
               <div className="bg-white rounded-lg border border-gray-200 p-4">
-                <video 
-                  controls 
-                  className="w-full max-w-2xl mx-auto rounded-lg"
+                <HLSVideoPlayer
+                  videoId={project.video_id}
+                  className="w-full max-w-2xl mx-auto aspect-video"
                   poster={project.thumbnail_url}
-                >
-                  <source src={`/api/videos/${project.video_id}/play`} type="video/mp4" />
-                  Your browser does not support the video tag.
-                </video>
+                />
               </div>
               
               {/* Video Actions */}
