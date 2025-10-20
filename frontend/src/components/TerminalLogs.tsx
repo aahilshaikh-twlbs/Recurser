@@ -7,8 +7,16 @@ interface TerminalLogsProps {
   className?: string
 }
 
+interface LogEntry {
+  id: string
+  message: string
+  timestamp: string
+  videoId?: number
+  source?: string
+}
+
 export default function TerminalLogs({ className = '' }: TerminalLogsProps) {
-  const [logs, setLogs] = useState<string[]>([])
+  const [logs, setLogs] = useState<LogEntry[]>([])
   const [isConnected, setIsConnected] = useState(false)
   const [isExpanded, setIsExpanded] = useState(false)
   const logContainerRef = useRef<HTMLDivElement>(null)
@@ -30,7 +38,14 @@ export default function TerminalLogs({ className = '' }: TerminalLogsProps) {
             const data = JSON.parse(event.data)
             if (data.log) {
               setLogs(prev => {
-                const newLogs = [...prev, data.log]
+                const logEntry = {
+                  id: `${data.timestamp}-${Math.random()}`,
+                  message: data.log,
+                  timestamp: data.timestamp,
+                  videoId: data.video_id,
+                  source: data.source || 'video'
+                }
+                const newLogs = [...prev, logEntry]
                 // Keep only last 100 logs to prevent memory issues
                 return newLogs.slice(-100)
               })
@@ -77,14 +92,15 @@ export default function TerminalLogs({ className = '' }: TerminalLogsProps) {
     setLogs([])
   }
 
-  const formatLogLine = (log: string) => {
-    const isSuccess = log.includes('✅') || log.includes('SUCCESS')
-    const isError = log.includes('❌') || log.includes('ERROR')
-    const isWarning = log.includes('⚠️') || log.includes('WARNING')
-    const isInfo = log.includes('ℹ️') || log.includes('INFO')
-    const isMarengo = log.includes('MarenGO') || log.includes('🔍')
-    const isPegasus = log.includes('Pegasus') || log.includes('🧠')
-    const isScore = log.includes('Score') || log.includes('📊') || log.includes('🤖')
+  const formatLogLine = (log: LogEntry) => {
+    const message = log.message
+    const isSuccess = message.includes('✅') || message.includes('SUCCESS')
+    const isError = message.includes('❌') || message.includes('ERROR')
+    const isWarning = message.includes('⚠️') || message.includes('WARNING')
+    const isInfo = message.includes('ℹ️') || message.includes('INFO')
+    const isMarengo = message.includes('MarenGO') || message.includes('🔍')
+    const isPegasus = message.includes('Pegasus') || message.includes('🧠')
+    const isScore = message.includes('Score') || message.includes('📊') || message.includes('🤖')
     
     let textColor = 'text-gray-300'
     let icon = ''
@@ -157,18 +173,23 @@ export default function TerminalLogs({ className = '' }: TerminalLogsProps) {
           </div>
           {logs.length > 0 ? (
             <div className="space-y-1">
-              {logs.slice(-50).map((log, index) => {
+              {logs.slice(-50).map((log) => {
                 const { textColor, icon } = formatLogLine(log)
                 return (
-                  <div key={index} className="flex items-start space-x-2">
+                  <div key={log.id} className="flex items-start space-x-2">
                     <span className="text-gray-500 text-xs w-16 flex-shrink-0">
-                      {new Date().toLocaleTimeString()}
+                      {new Date(log.timestamp).toLocaleTimeString()}
                     </span>
                     <span className="text-gray-600">|</span>
                     <span className={`${textColor} flex-1`}>
                       {icon && <span className="mr-1">{icon}</span>}
-                      {log}
+                      {log.message}
                     </span>
+                    {log.videoId && (
+                      <span className="text-gray-500 text-xs">
+                        [V{log.videoId}]
+                      </span>
+                    )}
                   </div>
                 )
               })}

@@ -91,7 +91,7 @@ class VideoGenerationRequest(BaseModel):
     prompt: str
     project_name: Optional[str] = None
     confidence_threshold: float = 50.0
-    max_retries: int = 5
+    max_retries: int = 3
     index_id: Optional[str] = None
     twelvelabs_api_key: Optional[str] = None
     gemini_api_key: Optional[str] = None
@@ -101,7 +101,7 @@ class VideoGenerationRequest(BaseModel):
 class VideoUploadRequest(BaseModel):
     original_prompt: Optional[str] = None
     confidence_threshold: float = 50.0
-    max_retries: int = 5
+    max_retries: int = 3
     index_id: str
     twelvelabs_api_key: str
     gemini_api_key: Optional[str] = None
@@ -294,7 +294,7 @@ def init_db():
             index_id TEXT,
             twelvelabs_video_id TEXT,
             iteration_count INTEGER DEFAULT 1,
-            max_iterations INTEGER DEFAULT 5,
+            max_iterations INTEGER DEFAULT 3,
             source_video_id TEXT,
             ai_detection_score REAL DEFAULT 0.0,
             ai_detection_confidence REAL DEFAULT 0.0,
@@ -314,7 +314,7 @@ def init_db():
             task_type TEXT NOT NULL,
             status TEXT DEFAULT 'pending',
             retry_count INTEGER DEFAULT 0,
-            max_retries INTEGER DEFAULT 5,
+            max_retries INTEGER DEFAULT 3,
             error_message TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -362,7 +362,7 @@ class VideoGenerationService:
         gemini_api_key: Optional[str] = None,
         starting_iteration: int = 1,
         target_confidence: float = 100.0,
-        max_iterations: int = 5,
+        max_iterations: int = 3,
         initial_analysis_data: dict = None
     ):
         """Generate videos iteratively until target confidence is reached"""
@@ -1338,7 +1338,7 @@ async def generate_video(request: VideoGenerationRequest, background_tasks: Back
         """, (
             request.prompt, enhanced_prompt, "pending", request.confidence_threshold, 
             0, generation_id, index_id, iteration_number,
-            request.video_id, request.max_retries if request.max_retries and request.max_retries > 0 else 5
+            request.video_id, request.max_retries if request.max_retries and request.max_retries > 0 else 3
         ))
         
         video_id = cursor.lastrowid
@@ -1346,15 +1346,16 @@ async def generate_video(request: VideoGenerationRequest, background_tasks: Back
         conn.close()
         
         # Debug: Log what was stored
-        stored_value = request.max_retries if request.max_retries and request.max_retries > 0 else 5
+        stored_value = request.max_retries if request.max_retries and request.max_retries > 0 else 3
         logger.info(f"📊 Video {video_id}: Stored max_iterations = {stored_value} (request.max_retries = {request.max_retries})")
+        log_detailed(video_id, f"🔧 DEBUG: Stored max_iterations = {stored_value} (request.max_retries = {request.max_retries})", "INFO")
         
         # Add initial logs BEFORE starting background task so they're immediately available
         log_detailed(video_id, f"Video generation request received: {request.prompt[:100]}...", "INFO")
         if request.is_playground_video and request.video_id:
             log_detailed(video_id, f"Starting iterative enhancement from source video {request.video_id}", "INFO")
         log_detailed(video_id, f"Target confidence: {request.confidence_threshold}%", "INFO")
-        log_detailed(video_id, f"Max iterations: {request.max_retries or 5}", "INFO")
+        log_detailed(video_id, f"Max iterations: {request.max_retries or 3}", "INFO")
         
         # Debug: Check if logs are being stored
         logger.info(f"📊 Video {video_id}: Stored {len(progress_logs.get(video_id, []))} logs in memory")
@@ -1369,7 +1370,7 @@ async def generate_video(request: VideoGenerationRequest, background_tasks: Back
             request.gemini_api_key,
             iteration_number,
             request.confidence_threshold,
-            request.max_retries or 5,
+            request.max_retries or 3,
             analysis_data
         )
         
@@ -1396,7 +1397,7 @@ async def upload_video(
     file: UploadFile = File(...),
     original_prompt: str = Form(...),
     confidence_threshold: float = Form(50.0),
-    max_retries: int = Form(5),
+    max_retries: int = Form(3),
     index_id: str = Form(None),
     twelvelabs_api_key: str = Form(None),
     gemini_api_key: Optional[str] = Form(None)
@@ -1598,25 +1599,43 @@ async def debug_logs():
 async def stream_logs():
     """Stream real-time logs from the backend server"""
     def generate_logs():
-        # Read the server.log file and stream it
-        log_file = "server.log"
-        if os.path.exists(log_file):
-            with open(log_file, 'r') as f:
-                # Start from the end of the file
-                f.seek(0, 2)  # Go to end of file
-                while True:
-                    line = f.readline()
-                    if line:
-                        yield f"data: {json.dumps({'log': line.strip(), 'timestamp': datetime.now().isoformat()})}\n\n"
-                    else:
-                        time.sleep(0.1)  # Wait for new content
-        else:
-            # If no log file, generate some sample logs
-            while True:
-                timestamp = datetime.now().strftime("%H:%M:%S")
-                log_message = f"[{timestamp}] Backend server running..."
-                yield f"data: {json.dumps({'log': log_message, 'timestamp': datetime.now().isoformat()})}\n\n"
-                time.sleep(2)
+        last_log_count = 0
+        while True:
+            try:
+                # Get all logs from memory (real-time)
+                all_logs = []
+                for video_id, logs in progress_logs.items():
+                    for log in logs:
+                        all_logs.append({
+                            'log': log,
+                            'timestamp': datetime.now().isoformat(),
+                            'video_id': video_id
+                        })
+                
+                # Only send new logs
+                if len(all_logs) > last_log_count:
+                    new_logs = all_logs[last_log_count:]
+                    for log_entry in new_logs:
+                        yield f"data: {json.dumps(log_entry)}\n\n"
+                    last_log_count = len(all_logs)
+                
+                # Also read from server.log file
+                log_file = "server.log"
+                if os.path.exists(log_file):
+                    with open(log_file, 'r') as f:
+                        lines = f.readlines()
+                        if len(lines) > last_log_count:
+                            new_lines = lines[last_log_count:]
+                            for line in new_lines:
+                                if line.strip():
+                                    yield f"data: {json.dumps({'log': line.strip(), 'timestamp': datetime.now().isoformat(), 'source': 'server'})}\n\n"
+                            last_log_count = len(lines)
+                
+                time.sleep(0.5)  # Check every 500ms
+                
+            except Exception as e:
+                logger.error(f"Error in log streaming: {e}")
+                time.sleep(1)
     
     return StreamingResponse(generate_logs(), media_type="text/plain")
 
@@ -1764,7 +1783,7 @@ async def get_video_status(video_id: int):
                     "status": "pending",
                     "progress": 0,
                     "iteration_count": 0,
-                    "max_iterations": 5,  # Will be updated when video is created
+                    "max_iterations": 3,  # Will be updated when video is created
                     "ai_detection_score": 0.0,
                     "final_confidence": 0.0,
                     "video_path": None,
@@ -1802,6 +1821,7 @@ async def get_video_status(video_id: int):
         # Debug: Log the max_iterations value
         logger.info(f"📊 Video {video_id}: Database max_iterations = {video[13]} (type: {type(video[13])})")
         logger.info(f"📊 Video {video_id}: Full video record: {video}")
+        log_detailed(video_id, f"🔧 DEBUG: Retrieved max_iterations = {video[13]} from database", "INFO")
         
         # Calculate final confidence (100 - ai_detection_score)
         final_confidence = 100.0 - (video[15] or 0.0)
@@ -1841,7 +1861,7 @@ async def get_video_status(video_id: int):
                 "index_id": video[10],
                 "twelvelabs_video_id": video[11],
                 "iteration_count": video[12] or 1,
-                "max_iterations": video[13] if video[13] is not None else 5,
+                "max_iterations": video[13] if video[13] is not None else 3,
                 "source_video_id": video[14],
                 "ai_detection_score": video[15] or 0.0,
                 "ai_detection_confidence": video[16] or 0.0,
