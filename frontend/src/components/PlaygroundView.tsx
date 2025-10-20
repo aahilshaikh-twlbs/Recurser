@@ -256,9 +256,9 @@ export default function PlaygroundView({ onVideoSelected }: PlaygroundViewProps)
             <div className="aspect-video bg-black rounded-lg mb-4 relative overflow-hidden">
               {selectedVideo.hls_url ? (
                 <HLSVideoPlayer
-                  videoId={selectedVideo.id}
+                  videoId={selectedVideo.id || 'unknown'}
                   className="w-full h-full"
-                  poster={selectedVideo.thumbnail}
+                  poster={selectedVideo.thumbnail || undefined}
                 />
               ) : selectedVideo.thumbnail ? (
                 <img 
