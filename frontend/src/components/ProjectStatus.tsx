@@ -369,7 +369,21 @@ export default function ProjectStatus({ project: initialProject }: ProjectStatus
                   </div>
                 </div>
                 <div className="text-xs text-blue-600 mt-3">
-                  <p><strong>How it works:</strong> Analyzes AI artifacts, motion quality, and visual coherence to determine overall video quality.</p>
+                  <p><strong>How it works:</strong> Uses AI analysis to detect artifacts, motion issues, and visual problems. Higher scores mean better video quality with fewer AI-generated artifacts.</p>
+                  <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
+                    <div className="bg-green-50 p-2 rounded">
+                      <span className="font-semibold text-green-700">90%+ Excellent:</span> Minimal AI artifacts, looks natural
+                    </div>
+                    <div className="bg-yellow-50 p-2 rounded">
+                      <span className="font-semibold text-yellow-700">50-89% Good:</span> Some improvements possible
+                    </div>
+                    <div className="bg-red-50 p-2 rounded">
+                      <span className="font-semibold text-red-700">0-49% Poor:</span> Many AI artifacts, needs work
+                    </div>
+                    <div className="bg-blue-50 p-2 rounded">
+                      <span className="font-semibold text-blue-700">Target:</span> Aim for 85%+ for good results
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>

@@ -2208,6 +2208,31 @@ async def list_videos():
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.get("/api/test/video")
+async def test_video():
+    """Test endpoint to serve video file directly"""
+    video_path = "uploads/veo_generated_1_iter1_1761215946.mp4"
+    if os.path.exists(video_path):
+        # Try streaming the file instead of FileResponse
+        def generate():
+            with open(video_path, "rb") as f:
+                while True:
+                    chunk = f.read(8192)  # 8KB chunks
+                    if not chunk:
+                        break
+                    yield chunk
+        
+        return StreamingResponse(
+            generate(),
+            media_type="video/mp4",
+            headers={
+                "Content-Disposition": "inline; filename=test_video.mp4",
+                "Accept-Ranges": "bytes"
+            }
+        )
+    else:
+        raise HTTPException(status_code=404, detail="Test video not found")
+
 @app.get("/api/videos/{video_id}/play")
 async def play_video(video_id: int):
     """Play a generated video file - serves local file, redirects to stream for TwelveLabs videos"""
@@ -2238,10 +2263,23 @@ async def play_video(video_id: int):
         # Prioritize local files (final iterations) for simple display
         if local_file_available:
             logger.info(f"✅ Serving final iteration locally: {video_path}")
+            # Test if file is readable
+            try:
+                with open(video_path, 'rb') as f:
+                    f.read(1024)  # Read first 1KB to test
+                logger.info(f"✅ Video file is readable: {video_path}")
+            except Exception as e:
+                logger.error(f"❌ Video file not readable: {e}")
+                raise HTTPException(status_code=500, detail=f"Video file not readable: {e}")
+            
             return FileResponse(
                 path=video_path,
                 media_type="video/mp4",
-                filename=f"video_{video_id}.mp4"
+                filename=f"video_{video_id}.mp4",
+                headers={
+                    "Accept-Ranges": "bytes",
+                    "Cache-Control": "public, max-age=3600"
+                }
             )
         elif twelvelabs_available:
             # Fallback to TwelveLabs stream

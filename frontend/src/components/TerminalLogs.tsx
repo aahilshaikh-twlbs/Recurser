@@ -26,7 +26,7 @@ export default function TerminalLogs({ className = '' }: TerminalLogsProps) {
 
     const connectToLogs = () => {
       try {
-        eventSource = new EventSource('/api/logs/stream')
+        eventSource = new EventSource('http://localhost:8001/api/logs/stream')
         
         eventSource.onopen = () => {
           console.log('Connected to log stream')
@@ -56,13 +56,14 @@ export default function TerminalLogs({ className = '' }: TerminalLogsProps) {
         }
 
         eventSource.onerror = (error) => {
-          console.error('Log stream error:', error)
+          console.error('❌ Log stream error:', error)
           setIsConnected(false)
           // Try to reconnect after 3 seconds
           setTimeout(() => {
             if (eventSource) {
               eventSource.close()
             }
+            console.log('🔄 Attempting to reconnect...')
             connectToLogs()
           }, 3000)
         }
