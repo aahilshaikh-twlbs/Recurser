@@ -26,6 +26,28 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Global log buffer for real-time streaming
+global_log_buffer = []
+
+class StreamLogHandler(logging.Handler):
+    """Custom log handler that streams logs to frontend"""
+    def emit(self, record):
+        log_entry = self.format(record)
+        global_log_buffer.append({
+            'log': log_entry,
+            'timestamp': datetime.now().isoformat(),
+            'source': 'backend_terminal',
+            'level': record.levelname
+        })
+        # Keep only last 1000 logs to prevent memory issues
+        if len(global_log_buffer) > 1000:
+            global_log_buffer.pop(0)
+
+# Add the custom handler to the logger
+stream_handler = StreamLogHandler()
+stream_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+logger.addHandler(stream_handler)
+
 # API Keys
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 TWELVELABS_API_KEY = os.getenv("TWELVELABS_API_KEY", "tlk_3JEVNXJ253JH062DSN3ZX1A6SXKG")
@@ -90,7 +112,7 @@ httpx.Response.json = patched_json
 class VideoGenerationRequest(BaseModel):
     prompt: str
     project_name: Optional[str] = None
-    confidence_threshold: float = 50.0
+    confidence_threshold: float = 100.0
     max_retries: int = 3
     index_id: Optional[str] = None
     twelvelabs_api_key: Optional[str] = None
@@ -100,7 +122,7 @@ class VideoGenerationRequest(BaseModel):
 
 class VideoUploadRequest(BaseModel):
     original_prompt: Optional[str] = None
-    confidence_threshold: float = 50.0
+    confidence_threshold: float = 100.0
     max_retries: int = 3
     index_id: str
     twelvelabs_api_key: str
@@ -286,7 +308,7 @@ def init_db():
             enhanced_prompt TEXT,
             status TEXT DEFAULT 'pending',
             video_path TEXT,
-            confidence_threshold REAL DEFAULT 50.0,
+            confidence_threshold REAL DEFAULT 100.0,
             current_confidence REAL DEFAULT 0.0,
             progress INTEGER DEFAULT 0,
             generation_id TEXT,
@@ -571,7 +593,7 @@ class VideoGenerationService:
             generated_video = operation.response.generated_videos[0]
             video_data = client.files.download(file=generated_video.video)
             
-            # Save video with iteration tracking
+            # Save video temporarily for upload (will be deleted after TwelveLabs upload)
             timestamp = int(time.time())
             iteration = getattr(VideoGenerationService, '_current_iteration', 1)
             video_filename = f"veo_generated_{video_id}_iter{iteration}_{timestamp}.mp4"
@@ -580,6 +602,8 @@ class VideoGenerationService:
             
             with open(video_path, "wb") as f:
                 f.write(video_data)
+            
+            log_detailed(video_id, f"Video temporarily saved for upload: {video_filename}", "INFO")
             
             # STEP 3: Upload to TwelveLabs test index with version indicator
             log_progress(video_id, f"📤 Uploading video to TwelveLabs test index (Iteration {iteration})", 50, "uploading")
@@ -623,6 +647,7 @@ class VideoGenerationService:
             # Update database with video path and twelvelabs ID
             conn = sqlite3.connect(DB_PATH)
             cursor = conn.cursor()
+            # Store video path for display (will be cleaned up later if not final)
             cursor.execute("""
                 UPDATE videos SET video_path = ?, twelvelabs_video_id = ?, updated_at = CURRENT_TIMESTAMP 
                 WHERE id = ?
@@ -630,8 +655,11 @@ class VideoGenerationService:
             conn.commit()
             conn.close()
             
-            log_detailed(video_id, f"Video saved to: {video_path}", "SUCCESS")
+            log_detailed(video_id, f"Video uploaded to TwelveLabs: {twelvelabs_video_id}", "SUCCESS")
             log_detailed(video_id, f"TwelveLabs ID: {twelvelabs_video_id}", "INFO")
+            
+            # Keep video locally for simple display (cleanup handled by iterative process)
+            log_detailed(video_id, f"Video saved locally: {video_filename}", "SUCCESS")
             
             # Run AI detection with detailed logging
             try:
@@ -914,8 +942,38 @@ class AIDetectionService:
         return all_results
     
     @staticmethod
+    async def _analyze_with_pegasus_content(analyze_client, video_id: str):
+        """Analyze video content using Pegasus (video-to-text)"""
+        content_analysis_prompts = [
+            "Analyze this AI-generated video and provide a detailed content description. This video was created using AI generation tools and our goal is to enhance it. Include: VISUAL ELEMENTS - Describe all visible objects, people, animals, and environments. Describe colors, lighting, composition, and visual style. Describe camera movements, angles, and cinematography. Describe any text, signs, or written content. MOTION AND ACTION - Describe all movements, actions, and activities happening in the video. Describe the pace and rhythm of the video. Describe any interactions between subjects. Describe any changes in the scene over time. AUDIO ELEMENTS - Describe any sounds, music, speech, or audio content. Describe the mood and atmosphere created by audio. Describe any dialogue or narration. EMOTIONAL AND NARRATIVE CONTENT - Describe the mood, tone, and emotional content. Describe any story or narrative elements. Describe the overall message or purpose of the video. Describe the target audience or context. Focus on identifying areas that could be improved in the next AI generation iteration.",
+            
+            "Provide a comprehensive technical and artistic analysis of this AI-generated video. This video was created using AI tools and we need to enhance it. Include: TECHNICAL QUALITY - Assess video resolution, clarity, and technical quality. Describe camera work, framing, and cinematography techniques. Assess lighting, color grading, and visual effects. Describe audio quality and sound design. ARTISTIC ELEMENTS - Describe the visual style, aesthetic, and artistic choices. Describe the composition and visual balance. Describe the use of color, contrast, and visual elements. Describe the overall artistic vision and execution. CONTENT ANALYSIS - Describe the main subject matter and themes. Describe the setting, environment, and context. Describe any characters, people, or subjects. Describe the overall content and purpose of the video. Identify specific areas where the AI generation could be improved in the next iteration."
+        ]
+        
+        analysis_results = []
+        
+        for i, prompt in enumerate(content_analysis_prompts):
+            try:
+                response = analyze_client.analyze.create(
+                    video_id=video_id,
+                    prompt=prompt
+                )
+                
+                if response and hasattr(response, 'data'):
+                    analysis_results.append({
+                        'analysis_type': f'content_analysis_{i+1}',
+                        'content_description': response.data,
+                        'prompt_used': prompt[:100] + "..."
+                    })
+                    
+            except Exception as e:
+                logger.warning(f"Pegasus content analysis failed: {e}")
+        
+        return analysis_results
+
+    @staticmethod
     async def _analyze_with_pegasus(analyze_client, video_id: str):
-        """Analyze video using Pegasus"""
+        """Analyze video using Pegasus for AI detection"""
         analysis_prompts = [
             "Perform a detailed visual analysis of this video to detect AI generation indicators. Focus on: FACIAL FEATURES - Analyze facial symmetry for unnatural perfection, examine eye movements for mechanical patterns, check skin texture for artificial smoothness, look for inconsistent facial proportions. MOVEMENT PATTERNS - Identify robotic or mechanical movements, check for unnatural motion fluidity, examine gesture timing for artificial precision, look for impossible or physics-defying actions. VISUAL ARTIFACTS - Detect inconsistent lighting and shadows, identify artificial texture patterns, look for rendering artifacts and compression issues, check for unnatural color gradients and reflections. ENVIRONMENTAL CONSISTENCY - Analyze object placement and interactions, check for impossible scenarios or physics violations, examine depth of field and perspective accuracy, look for temporal inconsistencies. IMPOSSIBLE SCENARIOS - Look for animals doing human activities, impossible physics, unnatural object behavior, or scenarios that defy logic. Provide specific timestamps and confidence levels for each detected indicator.",
             
@@ -1259,27 +1317,30 @@ async def generate_video(request: VideoGenerationRequest, background_tasks: Back
                 # Determine which index to search based on iteration
                 search_index_id = "68d0f9f2e23608ddb86fba7a"  # Start with prod index for source videos
                 
-                # STEP 1: Search and analyze the video
-                logger.info(f"🔍 Step 1: Searching video {request.video_id} for content analysis")
-                search_results = client.search.query(
-                    index_id=search_index_id,
-                    query_text=f"Analyze this video in detail: visual elements, style, composition, lighting, movement, subjects, mood, and quality",
-                    search_options=["visual", "audio"],
-                    page_limit=5  # Get more comprehensive results
-                )
+                # STEP 1: Use Pegasus to analyze video content (video-to-text)
+                logger.info(f"🔍 Step 1: Using Pegasus to analyze video {request.video_id} content")
+                try:
+                    # Use Pegasus for video-to-text analysis
+                    pegasus_analysis = await AIDetectionService._analyze_with_pegasus_content(
+                        client, request.video_id
+                    )
+                    
+                    # Extract content description from Pegasus
+                    content_description = ""
+                    if pegasus_analysis:
+                        for result in pegasus_analysis:
+                            if 'content_description' in result:
+                                content_description += result['content_description'] + "\n"
+                    
+                    logger.info(f"✅ Pegasus content analysis: {content_description[:100]}...")
+                    
+                except Exception as e:
+                    logger.warning(f"⚠️ Pegasus content analysis failed: {e}")
+                    content_description = f"Video {request.video_id} content analysis"
                 
-                # Collect search results
-                search_data = []
-                for result in search_results:
-                    search_data.append({
-                        "score": result.score if hasattr(result, 'score') else 0,
-                        "start_time": result.start_time if hasattr(result, 'start_time') else 0,
-                        "end_time": result.end_time if hasattr(result, 'end_time') else 0,
-                        "metadata": result.metadata if hasattr(result, 'metadata') else {}
-                    })
-                
-                analysis_data["search_results"] = search_data
-                logger.info(f"✅ Collected {len(search_data)} search results")
+                # Store content analysis data
+                analysis_data["pegasus_content_analysis"] = content_description
+                logger.info(f"✅ Pegasus content analysis completed")
                 
                 # STEP 2: Feed analysis to Gemini Flash for enhancement
                 logger.info(f"🧠 Step 2: Processing with Gemini Flash for prompt enhancement")
@@ -1287,27 +1348,31 @@ async def generate_video(request: VideoGenerationRequest, background_tasks: Back
                 client = Client(api_key=GEMINI_API_KEY)
                 
                 analysis_prompt = f"""
-                You are analyzing iteration #{iteration_number} of a video enhancement process.
+                You are analyzing iteration #{iteration_number} of an AI video enhancement process.
                 
                 Original request: {request.prompt}
                 Video ID: {request.video_id}
                 
-                Search Analysis Results:
-                {json.dumps(search_data, indent=2)}
+                This is an AI-generated video that needs enhancement. The video was created using AI generation tools and we need to improve it.
                 
-                Based on this analysis, create an ENHANCED prompt for the next iteration that:
-                1. Identifies specific weaknesses in the current video
-                2. Maintains core concept but improves:
-                   - Visual quality and coherence
-                   - Cinematography and composition
-                   - Lighting and color grading
-                   - Motion smoothness and realism
-                   - Subject details and consistency
-                3. Adds specific technical improvements
-                4. Includes version indicator: "Iteration {iteration_number + 1}"
+                Pegasus Content Analysis:
+                {content_description}
                 
-                Return ONLY the enhanced prompt for video generation, no explanations.
-                Be specific and detailed about improvements needed.
+                Based on this detailed content analysis of the AI-generated video, create an ENHANCED prompt for the next iteration that:
+                1. Uses the content description to understand what the AI-generated video actually contains
+                2. Identifies specific areas for improvement based on the analysis of the AI-generated content
+                3. Maintains the core content but enhances AI generation quality:
+                   - Visual quality and coherence (fix AI artifacts)
+                   - Cinematography and composition (improve AI camera work)
+                   - Lighting and color grading (enhance AI lighting)
+                   - Motion smoothness and realism (fix AI motion artifacts)
+                   - Subject details and consistency (improve AI subject generation)
+                4. Adds specific technical improvements for AI video generation based on the content analysis
+                5. Includes version indicator: "Iteration {iteration_number + 1}"
+                6. Focuses on making the AI generation more natural and less artificial
+                
+                Return ONLY the enhanced prompt for AI video generation, no explanations.
+                Be specific and detailed about improvements needed for the AI-generated video content.
                 """
                 
                 response = client.models.generate_content(
@@ -1396,7 +1461,7 @@ async def generate_video(request: VideoGenerationRequest, background_tasks: Back
 async def upload_video(
     file: UploadFile = File(...),
     original_prompt: str = Form(...),
-    confidence_threshold: float = Form(50.0),
+    confidence_threshold: float = Form(100.0),
     max_retries: int = Form(3),
     index_id: str = Form(None),
     twelvelabs_api_key: str = Form(None),
@@ -1442,6 +1507,35 @@ async def upload_video(
         # Upload to TwelveLabs
         try:
             twelvelabs_video_id = await VideoGenerationService.upload_to_twelvelabs(filepath, index_id, twelvelabs_api_key, video_id)
+            
+            # CRITICAL: Wait for video to be indexed before analysis
+            logger.info(f"⏳ Waiting for video {twelvelabs_video_id} to be indexed...")
+            log_progress(video_id, "⏳ Waiting for video indexing to complete...", 60, "indexing")
+            
+            # Create TwelveLabs client for indexing check
+            from twelvelabs import TwelveLabs
+            client = TwelveLabs(api_key=twelvelabs_api_key)
+            
+            # Poll for indexing completion
+            max_wait_time = 300  # 5 minutes max
+            wait_time = 0
+            while wait_time < max_wait_time:
+                try:
+                    # Check if video is indexed
+                    video_info = client.videos.retrieve(twelvelabs_video_id)
+                    if hasattr(video_info, 'indexed_at') and video_info.indexed_at:
+                        logger.info(f"✅ Video {twelvelabs_video_id} successfully indexed")
+                        break
+                except Exception as e:
+                    logger.warning(f"⚠️ Error checking indexing status: {e}")
+                
+                await asyncio.sleep(10)  # Wait 10 seconds
+                wait_time += 10
+                log_progress(video_id, f"⏳ Still waiting for indexing... ({wait_time}s)", 60 + (wait_time/10), "indexing")
+            
+            if wait_time >= max_wait_time:
+                logger.warning(f"⚠️ Video indexing timeout after {max_wait_time}s")
+                log_progress(video_id, "⚠️ Indexing timeout - proceeding with analysis", 70, "analyzing")
             
             # Check for usage limit
             if twelvelabs_video_id == "USAGE_LIMIT_EXCEEDED":
@@ -1597,44 +1691,49 @@ async def debug_logs():
 
 @app.get("/api/logs/stream")
 async def stream_logs():
-    """Stream real-time logs from the backend server"""
+    """Stream real-time logs from the backend server - true terminal casting"""
     def generate_logs():
-        last_log_count = 0
+        last_global_log_count = 0
+        last_memory_log_count = 0
+        
         while True:
             try:
-                # Get all logs from memory (real-time)
-                all_logs = []
+                # Stream global log buffer (all logger calls)
+                if len(global_log_buffer) > last_global_log_count:
+                    new_global_logs = global_log_buffer[last_global_log_count:]
+                    for log_entry in new_global_logs:
+                        yield f"data: {json.dumps(log_entry)}\n\n"
+                    last_global_log_count = len(global_log_buffer)
+                
+                # Get all logs from memory (real-time video processing logs)
+                all_memory_logs = []
                 for video_id, logs in progress_logs.items():
                     for log in logs:
-                        all_logs.append({
+                        all_memory_logs.append({
                             'log': log,
                             'timestamp': datetime.now().isoformat(),
-                            'video_id': video_id
+                            'video_id': video_id,
+                            'source': 'video_processing'
                         })
                 
-                # Only send new logs
-                if len(all_logs) > last_log_count:
-                    new_logs = all_logs[last_log_count:]
-                    for log_entry in new_logs:
+                # Send new memory logs
+                if len(all_memory_logs) > last_memory_log_count:
+                    new_memory_logs = all_memory_logs[last_memory_log_count:]
+                    for log_entry in new_memory_logs:
                         yield f"data: {json.dumps(log_entry)}\n\n"
-                    last_log_count = len(all_logs)
+                    last_memory_log_count = len(all_memory_logs)
                 
-                # Also read from server.log file
-                log_file = "server.log"
-                if os.path.exists(log_file):
-                    with open(log_file, 'r') as f:
-                        lines = f.readlines()
-                        if len(lines) > last_log_count:
-                            new_lines = lines[last_log_count:]
-                            for line in new_lines:
-                                if line.strip():
-                                    yield f"data: {json.dumps({'log': line.strip(), 'timestamp': datetime.now().isoformat(), 'source': 'server'})}\n\n"
-                            last_log_count = len(lines)
+                # Heartbeat to show connection is alive
+                current_time = datetime.now()
+                timestamp_str = current_time.strftime("%H:%M:%S")
+                log_message = f"[{timestamp_str}] Terminal active..."
+                yield f"data: {json.dumps({'log': log_message, 'timestamp': current_time.isoformat(), 'source': 'heartbeat'})}\n\n"
                 
-                time.sleep(0.5)  # Check every 500ms
+                time.sleep(0.1)  # Check every 100ms for true real-time
                 
             except Exception as e:
                 logger.error(f"Error in log streaming: {e}")
+                yield f"data: {json.dumps({'log': f'ERROR: {str(e)}', 'timestamp': datetime.now().isoformat(), 'source': 'error'})}\n\n"
                 time.sleep(1)
     
     return StreamingResponse(generate_logs(), media_type="text/plain")
@@ -2144,25 +2243,24 @@ async def play_video(video_id: int):
         # Check if TwelveLabs video is available
         twelvelabs_available = bool(twelvelabs_video_id and index_id)
         
+        # Prioritize local files (final iterations) for simple display
         if local_file_available:
-            # Serve local file for direct playback
-            logger.info(f"✅ Serving local video file: {video_path}")
+            logger.info(f"✅ Serving final iteration locally: {video_path}")
             return FileResponse(
                 path=video_path,
                 media_type="video/mp4",
                 filename=f"video_{video_id}.mp4"
             )
         elif twelvelabs_available:
-            # Redirect to stream endpoint for TwelveLabs videos
-            logger.info(f"📡 Local file not available, redirecting to TwelveLabs stream")
-            # Return JSON with stream info instead of redirect
+            # Fallback to TwelveLabs stream
+            logger.info(f"📡 Serving video via TwelveLabs stream: {twelvelabs_video_id}")
             return {
                 "success": True,
                 "data": {
                     "video_id": video_id,
                     "message": "Video available via TwelveLabs stream",
                     "stream_endpoint": f"/api/videos/{video_id}/stream",
-                    "local_file_available": False,
+                    "local_file_available": local_file_available,
                     "twelvelabs_available": True
                 }
             }

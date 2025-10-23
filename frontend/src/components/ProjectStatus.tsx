@@ -410,11 +410,14 @@ export default function ProjectStatus({ project: initialProject }: ProjectStatus
             <div className="mt-4">
               <h4 className="font-medium text-gray-900 mb-2">Generated Video:</h4>
               <div className="bg-white rounded-lg border border-gray-200 p-4">
-                <HLSVideoPlayer
-                  videoId={project.video_id}
-                  className="w-full max-w-2xl mx-auto aspect-video"
+                <video 
+                  controls 
+                  className="w-full max-w-2xl mx-auto rounded-lg"
                   poster={project.thumbnail_url}
-                />
+                >
+                  <source src={`/api/videos/${project.video_id}/play`} type="video/mp4" />
+                  Your browser does not support the video tag.
+                </video>
               </div>
               
               {/* Video Actions */}

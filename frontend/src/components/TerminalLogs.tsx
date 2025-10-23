@@ -94,6 +94,7 @@ export default function TerminalLogs({ className = '' }: TerminalLogsProps) {
 
   const formatLogLine = (log: LogEntry) => {
     const message = log.message
+    const source = log.source || 'unknown'
     const isSuccess = message.includes('✅') || message.includes('SUCCESS')
     const isError = message.includes('❌') || message.includes('ERROR')
     const isWarning = message.includes('⚠️') || message.includes('WARNING')
@@ -101,9 +102,13 @@ export default function TerminalLogs({ className = '' }: TerminalLogsProps) {
     const isMarengo = message.includes('MarenGO') || message.includes('🔍')
     const isPegasus = message.includes('Pegasus') || message.includes('🧠')
     const isScore = message.includes('Score') || message.includes('📊') || message.includes('🤖')
+    const isHeartbeat = source === 'heartbeat'
+    const isBackendTerminal = source === 'backend_terminal'
+    const isVideoProcessing = source === 'video_processing'
     
     let textColor = 'text-gray-300'
     let icon = ''
+    let sourceColor = 'text-gray-500'
     
     if (isSuccess) {
       textColor = 'text-green-400'
@@ -123,9 +128,18 @@ export default function TerminalLogs({ className = '' }: TerminalLogsProps) {
     } else if (isScore) {
       textColor = 'text-indigo-400'
       icon = '📊'
+    } else if (isHeartbeat) {
+      textColor = 'text-cyan-400'
+      icon = '💓'
+    } else if (isBackendTerminal) {
+      textColor = 'text-white'
+      sourceColor = 'text-blue-400'
+    } else if (isVideoProcessing) {
+      textColor = 'text-green-300'
+      sourceColor = 'text-green-400'
     }
     
-    return { textColor, icon }
+    return { textColor, icon, sourceColor }
   }
 
   return (
@@ -174,7 +188,7 @@ export default function TerminalLogs({ className = '' }: TerminalLogsProps) {
           {logs.length > 0 ? (
             <div className="space-y-1">
               {logs.slice(-50).map((log) => {
-                const { textColor, icon } = formatLogLine(log)
+                const { textColor, icon, sourceColor } = formatLogLine(log)
                 return (
                   <div key={log.id} className="flex items-start space-x-2">
                     <span className="text-gray-500 text-xs w-16 flex-shrink-0">
@@ -185,11 +199,16 @@ export default function TerminalLogs({ className = '' }: TerminalLogsProps) {
                       {icon && <span className="mr-1">{icon}</span>}
                       {log.message}
                     </span>
-                    {log.videoId && (
-                      <span className="text-gray-500 text-xs">
-                        [V{log.videoId}]
+                    <div className="flex items-center space-x-1 text-xs">
+                      {log.videoId && (
+                        <span className="text-gray-500">
+                          [V{log.videoId}]
+                        </span>
+                      )}
+                      <span className={`${sourceColor} font-mono`}>
+                        [{log.source || 'unknown'}]
                       </span>
-                    )}
+                    </div>
                   </div>
                 )
               })}
