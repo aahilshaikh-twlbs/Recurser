@@ -119,7 +119,7 @@ export default function PlaygroundEnhanceForm({
             </p>
             {selectedVideo.confidence_score && (
               <div className="flex items-center space-x-2">
-                <span className="text-sm text-gray-500">Current Confidence:</span>
+                <span className="text-sm text-gray-500">Current Quality:</span>
                 <span className="text-sm font-semibold text-primary-600">
                   {String(selectedVideo.confidence_score)}%
                 </span>
@@ -239,7 +239,7 @@ export default function PlaygroundEnhanceForm({
               <ul className="text-sm text-blue-700 space-y-1">
                 <li>• The video will be analyzed to understand its content</li>
                 <li>• Each iteration will improve quality and coherence</li>
-                <li>• Progress is tracked with confidence scores</li>
+                <li>• Progress is tracked with quality scores</li>
                 <li>• Enhanced versions are saved to the test index</li>
               </ul>
             </div>

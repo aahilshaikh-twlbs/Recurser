@@ -432,13 +432,11 @@ class VideoGenerationService:
                         index_id, new_video_id, twelvelabs_api_key
                     )
                     
-                    ai_detection_score = ai_analysis.get('ai_detection_score', 100.0)
                     quality_score = ai_analysis.get('quality_score', 0.0)
                     detailed_logs = ai_analysis.get('detailed_logs', [])
                     
-                    logger.info(f"🤖 AI Detection Score: {ai_detection_score:.1f}%")
                     logger.info(f"📊 Quality Score: {quality_score:.1f}%")
-                    log_detailed(video_id, f"AI Detection Score: {ai_detection_score:.1f}% | Quality Score: {quality_score:.1f}%", "INFO")
+                    log_detailed(video_id, f"Quality Score: {quality_score:.1f}% (Higher = Better)", "INFO")
                     
                     # Store detailed logs in database
                     if detailed_logs:
@@ -454,7 +452,7 @@ class VideoGenerationService:
                         conn.close()
                     
                     # Check if video passes as real (no AI indicators found)
-                    if ai_detection_score == 0:
+                    if quality_score >= target_confidence:
                         logger.info(f"🎉 SUCCESS! Video passes as real - No AI indicators detected at iteration {current_iteration}")
                         log_detailed(video_id, f"SUCCESS! Video passes as real - No AI indicators detected at iteration {current_iteration}", "SUCCESS")
                         current_confidence = 100.0  # Maximum confidence since it passes as real
@@ -464,21 +462,19 @@ class VideoGenerationService:
                         cursor = conn.cursor()
                         cursor.execute("""
                             UPDATE videos SET 
-                                current_confidence = 100.0, 
+                                current_confidence = ?, 
                                 iteration_count = ?,
-                                ai_detection_score = 0.0,
                                 status = 'completed',
                                 updated_at = CURRENT_TIMESTAMP
                             WHERE id = ?
-                        """, (current_iteration, video_id))
+                        """, (quality_score, current_iteration, video_id))
                         conn.commit()
                         conn.close()
                         
                         break  # Stop iterations - we've achieved success!
                     
-                    # Calculate confidence based on inverse of AI detection score
-                    # Lower AI detection score = higher confidence that it looks real
-                    current_confidence = max(0, 100 - ai_detection_score)
+                    # Use quality score as confidence
+                    current_confidence = quality_score
                     
                     # Update database with current confidence
                     conn = sqlite3.connect(DB_PATH)
@@ -487,10 +483,9 @@ class VideoGenerationService:
                         UPDATE videos SET 
                             current_confidence = ?, 
                             iteration_count = ?,
-                            ai_detection_score = ?,
                             updated_at = CURRENT_TIMESTAMP
                         WHERE id = ?
-                    """, (current_confidence, current_iteration, ai_detection_score, video_id))
+                    """, (current_confidence, current_iteration, video_id))
                     conn.commit()
                     conn.close()
                     
@@ -842,26 +837,24 @@ class AIDetectionService:
                 analyze_client, video_id
             )
             
-            # Calculate quality scores
+            # Calculate single quality score (0-100, higher = better)
             quality_score = AIDetectionService._calculate_quality_score(search_results, analysis_results)
-            ai_detection_score = AIDetectionService._calculate_ai_detection_score(search_results, analysis_results)
             
             # Log detailed calculation breakdown
             search_count = len(search_results) if search_results else 0
             analysis_count = len(analysis_results) if analysis_results else 0
-            log_detailed(video_id, f"AI Detection Breakdown: {search_count} search results, {analysis_count} analysis results", "INFO")
-            log_detailed(video_id, f"Final Scores: AI Detection={ai_detection_score:.1f}%, Quality={quality_score:.1f}%", "INFO")
+            log_detailed(video_id, f"Quality Analysis: {search_count} AI indicators, {analysis_count} quality issues", "INFO")
+            log_detailed(video_id, f"Quality Score: {quality_score:.1f}% (Higher = Better)", "INFO")
             
             # Create detailed log entries
             detailed_logs = AIDetectionService._create_detailed_logs(
-                search_results, analysis_results, quality_score, ai_detection_score
+                search_results, analysis_results, quality_score
             )
             
             return {
                 "search_results": search_results,
                 "analysis_results": analysis_results,
                 "quality_score": quality_score,
-                "ai_detection_score": ai_detection_score,
                 "detailed_logs": detailed_logs
             }
             
@@ -1125,7 +1118,7 @@ class AIDetectionService:
         return final_score
     
     @staticmethod
-    def _create_detailed_logs(search_results, analysis_results, quality_score, ai_detection_score):
+    def _create_detailed_logs(search_results, analysis_results, quality_score):
         """Create detailed log entries for live display"""
         logs = []
         
@@ -1157,18 +1150,17 @@ class AIDetectionService:
         else:
             logs.append("✅ Pegasus Analysis: No quality issues detected")
         
-        # Summary scores
-        logs.append(f"📊 Quality Score: {quality_score:.1f}%")
-        logs.append(f"🤖 AI Detection Score: {ai_detection_score:.1f}%")
+        # Single quality score
+        logs.append(f"📊 Quality Score: {quality_score:.1f}% (Higher = Better)")
         
-        if ai_detection_score == 0:
-            logs.append("🎉 SUCCESS: Video passes as real - no AI indicators detected!")
-        elif ai_detection_score < 30:
-            logs.append("🟢 GOOD: Low AI detection score - video appears mostly natural")
-        elif ai_detection_score < 70:
-            logs.append("🟡 MODERATE: Some AI indicators detected - needs improvement")
+        if quality_score >= 90:
+            logs.append("🎉 EXCELLENT: High quality video - minimal AI artifacts detected!")
+        elif quality_score >= 70:
+            logs.append("🟢 GOOD: Good quality video - some minor improvements possible")
+        elif quality_score >= 50:
+            logs.append("🟡 MODERATE: Moderate quality - several improvements needed")
         else:
-            logs.append("🔴 HIGH: Strong AI indicators detected - significant improvement needed")
+            logs.append("🔴 LOW: Poor quality - significant improvements needed")
         
         return logs
 

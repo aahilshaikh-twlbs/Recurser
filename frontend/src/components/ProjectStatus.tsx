@@ -284,10 +284,10 @@ export default function ProjectStatus({ project: initialProject }: ProjectStatus
           {/* Key Metrics */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
             <div className="text-center p-3 bg-white rounded-lg">
-              <div className="text-lg font-bold text-blue-600">
-                {project?.ai_detection_score?.toFixed(1) || '0.0'}%
+              <div className="text-lg font-bold text-green-600">
+                {project?.final_confidence?.toFixed(1) || '0.0'}%
               </div>
-              <div className="text-xs text-gray-600">AI Detection</div>
+              <div className="text-xs text-gray-600">Quality Score</div>
             </div>
             
             <div className="text-center p-3 bg-white rounded-lg">
@@ -344,30 +344,32 @@ export default function ProjectStatus({ project: initialProject }: ProjectStatus
             </div>
           )}
 
-          {/* Condensed Quality Score Overview */}
+          {/* Single Quality Score Overview */}
           <div className="mb-4">
-            <h4 className="font-medium text-gray-900 mb-2">Quality Assessment Overview</h4>
-            <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
-              <div className="text-sm text-blue-800 space-y-2">
-                <div className="grid grid-cols-3 gap-3 text-xs">
-                  <div className="bg-white p-2 rounded">
-                    <p className="font-semibold text-blue-700">🎯 AI Detection</p>
-                    <p>(Search + Analysis) ÷ 2</p>
-                    <p className="text-gray-600">0% = Real, 100% = AI</p>
-                  </div>
-                  <div className="bg-white p-2 rounded">
-                    <p className="font-semibold text-green-700">📊 Quality</p>
-                    <p>100 - Penalties</p>
-                    <p className="text-gray-600">Higher = Better</p>
-                  </div>
-                  <div className="bg-white p-2 rounded">
-                    <p className="font-semibold text-purple-700">🎯 Confidence</p>
-                    <p>100 - AI Detection</p>
-                    <p className="text-gray-600">Passes as real</p>
+            <h4 className="font-medium text-gray-900 mb-2">Quality Assessment</h4>
+            <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+              <div className="text-sm text-blue-800">
+                <div className="bg-white p-3 rounded-lg">
+                  <div className="flex items-center space-x-3">
+                    <div className="text-2xl">📊</div>
+                    <div className="flex-1">
+                      <p className="font-semibold text-blue-700 text-lg">Quality Score</p>
+                      <p className="text-gray-600 text-sm">Higher = Better (0-100%)</p>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-2xl font-bold text-blue-700">
+                        {project.final_confidence?.toFixed(1) || '0.0'}%
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        {project.final_confidence >= 90 ? '🎉 Excellent' :
+                         project.final_confidence >= 70 ? '🟢 Good' :
+                         project.final_confidence >= 50 ? '🟡 Moderate' : '🔴 Needs Improvement'}
+                      </div>
+                    </div>
                   </div>
                 </div>
-                <div className="text-xs text-blue-600 mt-2">
-                  <p><strong>Penalties:</strong> Search: 3pts per AI indicator • Analysis: 8pts per quality issue</p>
+                <div className="text-xs text-blue-600 mt-3">
+                  <p><strong>How it works:</strong> Analyzes AI artifacts, motion quality, and visual coherence to determine overall video quality.</p>
                 </div>
               </div>
             </div>
@@ -399,8 +401,7 @@ export default function ProjectStatus({ project: initialProject }: ProjectStatus
             <div>
               <h3 className="font-semibold text-success-900">Project Completed!</h3>
               <p className="text-sm text-success-700">
-                Final confidence: {`${project.final_confidence?.toFixed(1) || '0.0'}%`} | 
-                AI Detection Score: {`${project.ai_detection_score?.toFixed(1) || '0.0'}%`}
+                Quality Score: {`${project.final_confidence?.toFixed(1) || '0.0'}%`} (Higher = Better)
               </p>
             </div>
           </div>
