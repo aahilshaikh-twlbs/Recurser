@@ -22,9 +22,13 @@ import queue
 # Load environment variables
 load_dotenv()
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
+# Configure logging with reduced verbosity
+logging.basicConfig(level=logging.WARNING)  # Only show warnings and errors by default
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)  # Keep our app logs at INFO level
+
+# Reduce HTTP access log verbosity
+logging.getLogger('uvicorn.access').setLevel(logging.WARNING)
 
 # Global log buffer for real-time streaming
 global_log_buffer = []

@@ -73,10 +73,39 @@ export default function EnhancedTerminal({ clearOnNewGeneration = true, currentV
             if (response.ok) {
               const data = await response.json()
               if (data.success && data.logs) {
-                // Process new logs
-                const newLogs = data.logs.filter((logData: any) => 
-                  logData.timestamp > lastLogTimestamp
-                )
+                // Process new logs and filter out noise
+                const newLogs = data.logs.filter((logData: any) => {
+                  // Filter by timestamp
+                  if (logData.timestamp <= lastLogTimestamp) return false
+                  
+                  // Filter out noisy messages
+                  const message = logData.log || ''
+                  const isNoise = 
+                    message.includes('GET /api/') ||
+                    message.includes('HTTP/1.1" 200') ||
+                    message.includes('Not found in database yet') ||
+                    message.includes('No database logs found') ||
+                    message.includes('Memory logs count: 0') ||
+                    message.includes('Returning 0 unique logs') ||
+                    message.includes('INFO:app:📊 Video') ||
+                    message.includes('INFO:     ') ||
+                    message.includes('Waiting for application') ||
+                    message.includes('Application startup') ||
+                    message.includes('Started server process') ||
+                    message.includes('Finished server process') ||
+                    message.includes('Shutting down') ||
+                    message.includes('Application shutdown') ||
+                    message.includes('StatReload detected') ||
+                    message.includes('Reloading...') ||
+                    message.includes('Server process') ||
+                    message.includes('limit=100') ||
+                    message.includes('limit=500') ||
+                    message.includes('INFO:     13.220.148.244') ||
+                    message.includes('INFO:     34.207.234.104') ||
+                    message.includes('INFO:     98.92.85.211')
+                  
+                  return !isNoise
+                })
                 
                 if (newLogs.length > 0) {
                   // Update last timestamp
@@ -131,8 +160,8 @@ export default function EnhancedTerminal({ clearOnNewGeneration = true, currentV
           }
         }
         
-        // Poll every 2 seconds
-        const pollInterval = setInterval(pollLogs, 2000)
+        // Poll every 3 seconds to reduce noise
+        const pollInterval = setInterval(pollLogs, 3000)
         
         // Initial poll
         pollLogs()
@@ -199,18 +228,50 @@ export default function EnhancedTerminal({ clearOnNewGeneration = true, currentV
   const cleanMessage = (msg: string) => {
     // Remove excessive Unicode escapes
     let cleaned = msg.replace(/\\u[\dA-F]{4}/gi, '')
+    
+    // Remove repetitive API calls and debug noise
+    if (
+      cleaned.includes('GET /api/') ||
+      cleaned.includes('HTTP/1.1" 200') ||
+      cleaned.includes('Not found in database yet') ||
+      cleaned.includes('No database logs found') ||
+      cleaned.includes('Memory logs count: 0') ||
+      cleaned.includes('Returning 0 unique logs') ||
+      cleaned.includes('INFO:app:📊 Video') ||
+      cleaned.includes('INFO:     ') ||
+      cleaned.includes('Waiting for application') ||
+      cleaned.includes('Application startup') ||
+      cleaned.includes('Started server process') ||
+      cleaned.includes('Finished server process') ||
+      cleaned.includes('Shutting down') ||
+      cleaned.includes('Application shutdown') ||
+      cleaned.includes('StatReload detected') ||
+      cleaned.includes('Reloading...') ||
+      cleaned.includes('Server process') ||
+      cleaned.includes('limit=100') ||
+      cleaned.includes('limit=500') ||
+      cleaned.includes('INFO:     13.220.148.244') ||
+      cleaned.includes('INFO:     34.207.234.104') ||
+      cleaned.includes('INFO:     98.92.85.211')
+    ) {
+      return null
+    }
+    
     // Remove DEBUG messages unless important
     if (cleaned.includes('DEBUG') && !cleaned.includes('Retrieved')) {
       return null
     }
+    
     // Remove HTTP noise
     if (cleaned.includes('HTTP/1.1') || cleaned.includes('HTTP Request')) {
       return null
     }
+    
     // Remove heartbeat messages
     if (cleaned === '💓' || cleaned.includes('Terminal active')) {
       return null
     }
+    
     return cleaned
   }
 
