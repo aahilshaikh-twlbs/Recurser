@@ -26,7 +26,7 @@ export default function TerminalLogs({ className = '' }: TerminalLogsProps) {
 
     const connectToLogs = () => {
       try {
-        eventSource = new EventSource('http://localhost:8001/api/logs/stream')
+        eventSource = new EventSource('/api/logs/stream')
         
         eventSource.onopen = () => {
           console.log('Connected to log stream')

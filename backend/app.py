@@ -2222,13 +2222,10 @@ async def test_video():
                         break
                     yield chunk
         
-        return StreamingResponse(
-            generate(),
+        return FileResponse(
+            path=video_path,
             media_type="video/mp4",
-            headers={
-                "Content-Disposition": "inline; filename=test_video.mp4",
-                "Accept-Ranges": "bytes"
-            }
+            filename="test_video.mp4"
         )
     else:
         raise HTTPException(status_code=404, detail="Test video not found")
