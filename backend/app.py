@@ -827,9 +827,9 @@ class AIDetectionService:
             
             client = TwelveLabs(api_key=api_key)
             search_client = client.search
-            # For Pegasus analysis, we need to use the correct API structure
-            # Based on TwelveLabs SDK, it should be client.generate for text generation from video
-            analyze_client = client.generate
+            # Try different TwelveLabs API structure for Pegasus
+            # Maybe it's client.generate.text or client.analyze or something else
+            analyze_client = client
             
             # Marengo search with detailed logging
             search_results = await AIDetectionService._search_for_ai_indicators(
@@ -951,8 +951,8 @@ class AIDetectionService:
         
         for i, prompt in enumerate(content_analysis_prompts):
             try:
-                # Try the correct TwelveLabs Pegasus API method
-                response = analyze_client.text(
+                # Try TwelveLabs Pegasus API - maybe it's generate.text
+                response = analyze_client.generate.text(
                     video_id=video_id,
                     prompt=prompt
                 )
@@ -984,9 +984,8 @@ class AIDetectionService:
         
         for prompt in analysis_prompts:
             try:
-                # Use the correct SDK method: analyze instead of generate.text
-                # Try the correct TwelveLabs Pegasus API method
-                response = analyze_client.text(
+                # Try TwelveLabs Pegasus API - maybe it's generate.text
+                response = analyze_client.generate.text(
                     video_id=video_id,
                     prompt=prompt,
                     temperature=0.1

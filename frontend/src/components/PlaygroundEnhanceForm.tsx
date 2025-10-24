@@ -64,7 +64,7 @@ export default function PlaygroundEnhanceForm({
       const payload = {
         prompt: `Analyze and enhance this existing video from the playground. Video ID: ${videoId}, Title: ${videoTitle}. This is a pre-existing video that needs recursive improvement.`,
         project_name: `Enhance_${videoTitle.replace(/[^a-zA-Z0-9]/g, '_')}_${String(Date.now())}`,
-        confidence_threshold: 50,
+        confidence_threshold: 100,
         max_retries: data.maxAttempts === 'unlimited' ? 999 : parseInt(data.maxAttempts, 10),
         index_id: '68d0f9e55705aa622335acb0', // Recurser test index for iterations
         video_id: videoId, // Pass the original video ID for analysis

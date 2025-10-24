@@ -72,7 +72,7 @@ export default function VideoUploadForm({ onProjectCreated }: VideoUploadFormPro
       const formData = new FormData()
       formData.append('file', uploadedFile)
       formData.append('original_prompt', 'Auto-analyzed by Pegasus AI')
-      formData.append('confidence_threshold', '50') // Default threshold
+      formData.append('confidence_threshold', '100') // Default threshold
       formData.append('max_retries', data.maxAttempts === 'unlimited' ? '999' : data.maxAttempts)
       formData.append('index_id', '68d0f9e55705aa622335acb0') // Recurser test index for iterations
 
