@@ -2232,7 +2232,7 @@ async def test_video():
 
 @app.get("/api/videos/{video_id}/play")
 async def play_video(video_id: int):
-    """Play a generated video file - serves local file, redirects to stream for TwelveLabs videos"""
+    """Play a generated video file - serves local file or returns HLS info for TwelveLabs videos"""
     try:
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
@@ -2260,15 +2260,6 @@ async def play_video(video_id: int):
         # Prioritize local files (final iterations) for simple display
         if local_file_available:
             logger.info(f"✅ Serving final iteration locally: {video_path}")
-            # Test if file is readable
-            try:
-                with open(video_path, 'rb') as f:
-                    f.read(1024)  # Read first 1KB to test
-                logger.info(f"✅ Video file is readable: {video_path}")
-            except Exception as e:
-                logger.error(f"❌ Video file not readable: {e}")
-                raise HTTPException(status_code=500, detail=f"Video file not readable: {e}")
-            
             return FileResponse(
                 path=video_path,
                 media_type="video/mp4",
@@ -2279,26 +2270,59 @@ async def play_video(video_id: int):
                 }
             )
         elif twelvelabs_available:
-            # Fallback to TwelveLabs stream
-            logger.info(f"📡 Serving video via TwelveLabs stream: {twelvelabs_video_id}")
-            return {
-                "success": True,
-                "data": {
-                    "video_id": video_id,
-                    "message": "Video available via TwelveLabs stream",
-                    "stream_endpoint": f"/api/videos/{video_id}/stream",
-                    "local_file_available": local_file_available,
-                    "twelvelabs_available": True
-                }
-            }
+            # Get HLS URL from TwelveLabs
+            logger.info(f"📡 Getting HLS stream from TwelveLabs: {twelvelabs_video_id}")
+            client = TwelveLabs(api_key=TWELVELABS_API_KEY)
+            
+            try:
+                video_details = client.indexes.videos.retrieve(
+                    index_id=index_id,
+                    id=twelvelabs_video_id
+                )
+                
+                hls_url = None
+                thumbnail_url = None
+                
+                # Extract HLS URL
+                if hasattr(video_details, 'hls') and video_details.hls:
+                    if hasattr(video_details.hls, 'video_url'):
+                        hls_url = video_details.hls.video_url
+                    if hasattr(video_details.hls, 'thumbnail_urls') and video_details.hls.thumbnail_urls:
+                        thumbnail_url = video_details.hls.thumbnail_urls[0] if video_details.hls.thumbnail_urls else None
+                
+                if not hls_url:
+                    # Try dict conversion
+                    video_dict = video_details.dict() if hasattr(video_details, 'dict') else video_details
+                    if isinstance(video_dict, dict) and 'hls' in video_dict:
+                        hls_url = video_dict['hls'].get('video_url')
+                        thumbnail_urls = video_dict['hls'].get('thumbnail_urls', [])
+                        thumbnail_url = thumbnail_urls[0] if thumbnail_urls else None
+                
+                if hls_url:
+                    # Return HLS URL directly as JSON for frontend to handle
+                    return {
+                        "success": True,
+                        "type": "hls",
+                        "hls_url": hls_url,
+                        "thumbnail_url": thumbnail_url,
+                        "video_id": video_id
+                    }
+                else:
+                    raise HTTPException(status_code=404, detail="HLS stream not available")
+                    
+            except Exception as e:
+                logger.error(f"❌ TwelveLabs API error: {e}")
+                raise HTTPException(status_code=500, detail=f"TwelveLabs API error: {str(e)}")
         else:
             # No video available anywhere
             logger.error(f"❌ Video not available locally or in TwelveLabs: {video_id}")
             raise HTTPException(
                 status_code=404, 
-                detail="Video not available locally or in TwelveLabs"
+                detail="Video not available"
             )
         
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"❌ Video playback error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))

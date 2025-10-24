@@ -23,14 +23,19 @@ export default function TerminalLogs({ className = '' }: TerminalLogsProps) {
 
   useEffect(() => {
     let eventSource: EventSource | null = null
+    let reconnectAttempts = 0
+    let reconnectTimeout: NodeJS.Timeout | null = null
 
     const connectToLogs = () => {
       try {
-        eventSource = new EventSource('/api/logs/stream')
+        // Always use absolute URL to ensure connection
+        const baseUrl = typeof window !== 'undefined' ? window.location.origin : ''
+        eventSource = new EventSource(`${baseUrl}/api/logs/stream`)
         
         eventSource.onopen = () => {
-          console.log('Connected to log stream')
+          console.log('✅ Connected to log stream')
           setIsConnected(true)
+          reconnectAttempts = 0 // Reset attempts on successful connection
         }
 
         eventSource.onmessage = (event) => {
@@ -46,8 +51,8 @@ export default function TerminalLogs({ className = '' }: TerminalLogsProps) {
                   source: data.source || 'video'
                 }
                 const newLogs = [...prev, logEntry]
-                // Keep only last 100 logs to prevent memory issues
-                return newLogs.slice(-100)
+                // Keep only last 200 logs to prevent memory issues
+                return newLogs.slice(-200)
               })
             }
           } catch (error) {
@@ -56,28 +61,43 @@ export default function TerminalLogs({ className = '' }: TerminalLogsProps) {
         }
 
         eventSource.onerror = (error) => {
-          console.error('❌ Log stream error:', error)
+          console.error('⚠️ Log stream disconnected, reconnecting...', error)
           setIsConnected(false)
-          // Try to reconnect after 3 seconds
-          setTimeout(() => {
-            if (eventSource) {
-              eventSource.close()
-            }
-            console.log('🔄 Attempting to reconnect...')
+          
+          if (eventSource) {
+            eventSource.close()
+          }
+          
+          // Progressive backoff: 1s, 2s, 3s, then stay at 3s
+          const delay = Math.min((reconnectAttempts + 1) * 1000, 3000)
+          reconnectAttempts++
+          
+          reconnectTimeout = setTimeout(() => {
+            console.log(`🔄 Reconnect attempt ${reconnectAttempts}...`)
             connectToLogs()
-          }, 3000)
+          }, delay)
         }
       } catch (error) {
         console.error('Failed to connect to log stream:', error)
         setIsConnected(false)
+        
+        // Retry connection after delay
+        reconnectTimeout = setTimeout(() => {
+          connectToLogs()
+        }, 2000)
       }
     }
 
+    // Start connection immediately
     connectToLogs()
 
+    // Cleanup on unmount
     return () => {
       if (eventSource) {
         eventSource.close()
+      }
+      if (reconnectTimeout) {
+        clearTimeout(reconnectTimeout)
       }
     }
   }, [])

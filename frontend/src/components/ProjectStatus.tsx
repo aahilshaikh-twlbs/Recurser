@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
+import VideoPlayer from './VideoPlayer'
 import { 
   CheckCircle, 
   Clock, 
@@ -282,33 +283,40 @@ export default function ProjectStatus({ project: initialProject }: ProjectStatus
           <h3 className="font-semibold text-gray-900 mb-4">Technical Details</h3>
           
           {/* Key Metrics */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-            <div className="text-center p-3 bg-white rounded-lg">
-              <div className="text-lg font-bold text-green-600">
-                {project?.final_confidence?.toFixed(1) || '0.0'}%
+          {/* Streamlined Technical Details */}
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
+            {/* Only show quality score if processing or completed */}
+            {(project?.status === 'processing' || project?.status === 'completed') && (
+              <div className="text-center p-3 bg-white rounded-lg">
+                <div className="text-lg font-bold text-green-600">
+                  {project?.final_confidence > 0 
+                    ? `${project.final_confidence.toFixed(1)}%`
+                    : 'Analyzing...'}
+                </div>
+                <div className="text-xs text-gray-600">Quality Score</div>
               </div>
-              <div className="text-xs text-gray-600">Quality Score</div>
-            </div>
+            )}
             
-            <div className="text-center p-3 bg-white rounded-lg">
-              <div className="text-lg font-bold text-green-600">
-                {project?.final_confidence?.toFixed(1) || '0.0'}%
-              </div>
-              <div className="text-xs text-gray-600">Final Confidence</div>
-            </div>
-            
+            {/* Iterations Progress */}
             <div className="text-center p-3 bg-white rounded-lg">
               <div className="text-lg font-bold text-purple-600">
-                {project?.iteration_count || 1}
+                {project?.iteration_count || 1} / {project?.max_iterations || 3}
               </div>
               <div className="text-xs text-gray-600">Iterations</div>
             </div>
             
+            {/* Processing Status */}
             <div className="text-center p-3 bg-white rounded-lg">
-              <div className="text-lg font-bold text-orange-600">
-                {project?.max_iterations || 3}
+              <div className={`text-lg font-bold ${
+                project?.status === 'completed' ? 'text-green-600' :
+                project?.status === 'failed' ? 'text-red-600' :
+                'text-blue-600'
+              }`}>
+                {project?.status === 'completed' ? '✅ Complete' :
+                 project?.status === 'failed' ? '❌ Failed' :
+                 '⏳ Processing'}
               </div>
-              <div className="text-xs text-gray-600">Max Iterations</div>
+              <div className="text-xs text-gray-600">Status</div>
             </div>
           </div>
 
@@ -425,14 +433,10 @@ export default function ProjectStatus({ project: initialProject }: ProjectStatus
             <div className="mt-4">
               <h4 className="font-medium text-gray-900 mb-2">Generated Video:</h4>
               <div className="bg-white rounded-lg border border-gray-200 p-4">
-                <video 
-                  controls 
-                  className="w-full max-w-2xl mx-auto rounded-lg"
-                  poster={project.thumbnail_url}
-                >
-                  <source src={`/api/videos/${project.video_id}/play`} type="video/mp4" />
-                  Your browser does not support the video tag.
-                </video>
+                <VideoPlayer 
+                  videoId={project.video_id}
+                  thumbnailUrl={project.thumbnail_url}
+                />
               </div>
               
               {/* Video Actions */}
