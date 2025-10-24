@@ -33,38 +33,30 @@ export default function VideoPlayerEnhanced({ videoId, thumbnailUrl, className =
         setIsLoading(true)
         setError(null)
         
-        // Check if video is available locally first
-        const playResponse = await fetch(`/api/videos/${videoId}/play`, { method: 'HEAD' })
+        // Get video info first
+        const infoResponse = await fetch(`/api/videos/${videoId}/info`)
+        if (!infoResponse.ok) throw new Error('Failed to get video info')
         
-        if (playResponse.ok && playResponse.headers.get('content-type')?.includes('video')) {
+        const info = await infoResponse.json()
+        console.log('📋 Video info:', info)
+        
+        if (info.type === 'local' && info.local_available) {
           // Local MP4 available
           if (mounted) {
             setVideoType('local')
             setVideoUrl(`/api/videos/${videoId}/play`)
             console.log('📹 Using local MP4 for video', videoId)
           }
-        } else {
-          // Try to get HLS info
-          const infoResponse = await fetch(`/api/videos/${videoId}/info`)
-          if (!infoResponse.ok) throw new Error('Failed to get video info')
-          
-          const info = await infoResponse.json()
-          
-          if (info.type === 'hls' && info.hls_url) {
-            if (mounted) {
-              setVideoType('hls')
-              setVideoUrl(info.hls_url)
-              console.log('📡 Using HLS stream for video', videoId, info.hls_url)
-            }
-          } else if (info.type === 'local') {
-            if (mounted) {
-              setVideoType('local')
-              setVideoUrl(`/api/videos/${videoId}/play`)
-              console.log('📹 Using local MP4 (from info) for video', videoId)
-            }
-          } else {
-            throw new Error('No video source available')
+        } else if (info.type === 'hls' && info.hls_url) {
+          // HLS stream available
+          if (mounted) {
+            setVideoType('hls')
+            setVideoUrl(info.hls_url)
+            console.log('📡 Using HLS stream for video', videoId)
+            console.log('🎬 HLS URL:', info.hls_url)
           }
+        } else {
+          throw new Error(info.error || 'No video source available')
         }
       } catch (err) {
         console.error('Error initializing video:', err)
@@ -153,14 +145,22 @@ export default function VideoPlayerEnhanced({ videoId, thumbnailUrl, className =
         hls.loadSource(videoUrl)
         hls.attachMedia(video)
 
-        hls.on(Hls.Events.MANIFEST_PARSED, () => {
-          console.log('✅ HLS manifest parsed')
-          setIsLoading(false)
-          // Try to autoplay
-          video.play().catch((e) => {
-            console.log('Autoplay prevented:', e)
-          })
+      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        console.log('✅ HLS manifest parsed successfully')
+        setIsLoading(false)
+        // Try to autoplay
+        video.play().catch((e) => {
+          console.log('Autoplay prevented (normal):', e.message)
         })
+      })
+      
+      hls.on(Hls.Events.LEVEL_LOADED, () => {
+        console.log('📊 HLS level loaded')
+      })
+      
+      hls.on(Hls.Events.FRAG_LOADED, () => {
+        console.log('🧩 HLS fragment loaded')
+      })
 
         hls.on(Hls.Events.ERROR, (event: any, data: any) => {
           console.error('HLS Error:', event, data)

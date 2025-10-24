@@ -44,7 +44,17 @@ export async function GET(
       },
       // Add timeout to prevent hanging requests
       signal: AbortSignal.timeout(30000),
+      redirect: 'manual' // Handle redirects manually
     })
+    
+    // Handle redirects (for video play endpoints)
+    if (response.status === 302 || response.status === 301) {
+      const location = response.headers.get('location')
+      if (location) {
+        console.log('Redirecting to:', location)
+        return NextResponse.redirect(location, response.status)
+      }
+    }
     
     if (!response.ok) {
       const errorText = await response.text().catch(() => 'Unknown error')
@@ -55,16 +65,32 @@ export async function GET(
       )
     }
     
-    const data = await response.json()
-    console.log('Proxy response successful for:', path)
-    return NextResponse.json(data, { 
-      status: response.status,
-      headers: {
-        'Cache-Control': 'no-store, no-cache, must-revalidate',
-        'Pragma': 'no-cache',
-        'Expires': '0'
-      }
-    })
+    // Check content type before parsing as JSON
+    const contentType = response.headers.get('content-type') || ''
+    
+    if (contentType.includes('application/json')) {
+      const data = await response.json()
+      console.log('Proxy response successful for:', path)
+      return NextResponse.json(data, { 
+        status: response.status,
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
+      })
+    } else {
+      // Handle non-JSON responses (like video files, HLS manifests, etc.)
+      const data = await response.arrayBuffer()
+      return new NextResponse(data, {
+        status: response.status,
+        headers: {
+          'Content-Type': contentType,
+          'Cache-Control': response.headers.get('Cache-Control') || 'no-cache',
+          'Accept-Ranges': response.headers.get('Accept-Ranges') || 'bytes'
+        }
+      })
+    }
   } catch (error) {
     console.error('API proxy error for', path, ':', error)
     return NextResponse.json(

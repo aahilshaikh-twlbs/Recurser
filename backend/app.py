@@ -9,7 +9,7 @@ import time
 import json
 import asyncio
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 import logging
 from dotenv import load_dotenv
 # Remove incorrect genai import - using google.generativeai where needed
@@ -1657,15 +1657,32 @@ async def grade_video(video_id: int, index_id: str = None, twelvelabs_api_key: s
 
 @app.get("/api/test-logs")
 async def test_logs():
-    """Test endpoint to verify logs are working"""
+    """Test endpoint to verify logs are working and add to stream"""
+    current_time = datetime.now().strftime("%H:%M:%S")
+    
+    # Add logs to the global buffer for streaming
+    test_logs = [
+        f"[{current_time}] ℹ️ Test log message 1",
+        f"[{(datetime.now() + timedelta(seconds=1)).strftime('%H:%M:%S')}] ✅ Test success message",
+        f"[{(datetime.now() + timedelta(seconds=2)).strftime('%H:%M:%S')}] ⚠️ Test warning message"
+    ]
+    
+    # Add to global log buffer for streaming
+    for log in test_logs:
+        global_log_buffer.append({
+            'log': log,
+            'timestamp': datetime.now().isoformat(),
+            'source': 'test',
+            'level': 'INFO'
+        })
+    
+    # Also log normally
+    logger.info("🧪 Test logs generated for streaming")
+    
     return {
         "success": True,
         "data": {
-            "logs": [
-                "[01:35:40] ℹ️ Test log message 1",
-                "[01:35:41] ✅ Test success message",
-                "[01:35:42] ⚠️ Test warning message"
-            ]
+            "logs": test_logs
         }
     }
 
@@ -1685,69 +1702,97 @@ async def debug_logs():
 async def stream_logs():
     """Stream real-time logs from the backend server - true terminal casting"""
     async def generate_logs():
-        """Async generator for real-time log streaming"""
+        """Async generator for real-time log streaming with proper error handling"""
         last_global_index = 0
         heartbeat_count = 0
         
-        while True:
-            try:
-                # Stream global log buffer immediately
-                current_global_count = len(global_log_buffer)
-                if current_global_count > last_global_index:
-                    # Send all new logs immediately
-                    for i in range(last_global_index, current_global_count):
-                        if i < len(global_log_buffer):
-                            log_entry = global_log_buffer[i]
-                            yield f"data: {json.dumps(log_entry)}\n\n"
-                    last_global_index = current_global_count
-                
-                # Stream video processing logs immediately
-                for video_id, logs in list(progress_logs.items()):
-                    if logs:
-                        # Send and clear logs immediately
-                        logs_to_send = list(logs)
-                        logs.clear()
-                        for log in logs_to_send:
-                            log_data = {
-                                'log': log,
+        try:
+            while True:
+                try:
+                    # Stream global log buffer immediately
+                    current_global_count = len(global_log_buffer)
+                    if current_global_count > last_global_index:
+                        # Send all new logs immediately
+                        for i in range(last_global_index, current_global_count):
+                            if i < len(global_log_buffer):
+                                log_entry = global_log_buffer[i]
+                                try:
+                                    yield f"data: {json.dumps(log_entry)}\n\n"
+                                except Exception:
+                                    # Client disconnected, stop streaming
+                                    return
+                        last_global_index = current_global_count
+                    
+                    # Stream video processing logs immediately
+                    for video_id, logs in list(progress_logs.items()):
+                        if logs:
+                            # Send and clear logs immediately
+                            logs_to_send = list(logs)
+                            logs.clear()
+                            for log in logs_to_send:
+                                log_data = {
+                                    'log': log,
+                                    'timestamp': datetime.now().isoformat(),
+                                    'video_id': video_id,
+                                    'source': 'processing',
+                                    'type': 'video'
+                                }
+                                try:
+                                    yield f"data: {json.dumps(log_data)}\n\n"
+                                except Exception:
+                                    # Client disconnected, stop streaming
+                                    return
+                    
+                    # Reduced heartbeat frequency
+                    heartbeat_count += 1
+                    if heartbeat_count >= 50:  # Every 5 seconds
+                        heartbeat_count = 0
+                        try:
+                            yield f"data: {json.dumps({'log': '💓 Heartbeat', 'timestamp': datetime.now().isoformat(), 'source': 'heartbeat', 'type': 'ping'})}\n\n"
+                        except Exception:
+                            # Client disconnected, stop streaming
+                            return
+                    
+                    # Generate test logs if no real logs are available
+                    if len(global_log_buffer) == 0 and not any(progress_logs.values()):
+                        # Add a test log every 10 iterations (1 second)
+                        if heartbeat_count % 10 == 0:
+                            test_log = {
+                                'log': f'🔄 System active - {datetime.now().strftime("%H:%M:%S")}',
                                 'timestamp': datetime.now().isoformat(),
-                                'video_id': video_id,
-                                'source': 'processing',
-                                'type': 'video'
+                                'source': 'system',
+                                'type': 'status'
                             }
-                            yield f"data: {json.dumps(log_data)}\n\n"
-                
-                # Reduced heartbeat frequency
-                heartbeat_count += 1
-                if heartbeat_count >= 50:  # Every 5 seconds
-                    heartbeat_count = 0
-                    yield f"data: {json.dumps({'log': '💓 Heartbeat', 'timestamp': datetime.now().isoformat(), 'source': 'heartbeat', 'type': 'ping'})}\n\n"
-                
-                # Generate test logs if no real logs are available
-                if len(global_log_buffer) == 0 and not any(progress_logs.values()):
-                    # Add a test log every 10 iterations (1 second)
-                    if heartbeat_count % 10 == 0:
-                        test_log = {
-                            'log': f'🔄 System active - {datetime.now().strftime("%H:%M:%S")}',
+                            try:
+                                yield f"data: {json.dumps(test_log)}\n\n"
+                            except Exception:
+                                # Client disconnected, stop streaming
+                                return
+                    
+                    # Very short sleep for real-time updates
+                    await asyncio.sleep(0.1)
+                    
+                except asyncio.CancelledError:
+                    # Client disconnected gracefully
+                    logger.info("Log stream cancelled by client")
+                    return
+                except Exception as e:
+                    logger.error(f"Error in log streaming: {e}")
+                    try:
+                        error_log = {
+                            'log': f'⚠️ Stream error: {str(e)}',
                             'timestamp': datetime.now().isoformat(),
-                            'source': 'system',
-                            'type': 'status'
+                            'source': 'error',
+                            'type': 'error'
                         }
-                        yield f"data: {json.dumps(test_log)}\n\n"
-                
-                # Very short sleep for real-time updates
-                await asyncio.sleep(0.1)
-                
-            except Exception as e:
-                logger.error(f"Error in log streaming: {e}")
-                error_log = {
-                    'log': f'⚠️ Stream error: {str(e)}',
-                    'timestamp': datetime.now().isoformat(),
-                    'source': 'error',
-                    'type': 'error'
-                }
-                yield f"data: {json.dumps(error_log)}\n\n"
-                await asyncio.sleep(1)
+                        yield f"data: {json.dumps(error_log)}\n\n"
+                    except Exception:
+                        # Can't send error, client disconnected
+                        return
+                    await asyncio.sleep(1)
+        except Exception as e:
+            logger.error(f"Fatal error in log streaming: {e}")
+            return
     
     return StreamingResponse(
         generate_logs(), 
@@ -1756,7 +1801,8 @@ async def stream_logs():
             "Cache-Control": "no-cache",
             "Connection": "keep-alive",
             "X-Accel-Buffering": "no",
-            "Content-Type": "text/event-stream"
+            "Content-Type": "text/event-stream",
+            "Access-Control-Allow-Origin": "*"
         }
     )
 
@@ -2309,7 +2355,7 @@ async def play_video(video_id: int):
                 # Retrieve video details with proper API structure
                 video_details = client.indexes.videos.retrieve(
                     index_id=index_id,
-                    id=twelvelabs_video_id
+                    video_id=twelvelabs_video_id
                 )
                 
                 hls_url = None
@@ -2427,7 +2473,7 @@ async def get_video_info(video_id: int):
                 # Use the correct API call structure as shown in the documentation
                 video_details = client.indexes.videos.retrieve(
                     index_id=index_id,
-                    id=twelvelabs_video_id
+                    video_id=twelvelabs_video_id
                 )
                 
                 logger.info(f"📡 TwelveLabs response type: {type(video_details)}")
@@ -2526,7 +2572,7 @@ async def debug_hls(video_id: int):
                 # Get full video details
                 video_details = client.indexes.videos.retrieve(
                     index_id=index_id,
-                    id=twelvelabs_video_id
+                    video_id=twelvelabs_video_id
                 )
                 
                 # Try to extract all possible HLS information
@@ -2601,7 +2647,7 @@ async def debug_twelve(video_id: int):
         # Get video details from TwelveLabs
         video_details = client.indexes.videos.retrieve(
             index_id=index_id,
-            id=twelvelabs_video_id
+            video_id=twelvelabs_video_id
         )
         
         # Convert to dict for inspection
@@ -2652,7 +2698,7 @@ async def stream_video(video_id: int):
         # Get video details from TwelveLabs using the correct API structure
         video_details = client.indexes.videos.retrieve(
             index_id=index_id,
-            id=twelvelabs_video_id
+            video_id=twelvelabs_video_id
         )
         
         # Extract HLS URL from the response - try multiple approaches
@@ -2758,7 +2804,7 @@ async def stream_twelve_video(twelvelabs_video_id: str, index_id: str = None):
         # Get video details from TwelveLabs using the correct API structure
         video_details = client.indexes.videos.retrieve(
             index_id=target_index_id,
-            id=twelvelabs_video_id
+            video_id=twelvelabs_video_id
         )
         
         # Extract HLS URL from the response - try multiple approaches
