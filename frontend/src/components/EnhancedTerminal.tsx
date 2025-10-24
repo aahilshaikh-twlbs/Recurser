@@ -38,8 +38,12 @@ export default function EnhancedTerminal() {
           eventSourceRef.current.close()
         }
 
-        // Create new EventSource connection
-        eventSourceRef.current = new EventSource('/api/logs/stream')
+        // Create new EventSource connection with proper headers
+        const streamUrl = '/api/logs/stream'
+        console.log('🔌 Connecting to log stream:', streamUrl)
+        eventSourceRef.current = new EventSource(streamUrl, {
+          withCredentials: false
+        })
         
         eventSourceRef.current.onopen = () => {
           console.log('✅ Terminal connected')
@@ -134,14 +138,15 @@ export default function EnhancedTerminal() {
           }
         }
 
-        eventSourceRef.current.onerror = () => {
-          console.warn('⚠️ Terminal disconnected')
+        eventSourceRef.current.onerror = (event) => {
+          console.warn('⚠️ Terminal disconnected', event)
           setIsConnected(false)
           
           // Reconnect with exponential backoff
           const delay = Math.min(1000 * Math.pow(2, connectionAttempts), 10000)
           setConnectionAttempts(prev => prev + 1)
           
+          console.log(`🔄 Scheduling reconnect in ${delay}ms (attempt ${connectionAttempts + 1})...`)
           reconnectTimeout = setTimeout(() => {
             console.log(`🔄 Reconnecting (attempt ${connectionAttempts + 1})...`)
             connectToLogs()

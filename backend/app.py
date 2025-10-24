@@ -1719,9 +1719,21 @@ async def stream_logs():
                 
                 # Reduced heartbeat frequency
                 heartbeat_count += 1
-                if heartbeat_count >= 100:  # Every 10 seconds
+                if heartbeat_count >= 50:  # Every 5 seconds
                     heartbeat_count = 0
-                    yield f"data: {json.dumps({'log': '💓', 'timestamp': datetime.now().isoformat(), 'source': 'heartbeat', 'type': 'ping'})}\n\n"
+                    yield f"data: {json.dumps({'log': '💓 Heartbeat', 'timestamp': datetime.now().isoformat(), 'source': 'heartbeat', 'type': 'ping'})}\n\n"
+                
+                # Generate test logs if no real logs are available
+                if len(global_log_buffer) == 0 and not any(progress_logs.values()):
+                    # Add a test log every 10 iterations (1 second)
+                    if heartbeat_count % 10 == 0:
+                        test_log = {
+                            'log': f'🔄 System active - {datetime.now().strftime("%H:%M:%S")}',
+                            'timestamp': datetime.now().isoformat(),
+                            'source': 'system',
+                            'type': 'status'
+                        }
+                        yield f"data: {json.dumps(test_log)}\n\n"
                 
                 # Very short sleep for real-time updates
                 await asyncio.sleep(0.1)
