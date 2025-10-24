@@ -399,8 +399,7 @@ class VideoGenerationService:
         ai_detection_score = 100.0  # Start with assumption of AI-generated
         
         while current_iteration <= max_iterations and current_confidence < target_confidence:
-            logger.info(f"🔄 Starting iteration {current_iteration}/{max_iterations}")
-            log_detailed(video_id, f"Starting iteration {current_iteration}/{max_iterations} (Target: {target_confidence}% confidence)", "INFO")
+            log_detailed(video_id, f"🔄 Starting iteration {current_iteration}/{max_iterations} (Target: {target_confidence}% confidence)", "INFO")
             
             # Generate video for this iteration
             await VideoGenerationService.generate_video(
@@ -574,7 +573,6 @@ class VideoGenerationService:
             
             logger.info(f"🎬 Using {DEFAULT_VEO_MODEL} model")
             log_progress(video_id, f"🎬 Using {DEFAULT_VEO_MODEL} model for generation", 15)
-            log_detailed(video_id, f"Using {DEFAULT_VEO_MODEL} model for video generation", "INFO")
             
             # Poll for completion
             while not operation.done:
@@ -829,7 +827,9 @@ class AIDetectionService:
             
             client = TwelveLabs(api_key=api_key)
             search_client = client.search
-            analyze_client = client.generate  # Use generate client for Pegasus analysis
+            # For Pegasus analysis, we need to use the correct API structure
+            # Based on TwelveLabs SDK, it should be client.generate for text generation from video
+            analyze_client = client.generate
             
             # Marengo search with detailed logging
             search_results = await AIDetectionService._search_for_ai_indicators(
@@ -951,7 +951,8 @@ class AIDetectionService:
         
         for i, prompt in enumerate(content_analysis_prompts):
             try:
-                response = analyze_client.create(
+                # Try the correct TwelveLabs Pegasus API method
+                response = analyze_client.text(
                     video_id=video_id,
                     prompt=prompt
                 )
@@ -984,7 +985,8 @@ class AIDetectionService:
         for prompt in analysis_prompts:
             try:
                 # Use the correct SDK method: analyze instead of generate.text
-                response = analyze_client.create(
+                # Try the correct TwelveLabs Pegasus API method
+                response = analyze_client.text(
                     video_id=video_id,
                     prompt=prompt,
                     temperature=0.1

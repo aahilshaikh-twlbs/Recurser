@@ -42,13 +42,20 @@ export default function EnhancedTerminal({ clearOnNewGeneration = true, currentV
         setLastVideoId(currentVideoId)
       } else if (currentVideoId !== lastVideoId) {
         console.log('🧹 Clearing terminal for new generation:', lastVideoId, '->', currentVideoId)
+        
+        // Aggressive clearing of all terminal data
         setLogs([])
         setHighlights([])
         setLastVideoId(currentVideoId)
         
-        // Also reset connection state
+        // Reset connection state and force reconnection
         setConnectionAttempts(0)
         setIsConnected(false)
+        
+        // Clear any cached log timestamps to force fresh data
+        if (typeof window !== 'undefined') {
+          sessionStorage.removeItem('lastLogTimestamp')
+        }
       }
     }
   }, [currentVideoId, lastVideoId, clearOnNewGeneration])
@@ -130,18 +137,25 @@ export default function EnhancedTerminal({ clearOnNewGeneration = true, currentV
                       return newLogs.slice(-1000)
                     })
                     
-                    // Check for highlights
+                    // Check for important events (actual analysis results and meaningful progress)
                     const message = logData.log || ''
                     let highlight: Highlight | null = null
                     
-                    if (message.includes('Iteration') || message.includes('iteration')) {
+                    // Only highlight truly important events
+                    if (message.includes('Starting iteration') && message.includes('/')) {
                       highlight = { id: logEntry.id, message: `🔄 ${message}`, type: 'iteration', timestamp: logEntry.timestamp }
-                    } else if (message.includes('SUCCESS') || message.includes('completed') || message.includes('✅')) {
-                      highlight = { id: logEntry.id, message: `✅ ${message}`, type: 'success', timestamp: logEntry.timestamp }
-                    } else if (message.includes('artifact') || message.includes('AI indicator')) {
-                      highlight = { id: logEntry.id, message: `⚠️ ${message}`, type: 'warning', timestamp: logEntry.timestamp }
-                    } else if (message.includes('Quality Score')) {
+                    } else if (message.includes('Quality Score:') && message.includes('%')) {
                       highlight = { id: logEntry.id, message: `📊 ${message}`, type: 'info', timestamp: logEntry.timestamp }
+                    } else if (message.includes('SUCCESS') || message.includes('Video passes as real')) {
+                      highlight = { id: logEntry.id, message: `✅ ${message}`, type: 'success', timestamp: logEntry.timestamp }
+                    } else if (message.includes('AI indicators found') || message.includes('artifacts detected')) {
+                      highlight = { id: logEntry.id, message: `⚠️ ${message}`, type: 'warning', timestamp: logEntry.timestamp }
+                    } else if (message.includes('Pegasus content analysis') && !message.includes('failed')) {
+                      highlight = { id: logEntry.id, message: `🔍 ${message}`, type: 'info', timestamp: logEntry.timestamp }
+                    } else if (message.includes('Enhanced prompt generated')) {
+                      highlight = { id: logEntry.id, message: `🧠 ${message}`, type: 'info', timestamp: logEntry.timestamp }
+                    } else if (message.includes('Target confidence reached') || message.includes('Peak quality achieved')) {
+                      highlight = { id: logEntry.id, message: `🎯 ${message}`, type: 'success', timestamp: logEntry.timestamp }
                     }
                     
                     if (highlight) {

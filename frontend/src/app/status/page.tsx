@@ -33,8 +33,19 @@ function ClientOnlyStatusPage() {
       // This ensures we don't show old cached data from previous videos
       console.log('Status page loading for video ID:', videoId)
       
-      // Clear any old project data
+      // Clear any old project data and cached videos
       sessionStorage.removeItem('currentProject')
+      sessionStorage.removeItem('videoToEnhance')
+      
+      // Clear any cached video URLs or thumbnails
+      const keysToRemove = []
+      for (let i = 0; i < sessionStorage.length; i++) {
+        const key = sessionStorage.key(i)
+        if (key && (key.includes('video_') || key.includes('thumbnail_') || key.includes('hls_'))) {
+          keysToRemove.push(key)
+        }
+      }
+      keysToRemove.forEach(key => sessionStorage.removeItem(key))
       
       // Create fresh project object
       setProject({
