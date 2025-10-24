@@ -39,8 +39,8 @@ class StreamLogHandler(logging.Handler):
             'source': 'backend_terminal',
             'level': record.levelname
         })
-        # Keep only last 1000 logs to prevent memory issues
-        if len(global_log_buffer) > 1000:
+        # Keep only last 2000 logs to prevent memory issues
+        if len(global_log_buffer) > 2000:
             global_log_buffer.pop(0)
 
 # Add the custom handler to the logger
@@ -1714,9 +1714,9 @@ async def get_recent_logs(limit: int = 50):
         recent_logs.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
         recent_logs = recent_logs[:limit]
         
-        # Clean up global log buffer if it gets too large (keep last 1000)
-        if len(global_log_buffer) > 1000:
-            global_log_buffer[:] = global_log_buffer[-1000:]
+        # Clean up global log buffer if it gets too large (keep last 2000)
+        if len(global_log_buffer) > 2000:
+            global_log_buffer[:] = global_log_buffer[-2000:]
         
         return {
             "success": True,

@@ -69,7 +69,7 @@ export default function EnhancedTerminal({ clearOnNewGeneration = true, currentV
         let lastLogTimestamp = ''
         const pollLogs = async () => {
           try {
-            const response = await fetch('/api/recent-logs?limit=100')
+            const response = await fetch('/api/recent-logs?limit=500')
             if (response.ok) {
               const data = await response.json()
               if (data.success && data.logs) {
@@ -98,7 +98,7 @@ export default function EnhancedTerminal({ clearOnNewGeneration = true, currentV
                     
                     setLogs(prev => {
                       const newLogs = [...prev, logEntry]
-                      return newLogs.slice(-500)
+                      return newLogs.slice(-1000)
                     })
                     
                     // Check for highlights
