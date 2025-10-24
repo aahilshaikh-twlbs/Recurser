@@ -28,19 +28,23 @@ function ClientOnlyStatusPage() {
   const [project, setProject] = useState<any>(null)
 
   useEffect(() => {
-    // Try to get project from sessionStorage first
-    const storedProject = sessionStorage.getItem('currentProject')
-    if (storedProject) {
-      setProject(JSON.parse(storedProject))
+    if (videoId) {
+      // Always create a fresh project object for the current video ID
+      // This ensures we don't show old cached data from previous videos
+      console.log('Status page loading for video ID:', videoId)
+      
+      // Clear any old project data
       sessionStorage.removeItem('currentProject')
-    } else if (videoId) {
-      // If we have a video ID but no stored project, create a basic project object
+      
+      // Create fresh project object
       setProject({
-        video_id: videoId,
-        status: 'processing',
-        prompt: 'Loading...',
-        confidence_threshold: '0',
-        progress: '0'
+        video_id: parseInt(videoId),
+        status: 'loading',
+        prompt: 'Loading video details...',
+        confidence_threshold: 100,
+        progress: 0,
+        iteration_count: 0,
+        max_iterations: 3
       })
     }
   }, [videoId])

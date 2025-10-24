@@ -36,11 +36,20 @@ export default function EnhancedTerminal({ clearOnNewGeneration = true, currentV
 
   // Clear logs when a new video generation starts
   useEffect(() => {
-    if (clearOnNewGeneration && currentVideoId && currentVideoId !== lastVideoId) {
-      console.log('🧹 Clearing terminal for new generation:', currentVideoId)
-      setLogs([])
-      setHighlights([])
-      setLastVideoId(currentVideoId)
+    if (clearOnNewGeneration && currentVideoId !== undefined) {
+      if (lastVideoId === undefined) {
+        // First time setting video ID
+        setLastVideoId(currentVideoId)
+      } else if (currentVideoId !== lastVideoId) {
+        console.log('🧹 Clearing terminal for new generation:', lastVideoId, '->', currentVideoId)
+        setLogs([])
+        setHighlights([])
+        setLastVideoId(currentVideoId)
+        
+        // Also reset connection state
+        setConnectionAttempts(0)
+        setIsConnected(false)
+      }
     }
   }, [currentVideoId, lastVideoId, clearOnNewGeneration])
 

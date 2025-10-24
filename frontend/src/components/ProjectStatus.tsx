@@ -32,6 +32,20 @@ export default function ProjectStatus({ project: initialProject }: ProjectStatus
   // Persist state to sessionStorage for reload handling
   useEffect(() => {
     if (project?.video_id) {
+      // Check if this is a different video than what's stored
+      const stored = sessionStorage.getItem('currentProject')
+      if (stored) {
+        try {
+          const storedProject = JSON.parse(stored)
+          if (storedProject.video_id !== project.video_id) {
+            console.log('🧹 New video detected, clearing old project data')
+            sessionStorage.removeItem('currentProject')
+          }
+        } catch (e) {
+          console.warn('Error parsing stored project:', e)
+        }
+      }
+      
       sessionStorage.setItem('currentProject', JSON.stringify(project))
     }
   }, [project])
