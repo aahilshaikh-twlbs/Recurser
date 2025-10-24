@@ -141,7 +141,7 @@ export default function ProjectStatus({ project: initialProject }: ProjectStatus
     pollStatus()
 
     // Set up interval for polling - more frequent for better responsiveness
-    const interval = setInterval(pollStatus, 2000) // Poll every 2 seconds
+    const interval = setInterval(pollStatus, 1000) // Poll every 1 second for faster video updates
 
     return () => clearInterval(interval)
   }, [project?.video_id, isPolling])
@@ -269,7 +269,10 @@ export default function ProjectStatus({ project: initialProject }: ProjectStatus
             Live Backend Terminal
           </h3>
         </div>
-        <EnhancedTerminal />
+        <EnhancedTerminal 
+          clearOnNewGeneration={true}
+          currentVideoId={project?.video_id}
+        />
       </div>
 
 

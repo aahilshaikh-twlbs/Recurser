@@ -19,14 +19,30 @@ interface Highlight {
   timestamp: string
 }
 
-export default function EnhancedTerminal() {
+interface EnhancedTerminalProps {
+  clearOnNewGeneration?: boolean
+  currentVideoId?: number
+}
+
+export default function EnhancedTerminal({ clearOnNewGeneration = true, currentVideoId }: EnhancedTerminalProps) {
   const [logs, setLogs] = useState<LogEntry[]>([])
   const [highlights, setHighlights] = useState<Highlight[]>([])
   const [isConnected, setIsConnected] = useState(false)
   const [connectionAttempts, setConnectionAttempts] = useState(0)
+  const [lastVideoId, setLastVideoId] = useState<number | undefined>(currentVideoId)
   const terminalRef = useRef<HTMLDivElement>(null)
   const highlightsRef = useRef<HTMLDivElement>(null)
   const eventSourceRef = useRef<EventSource | null>(null)
+
+  // Clear logs when a new video generation starts
+  useEffect(() => {
+    if (clearOnNewGeneration && currentVideoId && currentVideoId !== lastVideoId) {
+      console.log('🧹 Clearing terminal for new generation:', currentVideoId)
+      setLogs([])
+      setHighlights([])
+      setLastVideoId(currentVideoId)
+    }
+  }, [currentVideoId, lastVideoId, clearOnNewGeneration])
 
   useEffect(() => {
     let reconnectTimeout: NodeJS.Timeout | null = null
@@ -149,18 +165,24 @@ export default function EnhancedTerminal() {
     }
   }, [highlights])
 
-  // Format timestamp
+  // Format timestamp to user's local timezone
   const formatTime = (timestamp: string) => {
     try {
       const date = new Date(timestamp)
-      return date.toLocaleTimeString('en-US', { 
+      return date.toLocaleTimeString(undefined, { 
+        hour12: false,
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        timeZoneName: 'short'
+      })
+    } catch {
+      return new Date().toLocaleTimeString(undefined, { 
         hour12: false,
         hour: '2-digit',
         minute: '2-digit',
         second: '2-digit'
       })
-    } catch {
-      return timestamp
     }
   }
 

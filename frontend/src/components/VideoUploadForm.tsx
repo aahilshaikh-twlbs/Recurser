@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { useDropzone } from 'react-dropzone'
-import { AlertCircle, Upload, FileVideo, Loader2, X } from 'lucide-react'
+import { AlertCircle, Upload, FileVideo, Loader2, X, Info } from 'lucide-react'
 
 interface FormData {
   originalPrompt?: string
@@ -71,7 +71,7 @@ export default function VideoUploadForm({ onProjectCreated }: VideoUploadFormPro
     try {
       const formData = new FormData()
       formData.append('file', uploadedFile)
-      formData.append('original_prompt', data.originalPrompt || '')
+      formData.append('original_prompt', 'Auto-analyzed by Pegasus AI')
       formData.append('confidence_threshold', '50') // Default threshold
       formData.append('max_retries', data.maxAttempts === 'unlimited' ? '999' : data.maxAttempts)
       formData.append('index_id', '68d0f9e55705aa622335acb0') // Recurser test index for iterations
@@ -156,17 +156,15 @@ export default function VideoUploadForm({ onProjectCreated }: VideoUploadFormPro
           )}
         </div>
 
-        {/* Original Prompt (Optional) */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Original Prompt (Optional)
-          </label>
-          <textarea
-            {...register('originalPrompt')}
-            rows={3}
-            placeholder="If you know the original prompt used to generate this video..."
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-none"
-          />
+        {/* AI Analysis Notice */}
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="flex items-start space-x-2">
+            <Info className="w-5 h-5 text-blue-600 mt-0.5" />
+            <div className="text-sm text-blue-800">
+              <p className="font-semibold mb-1">Automatic Video Analysis</p>
+              <p>Our AI will automatically analyze your video content using Pegasus video-to-text technology. No need to provide the original prompt!</p>
+            </div>
+          </div>
         </div>
 
         {/* Max Attempts */}

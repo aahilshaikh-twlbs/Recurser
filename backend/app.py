@@ -1662,8 +1662,8 @@ async def get_recent_logs(limit: int = 50):
         # Get recent logs from global buffer
         recent_logs = []
         
-        # Get last N logs from global buffer
-        buffer_logs = list(global_log_buffer)[-limit:] if global_log_buffer else []
+        # Get last N logs from global buffer, but limit to prevent overwhelming
+        buffer_logs = list(global_log_buffer)[-min(limit, 100):] if global_log_buffer else []
         recent_logs.extend(buffer_logs)
         
         # Get recent video processing logs
@@ -1709,6 +1709,10 @@ async def get_recent_logs(limit: int = 50):
         # Sort by timestamp and limit
         recent_logs.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
         recent_logs = recent_logs[:limit]
+        
+        # Clean up global log buffer if it gets too large (keep last 1000)
+        if len(global_log_buffer) > 1000:
+            global_log_buffer[:] = global_log_buffer[-1000:]
         
         return {
             "success": True,

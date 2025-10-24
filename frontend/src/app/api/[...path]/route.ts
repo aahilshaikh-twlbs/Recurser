@@ -111,21 +111,22 @@ export async function POST(
   try {
     const contentType = request.headers.get('content-type')
     let body: any
+    let headers: Record<string, string> = {}
     
     if (contentType?.includes('multipart/form-data')) {
-      // Handle file uploads
+      // Handle file uploads - don't set Content-Type for FormData
       body = await request.formData()
+      // Let fetch set the Content-Type with boundary automatically
     } else {
       // Handle JSON
       body = await request.text()
+      headers['Content-Type'] = 'application/json'
     }
     
     const response = await fetch(backendUrl, {
       method: 'POST',
-      headers: {
-        'Content-Type': contentType || 'application/json',
-      },
-      body: contentType?.includes('multipart/form-data') ? body : body,
+      headers,
+      body,
     })
     
     const data = await response.json()
