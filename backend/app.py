@@ -1914,8 +1914,9 @@ async def get_video_status(video_id: int):
         logger.info(f"📊 Video {video_id}: Full video record: {video}")
         log_detailed(video_id, f"🔧 DEBUG: Retrieved max_iterations = {video[13]} from database", "INFO")
         
-        # Calculate final confidence (100 - ai_detection_score)
-        final_confidence = 100.0 - (video[15] or 0.0)
+        # Get the actual confidence score from the database
+        # Use current_confidence (video[6]) which is the quality score
+        final_confidence = video[6] if video[6] is not None else 0.0
         
         # Determine better status display
         status = video[3]
@@ -2232,7 +2233,7 @@ async def test_video():
 
 @app.get("/api/videos/{video_id}/play")
 async def play_video(video_id: int):
-    """Play a generated video file - serves local file or returns HLS info for TwelveLabs videos"""
+    """Play a generated video file - serves local file or redirects to HLS stream"""
     try:
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
@@ -2270,7 +2271,7 @@ async def play_video(video_id: int):
                 }
             )
         elif twelvelabs_available:
-            # Get HLS URL from TwelveLabs
+            # Get HLS URL from TwelveLabs and redirect to it
             logger.info(f"📡 Getting HLS stream from TwelveLabs: {twelvelabs_video_id}")
             client = TwelveLabs(api_key=TWELVELABS_API_KEY)
             
@@ -2281,32 +2282,22 @@ async def play_video(video_id: int):
                 )
                 
                 hls_url = None
-                thumbnail_url = None
                 
                 # Extract HLS URL
                 if hasattr(video_details, 'hls') and video_details.hls:
                     if hasattr(video_details.hls, 'video_url'):
                         hls_url = video_details.hls.video_url
-                    if hasattr(video_details.hls, 'thumbnail_urls') and video_details.hls.thumbnail_urls:
-                        thumbnail_url = video_details.hls.thumbnail_urls[0] if video_details.hls.thumbnail_urls else None
                 
                 if not hls_url:
                     # Try dict conversion
                     video_dict = video_details.dict() if hasattr(video_details, 'dict') else video_details
                     if isinstance(video_dict, dict) and 'hls' in video_dict:
                         hls_url = video_dict['hls'].get('video_url')
-                        thumbnail_urls = video_dict['hls'].get('thumbnail_urls', [])
-                        thumbnail_url = thumbnail_urls[0] if thumbnail_urls else None
                 
                 if hls_url:
-                    # Return HLS URL directly as JSON for frontend to handle
-                    return {
-                        "success": True,
-                        "type": "hls",
-                        "hls_url": hls_url,
-                        "thumbnail_url": thumbnail_url,
-                        "video_id": video_id
-                    }
+                    # Redirect to the actual HLS stream URL
+                    from fastapi.responses import RedirectResponse
+                    return RedirectResponse(url=hls_url, status_code=302)
                 else:
                     raise HTTPException(status_code=404, detail="HLS stream not available")
                     
@@ -2325,6 +2316,59 @@ async def play_video(video_id: int):
         raise
     except Exception as e:
         logger.error(f"❌ Video playback error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/videos/{video_id}/info")
+async def get_video_info(video_id: int):
+    """Get video information for frontend display"""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        
+        cursor.execute("SELECT video_path, twelvelabs_video_id, index_id FROM videos WHERE id = ?", (video_id,))
+        video = cursor.fetchone()
+        
+        if not video:
+            raise HTTPException(status_code=404, detail="Video not found")
+        
+        video_path = video[0]
+        twelvelabs_video_id = video[1]
+        index_id = video[2]
+        conn.close()
+        
+        local_file_available = video_path and os.path.exists(video_path)
+        twelvelabs_available = bool(twelvelabs_video_id and index_id)
+        
+        result = {
+            "video_id": video_id,
+            "local_available": local_file_available,
+            "twelvelabs_available": twelvelabs_available,
+            "type": "local" if local_file_available else "hls" if twelvelabs_available else None
+        }
+        
+        if twelvelabs_available and not local_file_available:
+            # Get HLS URL for frontend
+            client = TwelveLabs(api_key=TWELVELABS_API_KEY)
+            try:
+                video_details = client.indexes.videos.retrieve(
+                    index_id=index_id,
+                    id=twelvelabs_video_id
+                )
+                
+                if hasattr(video_details, 'hls') and video_details.hls:
+                    if hasattr(video_details.hls, 'video_url'):
+                        result["hls_url"] = video_details.hls.video_url
+                    if hasattr(video_details.hls, 'thumbnail_urls') and video_details.hls.thumbnail_urls:
+                        result["thumbnail_url"] = video_details.hls.thumbnail_urls[0] if video_details.hls.thumbnail_urls else None
+            except Exception as e:
+                logger.error(f"Error getting HLS info: {e}")
+        
+        return result
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Video info error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/videos/{video_id}/debug-twelve")

@@ -284,41 +284,49 @@ export default function ProjectStatus({ project: initialProject }: ProjectStatus
           
           {/* Key Metrics */}
           {/* Streamlined Technical Details */}
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
-            {/* Only show quality score if processing or completed */}
-            {(project?.status === 'processing' || project?.status === 'completed') && (
-              <div className="text-center p-3 bg-white rounded-lg">
-                <div className="text-lg font-bold text-green-600">
-                  {project?.final_confidence > 0 
-                    ? `${project.final_confidence.toFixed(1)}%`
-                    : 'Analyzing...'}
+          <div className="flex flex-wrap gap-3 mb-6">
+            {/* Quality Score - Only show if meaningful */}
+            {project?.final_confidence > 0 && (
+              <div className="flex-1 min-w-[140px] text-center p-3 bg-white rounded-lg border border-gray-200">
+                <div className="text-2xl font-bold text-green-600">
+                  {project.final_confidence.toFixed(1)}%
                 </div>
-                <div className="text-xs text-gray-600">Quality Score</div>
+                <div className="text-xs text-gray-600 mt-1">Quality Score</div>
               </div>
             )}
             
-            {/* Iterations Progress */}
-            <div className="text-center p-3 bg-white rounded-lg">
-              <div className="text-lg font-bold text-purple-600">
-                {project?.iteration_count || 1} / {project?.max_iterations || 3}
+            {/* Iterations */}
+            <div className="flex-1 min-w-[140px] text-center p-3 bg-white rounded-lg border border-gray-200">
+              <div className="text-2xl font-bold text-purple-600">
+                {project?.iteration_count || project?.current_iteration || 1}/{project?.max_iterations || 3}
               </div>
-              <div className="text-xs text-gray-600">Iterations</div>
+              <div className="text-xs text-gray-600 mt-1">Iterations</div>
             </div>
             
-            {/* Processing Status */}
-            <div className="text-center p-3 bg-white rounded-lg">
-              <div className={`text-lg font-bold ${
+            {/* Status */}
+            <div className="flex-1 min-w-[140px] text-center p-3 bg-white rounded-lg border border-gray-200">
+              <div className={`text-xl font-bold ${
                 project?.status === 'completed' ? 'text-green-600' :
                 project?.status === 'failed' ? 'text-red-600' :
                 'text-blue-600'
               }`}>
-                {project?.status === 'completed' ? '✅ Complete' :
-                 project?.status === 'failed' ? '❌ Failed' :
-                 '⏳ Processing'}
+                {project?.status === 'completed' ? '✅' :
+                 project?.status === 'failed' ? '❌' :
+                 '⏳'}
               </div>
-              <div className="text-xs text-gray-600">Status</div>
+              <div className="text-xs text-gray-600 mt-1 capitalize">{project?.status || 'Processing'}</div>
             </div>
           </div>
+          
+          {/* Peak Achievement Message */}
+          {project?.status === 'completed' && 
+           project?.iteration_count < project?.max_iterations && (
+            <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+              <p className="text-sm text-green-800">
+                🎯 <strong>Peak quality achieved early!</strong> The enhancement reached optimal quality at iteration {project?.iteration_count || 1} of {project?.max_iterations || 3}.
+              </p>
+            </div>
+          )}
 
           {/* Video Information */}
           {project?.video_path && (
@@ -377,19 +385,23 @@ export default function ProjectStatus({ project: initialProject }: ProjectStatus
                   </div>
                 </div>
                 <div className="text-xs text-blue-600 mt-3">
-                  <p><strong>How it works:</strong> Uses AI analysis to detect artifacts, motion issues, and visual problems. Higher scores mean better video quality with fewer AI-generated artifacts.</p>
-                  <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
-                    <div className="bg-green-50 p-2 rounded">
-                      <span className="font-semibold text-green-700">90%+ Excellent:</span> Minimal AI artifacts, looks natural
+                  <p className="mb-2"><strong>AI Quality Detection:</strong> Higher = Better video with fewer artifacts</p>
+                  <div className="grid grid-cols-4 gap-1 text-xs">
+                    <div className="bg-green-50 p-1 rounded text-center">
+                      <span className="font-semibold text-green-700">90%+</span>
+                      <div className="text-green-600">Excellent</div>
                     </div>
-                    <div className="bg-yellow-50 p-2 rounded">
-                      <span className="font-semibold text-yellow-700">50-89% Good:</span> Some improvements possible
+                    <div className="bg-yellow-50 p-1 rounded text-center">
+                      <span className="font-semibold text-yellow-700">50-89%</span>
+                      <div className="text-yellow-600">Good</div>
                     </div>
-                    <div className="bg-red-50 p-2 rounded">
-                      <span className="font-semibold text-red-700">0-49% Poor:</span> Many AI artifacts, needs work
+                    <div className="bg-red-50 p-1 rounded text-center">
+                      <span className="font-semibold text-red-700">0-49%</span>
+                      <div className="text-red-600">Poor</div>
                     </div>
-                    <div className="bg-blue-50 p-2 rounded">
-                      <span className="font-semibold text-blue-700">Target:</span> Aim for 85%+ for good results
+                    <div className="bg-blue-50 p-1 rounded text-center">
+                      <span className="font-semibold text-blue-700">Target</span>
+                      <div className="text-blue-600">85%+</div>
                     </div>
                   </div>
                 </div>
@@ -464,4 +476,5 @@ export default function ProjectStatus({ project: initialProject }: ProjectStatus
     </motion.div>
   )
 }
+
 

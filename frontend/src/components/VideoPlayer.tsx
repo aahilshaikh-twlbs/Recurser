@@ -27,23 +27,24 @@ export default function VideoPlayer({ videoId, thumbnailUrl, className = '' }: V
         setIsLoading(true)
         setError(null)
 
-        // Fetch video info from backend
-        const response = await fetch(`/api/videos/${videoId}/play`)
+        // First get video info
+        const infoResponse = await fetch(`/api/videos/${videoId}/info`)
+        if (!infoResponse.ok) {
+          throw new Error('Failed to get video info')
+        }
         
-        if (response.headers.get('content-type')?.includes('video')) {
-          // Direct video file response
+        const info = await infoResponse.json()
+        
+        if (info.type === 'local') {
+          // Local MP4 file
           setVideoUrl(`/api/videos/${videoId}/play`)
           setIsHLS(false)
+        } else if (info.type === 'hls' && info.hls_url) {
+          // HLS stream from TwelveLabs
+          setVideoUrl(info.hls_url)
+          setIsHLS(true)
         } else {
-          // JSON response with HLS info
-          const data = await response.json()
-          
-          if (data.success && data.type === 'hls' && data.hls_url) {
-            setVideoUrl(data.hls_url)
-            setIsHLS(true)
-          } else if (!response.ok) {
-            throw new Error(data.detail || 'Failed to load video')
-          }
+          throw new Error('Video not available')
         }
       } catch (err) {
         console.error('Error loading video:', err)

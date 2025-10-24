@@ -28,9 +28,8 @@ export default function TerminalLogs({ className = '' }: TerminalLogsProps) {
 
     const connectToLogs = () => {
       try {
-        // Always use absolute URL to ensure connection
-        const baseUrl = typeof window !== 'undefined' ? window.location.origin : ''
-        eventSource = new EventSource(`${baseUrl}/api/logs/stream`)
+        // Use relative URL for proper proxy handling
+        eventSource = new EventSource('/api/logs/stream')
         
         eventSource.onopen = () => {
           console.log('✅ Connected to log stream')
