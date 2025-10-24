@@ -578,8 +578,8 @@ class VideoGenerationService:
             
             # Poll for completion
             while not operation.done:
-                log_progress(video_id, "⏳ Waiting for video generation...", 20)
-                log_detailed(video_id, "Polling Google Veo2 API for generation completion", "INFO")
+                # log_progress(video_id, "⏳ Waiting for video generation...", 20)  # Removed repetitive logging
+                # log_detailed(video_id, "Polling Google Veo2 API for generation completion", "INFO")  # Removed repetitive logging
                 await asyncio.sleep(10)
                 operation = client.operations.get(operation)
             
@@ -829,7 +829,7 @@ class AIDetectionService:
             
             client = TwelveLabs(api_key=api_key)
             search_client = client.search
-            analyze_client = client  # Direct client for analyze method
+            analyze_client = client.generate  # Use generate client for Pegasus analysis
             
             # Marengo search with detailed logging
             search_results = await AIDetectionService._search_for_ai_indicators(
@@ -951,7 +951,7 @@ class AIDetectionService:
         
         for i, prompt in enumerate(content_analysis_prompts):
             try:
-                response = analyze_client.analyze.create(
+                response = analyze_client.create(
                     video_id=video_id,
                     prompt=prompt
                 )
@@ -984,7 +984,7 @@ class AIDetectionService:
         for prompt in analysis_prompts:
             try:
                 # Use the correct SDK method: analyze instead of generate.text
-                response = analyze_client.analyze(
+                response = analyze_client.create(
                     video_id=video_id,
                     prompt=prompt,
                     temperature=0.1
@@ -1905,7 +1905,7 @@ async def get_video_logs(video_id: int):
         if result and result[0]:
             try:
                 db_logs = json.loads(result[0]) if isinstance(result[0], str) else result[0]
-                logger.info(f"📊 Video {video_id}: Database logs count: {len(db_logs)}")
+                # logger.info(f"📊 Video {video_id}: Database logs count: {len(db_logs)}")  # Removed verbose logging
             except Exception as e:
                 logger.error(f"📊 Video {video_id}: Error parsing database logs: {e}")
                 db_logs = []
@@ -1914,7 +1914,7 @@ async def get_video_logs(video_id: int):
         
         # Also get logs from memory (real-time additions)
         memory_logs = progress_logs.get(video_id, [])
-        logger.info(f"📊 Video {video_id}: Memory logs count: {len(memory_logs)}")
+        # logger.info(f"📊 Video {video_id}: Memory logs count: {len(memory_logs)}")  # Removed verbose logging
         
         # Combine logs, prioritizing database logs (persistent) then memory logs (recent)
         all_logs = db_logs + memory_logs
@@ -1926,7 +1926,7 @@ async def get_video_logs(video_id: int):
                 seen.add(log)
                 unique_logs.append(log)
         
-        logger.info(f"📊 Video {video_id}: Returning {len(unique_logs)} unique logs")
+        # logger.info(f"📊 Video {video_id}: Returning {len(unique_logs)} unique logs")  # Removed verbose logging
         
         return {
             "success": True,
@@ -2068,10 +2068,10 @@ async def get_video_status(video_id: int):
             except:
                 detailed_logs = []
         
-        # Debug: Log the max_iterations value
-        logger.info(f"📊 Video {video_id}: Database max_iterations = {video[13]} (type: {type(video[13])})")
-        logger.info(f"📊 Video {video_id}: Full video record: {video}")
-        log_detailed(video_id, f"🔧 DEBUG: Retrieved max_iterations = {video[13]} from database", "INFO")
+        # Debug: Log the max_iterations value (removed verbose logging)
+        # logger.info(f"📊 Video {video_id}: Database max_iterations = {video[13]} (type: {type(video[13])})")
+        # logger.info(f"📊 Video {video_id}: Full video record: {video}")  # Removed verbose logging
+        # log_detailed(video_id, f"🔧 DEBUG: Retrieved max_iterations = {video[13]} from database", "INFO")  # Removed verbose logging
         
         # Get the actual confidence score from the database
         # Use current_confidence (video[6]) which is the quality score
