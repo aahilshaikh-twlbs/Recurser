@@ -38,120 +38,82 @@ export default function EnhancedTerminal() {
           eventSourceRef.current.close()
         }
 
-        // Create new EventSource connection with proper headers
-        const streamUrl = '/api/logs/stream'
-        console.log('🔌 Connecting to log stream:', streamUrl)
-        eventSourceRef.current = new EventSource(streamUrl, {
-          withCredentials: false
-        })
+        // Use polling approach for better reliability through Vercel
+        console.log('🔌 Starting log polling...')
         
-        eventSourceRef.current.onopen = () => {
-          console.log('✅ Terminal connected')
-          setIsConnected(true)
-          setConnectionAttempts(0)
-        }
-
-        eventSourceRef.current.onmessage = (event) => {
+        let lastLogTimestamp = ''
+        const pollLogs = async () => {
           try {
-            const data = JSON.parse(event.data)
-            
-            // Skip heartbeats in main terminal
-            if (data.type === 'ping') return
-            
-            // Create log entry
-            const logEntry: LogEntry = {
-              id: `${Date.now()}-${Math.random()}`,
-              message: data.log || '',
-              timestamp: data.timestamp || new Date().toISOString(),
-              type: data.type,
-              source: data.source,
-              videoId: data.video_id
-            }
-            
-            // Add to main terminal
-            setLogs(prev => {
-              const newLogs = [...prev, logEntry]
-              // Keep only last 500 logs
-              return newLogs.slice(-500)
-            })
-            
-            // Check for important events to highlight
-            const message = data.log || ''
-            let highlight: Highlight | null = null
-            
-            // Detect iterations
-            if (message.includes('Iteration') || message.includes('iteration')) {
-              highlight = {
-                id: logEntry.id,
-                message: `🔄 ${message}`,
-                type: 'iteration',
-                timestamp: logEntry.timestamp
+            const response = await fetch('/api/recent-logs?limit=100')
+            if (response.ok) {
+              const data = await response.json()
+              if (data.success && data.logs) {
+                // Process new logs
+                const newLogs = data.logs.filter((logData: any) => 
+                  logData.timestamp > lastLogTimestamp
+                )
+                
+                if (newLogs.length > 0) {
+                  // Update last timestamp
+                  const timestamps = newLogs.map((l: any) => l.timestamp).filter(Boolean)
+                  if (timestamps.length > 0) {
+                    lastLogTimestamp = timestamps.sort().pop() || lastLogTimestamp
+                  }
+                  
+                  // Add logs to display
+                  newLogs.forEach((logData: any) => {
+                    const logEntry: LogEntry = {
+                      id: `${logData.timestamp}-${Math.random()}`,
+                      message: logData.log || '',
+                      timestamp: logData.timestamp,
+                      type: logData.type,
+                      source: logData.source,
+                      videoId: logData.video_id
+                    }
+                    
+                    setLogs(prev => {
+                      const newLogs = [...prev, logEntry]
+                      return newLogs.slice(-500)
+                    })
+                    
+                    // Check for highlights
+                    const message = logData.log || ''
+                    let highlight: Highlight | null = null
+                    
+                    if (message.includes('Iteration') || message.includes('iteration')) {
+                      highlight = { id: logEntry.id, message: `🔄 ${message}`, type: 'iteration', timestamp: logEntry.timestamp }
+                    } else if (message.includes('SUCCESS') || message.includes('completed') || message.includes('✅')) {
+                      highlight = { id: logEntry.id, message: `✅ ${message}`, type: 'success', timestamp: logEntry.timestamp }
+                    } else if (message.includes('artifact') || message.includes('AI indicator')) {
+                      highlight = { id: logEntry.id, message: `⚠️ ${message}`, type: 'warning', timestamp: logEntry.timestamp }
+                    } else if (message.includes('Quality Score')) {
+                      highlight = { id: logEntry.id, message: `📊 ${message}`, type: 'info', timestamp: logEntry.timestamp }
+                    }
+                    
+                    if (highlight) {
+                      setHighlights(prev => [...prev, highlight].slice(-20))
+                    }
+                  })
+                }
+                setIsConnected(true)
+                setConnectionAttempts(0)
               }
             }
-            // Detect success
-            else if (message.includes('SUCCESS') || message.includes('completed') || message.includes('✅')) {
-              highlight = {
-                id: logEntry.id,
-                message: `✅ ${message}`,
-                type: 'success',
-                timestamp: logEntry.timestamp
-              }
-            }
-            // Detect AI artifacts found
-            else if (message.includes('artifact') || message.includes('AI indicator') || message.includes('detected')) {
-              highlight = {
-                id: logEntry.id,
-                message: `⚠️ ${message}`,
-                type: 'warning',
-                timestamp: logEntry.timestamp
-              }
-            }
-            // Detect quality scores
-            else if (message.includes('Quality Score') || message.includes('quality score')) {
-              highlight = {
-                id: logEntry.id,
-                message: `📊 ${message}`,
-                type: 'info',
-                timestamp: logEntry.timestamp
-              }
-            }
-            // Detect video generation
-            else if (message.includes('Generating') || message.includes('generating video')) {
-              highlight = {
-                id: logEntry.id,
-                message: `🎬 ${message}`,
-                type: 'info',
-                timestamp: logEntry.timestamp
-              }
-            }
-            
-            if (highlight) {
-              setHighlights(prev => {
-                const newHighlights = [...prev, highlight]
-                // Keep only last 20 highlights
-                return newHighlights.slice(-20)
-              })
-            }
-            
           } catch (error) {
-            console.error('Error parsing log:', error)
+            console.error('Log polling error:', error)
+            setIsConnected(false)
+            setConnectionAttempts(prev => prev + 1)
           }
         }
-
-        eventSourceRef.current.onerror = (event) => {
-          console.warn('⚠️ Terminal disconnected', event)
-          setIsConnected(false)
-          
-          // Reconnect with exponential backoff
-          const delay = Math.min(1000 * Math.pow(2, connectionAttempts), 10000)
-          setConnectionAttempts(prev => prev + 1)
-          
-          console.log(`🔄 Scheduling reconnect in ${delay}ms (attempt ${connectionAttempts + 1})...`)
-          reconnectTimeout = setTimeout(() => {
-            console.log(`🔄 Reconnecting (attempt ${connectionAttempts + 1})...`)
-            connectToLogs()
-          }, delay)
-        }
+        
+        // Poll every 2 seconds
+        const pollInterval = setInterval(pollLogs, 2000)
+        
+        // Initial poll
+        pollLogs()
+        
+        // Store interval for cleanup
+        eventSourceRef.current = { close: () => clearInterval(pollInterval) } as any
         
       } catch (error) {
         console.error('Failed to connect:', error)

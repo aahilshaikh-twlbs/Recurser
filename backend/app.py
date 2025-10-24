@@ -1655,6 +1655,77 @@ async def grade_video(video_id: int, index_id: str = None, twelvelabs_api_key: s
         logger.error(f"❌ AI detection error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/api/recent-logs")
+async def get_recent_logs(limit: int = 50):
+    """Get recent logs for polling-based frontend"""
+    try:
+        # Get recent logs from global buffer
+        recent_logs = []
+        
+        # Get last N logs from global buffer
+        buffer_logs = list(global_log_buffer)[-limit:] if global_log_buffer else []
+        recent_logs.extend(buffer_logs)
+        
+        # Get recent video processing logs
+        for video_id, logs in progress_logs.items():
+            for log in logs[-10:]:  # Last 10 logs per video
+                recent_logs.append({
+                    'log': log,
+                    'timestamp': datetime.now().isoformat(),
+                    'video_id': video_id,
+                    'source': 'processing',
+                    'type': 'video'
+                })
+        
+        # Get recent database logs
+        try:
+            conn = sqlite3.connect(DB_PATH)
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT id, detailed_logs, updated_at FROM videos 
+                WHERE updated_at > datetime('now', '-30 seconds')
+                ORDER BY updated_at DESC LIMIT 3
+            """)
+            recent_videos = cursor.fetchall()
+            conn.close()
+            
+            for video_id, detailed_logs_json, updated_at in recent_videos:
+                if detailed_logs_json:
+                    try:
+                        logs = json.loads(detailed_logs_json) if isinstance(detailed_logs_json, str) else detailed_logs_json
+                        for log in logs[-5:]:  # Last 5 logs per video
+                            recent_logs.append({
+                                'log': log,
+                                'timestamp': updated_at,
+                                'video_id': video_id,
+                                'source': 'database',
+                                'type': 'stored'
+                            })
+                    except:
+                        pass
+        except:
+            pass
+        
+        # Sort by timestamp and limit
+        recent_logs.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
+        recent_logs = recent_logs[:limit]
+        
+        return {
+            "success": True,
+            "logs": recent_logs,
+            "count": len(recent_logs),
+            "timestamp": datetime.now().isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting recent logs: {e}")
+        return {
+            "success": False,
+            "error": str(e),
+            "logs": [],
+            "count": 0
+        }
+
 @app.get("/api/test-logs")
 async def test_logs():
     """Test endpoint to verify logs are working and add to stream"""
