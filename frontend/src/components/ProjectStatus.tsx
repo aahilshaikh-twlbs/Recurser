@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import VideoPlayer from './VideoPlayer'
+import VideoPlayerEnhanced from './VideoPlayerEnhanced'
 import { 
   CheckCircle, 
   Clock, 
@@ -14,7 +14,7 @@ import {
   Eye
 } from 'lucide-react'
 import { API_CONFIG, apiRequest } from '@/lib/config'
-import TerminalLogs from './TerminalLogs'
+import EnhancedTerminal from './EnhancedTerminal'
 import HLSVideoPlayer from './HLSVideoPlayer'
 
 interface ProjectStatusProps {
@@ -269,7 +269,7 @@ export default function ProjectStatus({ project: initialProject }: ProjectStatus
             Live Backend Terminal
           </h3>
         </div>
-        <TerminalLogs className="min-h-[200px]" />
+        <EnhancedTerminal />
       </div>
 
 
@@ -385,23 +385,22 @@ export default function ProjectStatus({ project: initialProject }: ProjectStatus
                   </div>
                 </div>
                 <div className="text-xs text-blue-600 mt-3">
-                  <p className="mb-2"><strong>AI Quality Detection:</strong> Higher = Better video with fewer artifacts</p>
-                  <div className="grid grid-cols-4 gap-1 text-xs">
-                    <div className="bg-green-50 p-1 rounded text-center">
-                      <span className="font-semibold text-green-700">90%+</span>
-                      <div className="text-green-600">Excellent</div>
+                  <p className="mb-2"><strong>What are AI artifacts?</strong> Visual glitches, unnatural movements, or distortions that reveal a video was AI-generated.</p>
+                  <div className="space-y-1.5 text-xs">
+                    <div className="bg-green-50 p-2 rounded border border-green-200">
+                      <div className="flex justify-between items-center">
+                        <span className="font-semibold text-green-700">90-100% Excellent</span>
+                        <span className="text-green-600">🎯 Goal</span>
+                      </div>
+                      <div className="text-green-600 mt-1">Looks completely natural. No visible AI artifacts like warping faces, flickering objects, or unnatural motion.</div>
                     </div>
-                    <div className="bg-yellow-50 p-1 rounded text-center">
-                      <span className="font-semibold text-yellow-700">50-89%</span>
-                      <div className="text-yellow-600">Good</div>
+                    <div className="bg-yellow-50 p-2 rounded border border-yellow-200">
+                      <div className="font-semibold text-yellow-700">50-89% Good</div>
+                      <div className="text-yellow-600 mt-1">Minor imperfections. May have slight motion blur, minor texture issues, or occasional frame inconsistencies.</div>
                     </div>
-                    <div className="bg-red-50 p-1 rounded text-center">
-                      <span className="font-semibold text-red-700">0-49%</span>
-                      <div className="text-red-600">Poor</div>
-                    </div>
-                    <div className="bg-blue-50 p-1 rounded text-center">
-                      <span className="font-semibold text-blue-700">Target</span>
-                      <div className="text-blue-600">85%+</div>
+                    <div className="bg-red-50 p-2 rounded border border-red-200">
+                      <div className="font-semibold text-red-700">0-49% Poor</div>
+                      <div className="text-red-600 mt-1">Obviously AI-generated. Visible artifacts like morphing objects, unrealistic physics, or distorted features.</div>
                     </div>
                   </div>
                 </div>
@@ -445,10 +444,11 @@ export default function ProjectStatus({ project: initialProject }: ProjectStatus
             <div className="mt-4">
               <h4 className="font-medium text-gray-900 mb-2">Generated Video:</h4>
               <div className="bg-white rounded-lg border border-gray-200 p-4">
-                <VideoPlayer 
-                  videoId={project.video_id}
-                  thumbnailUrl={project.thumbnail_url}
-                />
+              <VideoPlayerEnhanced 
+                videoId={project.video_id}
+                thumbnailUrl={project.thumbnail_url}
+                className="w-full"
+              />
               </div>
               
               {/* Video Actions */}

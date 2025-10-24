@@ -1684,51 +1684,69 @@ async def debug_logs():
 @app.get("/api/logs/stream")
 async def stream_logs():
     """Stream real-time logs from the backend server - true terminal casting"""
-    def generate_logs():
-        last_global_log_count = 0
-        last_memory_log_count = 0
+    async def generate_logs():
+        """Async generator for real-time log streaming"""
+        last_global_index = 0
+        heartbeat_count = 0
         
         while True:
             try:
-                # Stream global log buffer (all logger calls)
-                if len(global_log_buffer) > last_global_log_count:
-                    new_global_logs = global_log_buffer[last_global_log_count:]
-                    for log_entry in new_global_logs:
-                        yield f"data: {json.dumps(log_entry)}\n\n"
-                    last_global_log_count = len(global_log_buffer)
+                # Stream global log buffer immediately
+                current_global_count = len(global_log_buffer)
+                if current_global_count > last_global_index:
+                    # Send all new logs immediately
+                    for i in range(last_global_index, current_global_count):
+                        if i < len(global_log_buffer):
+                            log_entry = global_log_buffer[i]
+                            yield f"data: {json.dumps(log_entry)}\n\n"
+                    last_global_index = current_global_count
                 
-                # Get all logs from memory (real-time video processing logs)
-                all_memory_logs = []
-                for video_id, logs in progress_logs.items():
-                    for log in logs:
-                        all_memory_logs.append({
-                            'log': log,
-                            'timestamp': datetime.now().isoformat(),
-                            'video_id': video_id,
-                            'source': 'video_processing'
-                        })
+                # Stream video processing logs immediately
+                for video_id, logs in list(progress_logs.items()):
+                    if logs:
+                        # Send and clear logs immediately
+                        logs_to_send = list(logs)
+                        logs.clear()
+                        for log in logs_to_send:
+                            log_data = {
+                                'log': log,
+                                'timestamp': datetime.now().isoformat(),
+                                'video_id': video_id,
+                                'source': 'processing',
+                                'type': 'video'
+                            }
+                            yield f"data: {json.dumps(log_data)}\n\n"
                 
-                # Send new memory logs
-                if len(all_memory_logs) > last_memory_log_count:
-                    new_memory_logs = all_memory_logs[last_memory_log_count:]
-                    for log_entry in new_memory_logs:
-                        yield f"data: {json.dumps(log_entry)}\n\n"
-                    last_memory_log_count = len(all_memory_logs)
+                # Reduced heartbeat frequency
+                heartbeat_count += 1
+                if heartbeat_count >= 100:  # Every 10 seconds
+                    heartbeat_count = 0
+                    yield f"data: {json.dumps({'log': '💓', 'timestamp': datetime.now().isoformat(), 'source': 'heartbeat', 'type': 'ping'})}\n\n"
                 
-                # Heartbeat to show connection is alive
-                current_time = datetime.now()
-                timestamp_str = current_time.strftime("%H:%M:%S")
-                log_message = f"[{timestamp_str}] Terminal active..."
-                yield f"data: {json.dumps({'log': log_message, 'timestamp': current_time.isoformat(), 'source': 'heartbeat'})}\n\n"
-                
-                time.sleep(0.1)  # Check every 100ms for true real-time
+                # Very short sleep for real-time updates
+                await asyncio.sleep(0.1)
                 
             except Exception as e:
                 logger.error(f"Error in log streaming: {e}")
-                yield f"data: {json.dumps({'log': f'ERROR: {str(e)}', 'timestamp': datetime.now().isoformat(), 'source': 'error'})}\n\n"
-                time.sleep(1)
+                error_log = {
+                    'log': f'⚠️ Stream error: {str(e)}',
+                    'timestamp': datetime.now().isoformat(),
+                    'source': 'error',
+                    'type': 'error'
+                }
+                yield f"data: {json.dumps(error_log)}\n\n"
+                await asyncio.sleep(1)
     
-    return StreamingResponse(generate_logs(), media_type="text/plain")
+    return StreamingResponse(
+        generate_logs(), 
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+            "Content-Type": "text/event-stream"
+        }
+    )
 
 @app.get("/api/videos/{video_id}/logs")
 async def get_video_logs(video_id: int):
@@ -2276,31 +2294,73 @@ async def play_video(video_id: int):
             client = TwelveLabs(api_key=TWELVELABS_API_KEY)
             
             try:
+                # Retrieve video details with proper API structure
                 video_details = client.indexes.videos.retrieve(
                     index_id=index_id,
                     id=twelvelabs_video_id
                 )
                 
                 hls_url = None
+                thumbnail_url = None
+                hls_status = None
                 
-                # Extract HLS URL
+                # Extract HLS URL using multiple methods
+                # Method 1: Direct attribute access
                 if hasattr(video_details, 'hls') and video_details.hls:
-                    if hasattr(video_details.hls, 'video_url'):
-                        hls_url = video_details.hls.video_url
+                    hls_data = video_details.hls
+                    if hasattr(hls_data, 'video_url'):
+                        hls_url = hls_data.video_url
+                    if hasattr(hls_data, 'thumbnail_urls') and hls_data.thumbnail_urls:
+                        thumbnail_url = hls_data.thumbnail_urls[0]
+                    if hasattr(hls_data, 'status'):
+                        hls_status = hls_data.status
                 
+                # Method 2: Dictionary conversion if needed
                 if not hls_url:
-                    # Try dict conversion
-                    video_dict = video_details.dict() if hasattr(video_details, 'dict') else video_details
-                    if isinstance(video_dict, dict) and 'hls' in video_dict:
-                        hls_url = video_dict['hls'].get('video_url')
+                    try:
+                        if hasattr(video_details, 'dict'):
+                            video_dict = video_details.dict()
+                        elif hasattr(video_details, '__dict__'):
+                            video_dict = video_details.__dict__
+                        else:
+                            video_dict = dict(video_details)
+                        
+                        if 'hls' in video_dict and video_dict['hls']:
+                            hls_data = video_dict['hls']
+                            hls_url = hls_data.get('video_url')
+                            thumbnail_urls = hls_data.get('thumbnail_urls', [])
+                            thumbnail_url = thumbnail_urls[0] if thumbnail_urls else None
+                            hls_status = hls_data.get('status')
+                    except:
+                        pass
+                
+                # Check if HLS is ready
+                if hls_status and hls_status != 'COMPLETE':
+                    logger.warning(f"⚠️ HLS encoding status: {hls_status}")
+                    raise HTTPException(
+                        status_code=503, 
+                        detail=f"Video still processing. Status: {hls_status}"
+                    )
                 
                 if hls_url:
-                    # Redirect to the actual HLS stream URL
+                    logger.info(f"✅ Found HLS URL: {hls_url[:100]}...")
+                    # Option 1: Redirect directly to the HLS stream
                     from fastapi.responses import RedirectResponse
                     return RedirectResponse(url=hls_url, status_code=302)
+                    
+                    # Option 2: Return JSON with HLS info (uncomment if frontend needs this)
+                    # return {
+                    #     "type": "hls",
+                    #     "hls_url": hls_url,
+                    #     "thumbnail_url": thumbnail_url,
+                    #     "status": hls_status
+                    # }
                 else:
+                    logger.error(f"❌ No HLS URL found for video {twelvelabs_video_id}")
                     raise HTTPException(status_code=404, detail="HLS stream not available")
                     
+            except HTTPException:
+                raise
             except Exception as e:
                 logger.error(f"❌ TwelveLabs API error: {e}")
                 raise HTTPException(status_code=500, detail=f"TwelveLabs API error: {str(e)}")
@@ -2347,21 +2407,71 @@ async def get_video_info(video_id: int):
         }
         
         if twelvelabs_available and not local_file_available:
-            # Get HLS URL for frontend
+            # Get HLS URL for frontend using proper API call structure
+            logger.info(f"🎬 Fetching HLS info for TwelveLabs video: {twelvelabs_video_id}")
             client = TwelveLabs(api_key=TWELVELABS_API_KEY)
+            
             try:
+                # Use the correct API call structure as shown in the documentation
                 video_details = client.indexes.videos.retrieve(
                     index_id=index_id,
                     id=twelvelabs_video_id
                 )
                 
-                if hasattr(video_details, 'hls') and video_details.hls:
-                    if hasattr(video_details.hls, 'video_url'):
-                        result["hls_url"] = video_details.hls.video_url
-                    if hasattr(video_details.hls, 'thumbnail_urls') and video_details.hls.thumbnail_urls:
-                        result["thumbnail_url"] = video_details.hls.thumbnail_urls[0] if video_details.hls.thumbnail_urls else None
+                logger.info(f"📡 TwelveLabs response type: {type(video_details)}")
+                
+                # Handle the response properly based on TwelveLabs SDK structure
+                hls_url = None
+                thumbnail_url = None
+                hls_status = None
+                
+                # Try direct attribute access first
+                if hasattr(video_details, 'hls'):
+                    hls_data = video_details.hls
+                    if hls_data:
+                        if hasattr(hls_data, 'video_url'):
+                            hls_url = hls_data.video_url
+                        if hasattr(hls_data, 'thumbnail_urls') and hls_data.thumbnail_urls:
+                            thumbnail_url = hls_data.thumbnail_urls[0]
+                        if hasattr(hls_data, 'status'):
+                            hls_status = hls_data.status
+                            
+                # If no HLS URL yet, try dictionary conversion
+                if not hls_url:
+                    try:
+                        # Convert to dict if possible
+                        if hasattr(video_details, 'dict'):
+                            video_dict = video_details.dict()
+                        elif hasattr(video_details, '__dict__'):
+                            video_dict = video_details.__dict__
+                        else:
+                            video_dict = dict(video_details)
+                        
+                        if 'hls' in video_dict and video_dict['hls']:
+                            hls_data = video_dict['hls']
+                            hls_url = hls_data.get('video_url')
+                            thumbnail_urls = hls_data.get('thumbnail_urls', [])
+                            thumbnail_url = thumbnail_urls[0] if thumbnail_urls else None
+                            hls_status = hls_data.get('status')
+                    except Exception as e:
+                        logger.warning(f"Could not convert to dict: {e}")
+                
+                # Log what we found
+                logger.info(f"✅ HLS URL found: {bool(hls_url)}")
+                logger.info(f"✅ HLS Status: {hls_status}")
+                
+                if hls_url:
+                    result["hls_url"] = hls_url
+                    result["thumbnail_url"] = thumbnail_url
+                    result["hls_status"] = hls_status
+                    logger.info(f"🎬 HLS URL: {hls_url[:100]}...")
+                else:
+                    logger.warning(f"⚠️ No HLS URL found for video {twelvelabs_video_id}")
+                    result["error"] = "HLS stream not available"
+                    
             except Exception as e:
-                logger.error(f"Error getting HLS info: {e}")
+                logger.error(f"❌ Error getting HLS info: {e}")
+                result["error"] = f"Failed to get HLS info: {str(e)}"
         
         return result
         
@@ -2370,6 +2480,88 @@ async def get_video_info(video_id: int):
     except Exception as e:
         logger.error(f"❌ Video info error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/videos/{video_id}/hls-debug")
+async def debug_hls(video_id: int):
+    """Debug endpoint to check HLS availability and status"""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        
+        cursor.execute("SELECT video_path, twelvelabs_video_id, index_id FROM videos WHERE id = ?", (video_id,))
+        video = cursor.fetchone()
+        conn.close()
+        
+        if not video:
+            return {"error": "Video not found in database"}
+        
+        video_path = video[0]
+        twelvelabs_video_id = video[1]
+        index_id = video[2]
+        
+        debug_info = {
+            "video_id": video_id,
+            "local_path": video_path,
+            "local_exists": os.path.exists(video_path) if video_path else False,
+            "twelvelabs_video_id": twelvelabs_video_id,
+            "index_id": index_id
+        }
+        
+        if twelvelabs_video_id and index_id:
+            client = TwelveLabs(api_key=TWELVELABS_API_KEY)
+            
+            try:
+                # Get full video details
+                video_details = client.indexes.videos.retrieve(
+                    index_id=index_id,
+                    id=twelvelabs_video_id
+                )
+                
+                # Try to extract all possible HLS information
+                debug_info["response_type"] = str(type(video_details))
+                
+                # Method 1: Direct attributes
+                if hasattr(video_details, 'hls'):
+                    hls_obj = video_details.hls
+                    debug_info["has_hls_attr"] = True
+                    debug_info["hls_type"] = str(type(hls_obj))
+                    
+                    if hls_obj:
+                        debug_info["hls_data"] = {
+                            "video_url": getattr(hls_obj, 'video_url', None),
+                            "thumbnail_urls": getattr(hls_obj, 'thumbnail_urls', None),
+                            "status": getattr(hls_obj, 'status', None),
+                            "updated_at": getattr(hls_obj, 'updated_at', None)
+                        }
+                else:
+                    debug_info["has_hls_attr"] = False
+                
+                # Method 2: Dictionary conversion
+                try:
+                    if hasattr(video_details, 'dict'):
+                        video_dict = video_details.dict()
+                    elif hasattr(video_details, 'to_dict'):
+                        video_dict = video_details.to_dict()
+                    elif hasattr(video_details, '__dict__'):
+                        video_dict = video_details.__dict__
+                    else:
+                        video_dict = None
+                    
+                    if video_dict and 'hls' in video_dict:
+                        debug_info["dict_hls"] = video_dict['hls']
+                except Exception as e:
+                    debug_info["dict_error"] = str(e)
+                
+                # Method 3: Raw response inspection
+                debug_info["available_attrs"] = dir(video_details)[:20]  # First 20 attributes
+                
+            except Exception as e:
+                debug_info["api_error"] = str(e)
+        
+        return debug_info
+        
+    except Exception as e:
+        return {"error": str(e)}
 
 @app.get("/api/videos/{video_id}/debug-twelve")
 async def debug_twelve(video_id: int):
