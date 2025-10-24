@@ -1513,8 +1513,11 @@ async def upload_video(
             wait_time = 0
             while wait_time < max_wait_time:
                 try:
-                    # Check if video is indexed
-                    video_info = client.videos.retrieve(twelvelabs_video_id)
+                    # Check if video is indexed using the correct API
+                    video_info = client.indexes.videos.retrieve(
+                        index_id=index_id,
+                        video_id=twelvelabs_video_id
+                    )
                     if hasattr(video_info, 'indexed_at') and video_info.indexed_at:
                         logger.info(f"✅ Video {twelvelabs_video_id} successfully indexed")
                         break
@@ -1585,12 +1588,13 @@ async def upload_video(
         
         return VideoResponse(
             success=True,
-            message="Video uploaded successfully",
+            message="Video uploaded and processing started",
             data={
                 "video_id": video_id,
                 "filename": filename,
-                "status": "uploaded",
-                "original_prompt": original_prompt
+                "status": "processing",
+                "original_prompt": original_prompt,
+                "redirect_url": f"/enhance?video_id={video_id}"
             }
         )
         

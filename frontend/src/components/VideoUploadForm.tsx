@@ -86,8 +86,30 @@ export default function VideoUploadForm({ onProjectCreated }: VideoUploadFormPro
         throw new Error(errorData.detail || 'Failed to upload video')
       }
 
-      const project = await response.json()
+      const result = await response.json()
+      console.log('Upload result:', result)
+      
+      // Create project object with video_id for status page
+      const project = {
+        video_id: result.data?.video_id || result.video_id,
+        status: 'processing',
+        prompt: result.data?.original_prompt || 'Auto-analyzed by Pegasus AI',
+        ...result.data
+      }
+      
+      console.log('Created project:', project)
       onProjectCreated(project)
+      
+      // Immediate redirect to status page - don't wait
+      const videoId = project.video_id
+      if (videoId) {
+        console.log('Redirecting to status page for video:', videoId)
+        // Use router.push for immediate navigation
+        window.location.href = `/status?id=${videoId}`
+      } else {
+        console.error('No video_id in response:', result)
+        throw new Error('Upload succeeded but no video ID returned')
+      }
     } catch (err) {
       console.error('Upload error:', err)
       setUploadError(err instanceof Error ? err.message : 'An unexpected error occurred')
