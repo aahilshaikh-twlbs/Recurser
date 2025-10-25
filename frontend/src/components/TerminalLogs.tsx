@@ -50,8 +50,8 @@ export default function TerminalLogs({ className = '' }: TerminalLogsProps) {
                   source: data.source || 'video'
                 }
                 const newLogs = [...prev, logEntry]
-                // Keep only last 500 logs to prevent memory issues
-                return newLogs.slice(-500)
+                // Keep only last 200 logs (rolling deletion)
+                return newLogs.slice(-200)
               })
             }
           } catch (error) {
@@ -207,7 +207,7 @@ export default function TerminalLogs({ className = '' }: TerminalLogsProps) {
           </div>
           {logs.length > 0 ? (
             <div className="space-y-1">
-              {logs.slice(-100).map((log) => {
+              {logs.slice(-200).map((log) => {
                 const { textColor, icon, sourceColor } = formatLogLine(log)
                 return (
                   <div key={log.id} className="flex items-start space-x-2">

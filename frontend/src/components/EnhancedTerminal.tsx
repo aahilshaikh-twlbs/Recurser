@@ -43,7 +43,7 @@ export default function EnhancedTerminal({ clearOnNewGeneration = true, currentV
       } else if (currentVideoId !== lastVideoId) {
         console.log('🧹 Clearing terminal for new generation:', lastVideoId, '->', currentVideoId)
         
-        // Aggressive clearing of all terminal data
+        // 🧹 AGGRESSIVE clearing of ALL terminal data
         setLogs([])
         setHighlights([])
         setLastVideoId(currentVideoId)
@@ -52,10 +52,21 @@ export default function EnhancedTerminal({ clearOnNewGeneration = true, currentV
         setConnectionAttempts(0)
         setIsConnected(false)
         
-        // Clear any cached log timestamps to force fresh data
+        // Clear ALL cached data to force completely fresh start
         if (typeof window !== 'undefined') {
           sessionStorage.removeItem('lastLogTimestamp')
+          sessionStorage.removeItem('terminalLogs')
+          sessionStorage.removeItem('terminalHighlights')
+          
+          // Clear any video-specific cached data
+          Object.keys(sessionStorage).forEach(key => {
+            if (key.includes('video_') || key.includes('log_') || key.includes('terminal_')) {
+              sessionStorage.removeItem(key)
+            }
+          })
         }
+        
+        console.log('🧹 AGGRESSIVELY cleared ALL terminal data for video:', currentVideoId)
       }
     }
   }, [currentVideoId, lastVideoId, clearOnNewGeneration])
@@ -134,7 +145,8 @@ export default function EnhancedTerminal({ clearOnNewGeneration = true, currentV
                     
                     setLogs(prev => {
                       const newLogs = [...prev, logEntry]
-                      return newLogs.slice(-1000)
+                      // Keep only last 200 logs (rolling deletion)
+                      return newLogs.slice(-200)
                     })
                     
                     // Check for important events (actual analysis results and meaningful progress)
@@ -159,7 +171,7 @@ export default function EnhancedTerminal({ clearOnNewGeneration = true, currentV
                     }
                     
                     if (highlight) {
-                      setHighlights(prev => [...prev, highlight].slice(-20))
+                      setHighlights(prev => [...prev, highlight].slice(-50))
                     }
                   })
                 }

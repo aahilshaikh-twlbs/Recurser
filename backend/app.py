@@ -43,9 +43,10 @@ class StreamLogHandler(logging.Handler):
             'source': 'backend_terminal',
             'level': record.levelname
         })
-        # Keep only last 2000 logs to prevent memory issues
-        if len(global_log_buffer) > 2000:
-            global_log_buffer.pop(0)
+        # Keep only last 200 logs for rolling display (delete old ones)
+        if len(global_log_buffer) > 200:
+            # Remove oldest logs to keep only 200 most recent
+            global_log_buffer[:] = global_log_buffer[-200:]
 
 # Add the custom handler to the logger
 stream_handler = StreamLogHandler()
@@ -827,8 +828,10 @@ class AIDetectionService:
             
             client = TwelveLabs(api_key=api_key)
             search_client = client.search
-            # Try different TwelveLabs API structure for Pegasus
-            # Maybe it's client.generate.text or client.analyze or something else
+            # Based on documentation, it should be client.generate.text()
+            # Let's verify the client has the generate attribute
+            if not hasattr(client, 'generate'):
+                logger.error(f"❌ TwelveLabs client missing 'generate' attribute. Available: {dir(client)}")
             analyze_client = client
             
             # Marengo search with detailed logging
@@ -965,7 +968,17 @@ class AIDetectionService:
                     })
                     
             except Exception as e:
-                logger.warning(f"Pegasus content analysis failed: {e}")
+                logger.error(f"❌ CRITICAL: Pegasus content analysis failed: {e}")
+                # Don't silently continue - this is a critical failure
+                analysis_results.append({
+                    'analysis_type': f'content_analysis_{i+1}_FAILED',
+                    'content_description': f"PEGASUS ANALYSIS FAILED: {str(e)}",
+                    'error': str(e)
+                })
+        
+        if not analysis_results or all('FAILED' in result.get('analysis_type', '') for result in analysis_results):
+            logger.error("❌ CRITICAL: ALL Pegasus content analysis failed - cannot proceed with proper analysis")
+            return [{'content_description': 'PEGASUS ANALYSIS COMPLETELY FAILED - Using fallback generic analysis'}]
         
         return analysis_results
 
@@ -1011,7 +1024,17 @@ class AIDetectionService:
                     })
                     
             except Exception as e:
-                logger.warning(f"Pegasus analysis failed: {e}")
+                logger.error(f"❌ CRITICAL: Pegasus AI detection analysis failed: {e}")
+                # Don't silently continue - this is a critical failure
+                analysis_results.append({
+                    'prompt': prompt,
+                    'response': f"PEGASUS ANALYSIS FAILED: {str(e)}",
+                    'error': str(e),
+                    'failed': True
+                })
+        
+        if not analysis_results or all(result.get('failed', False) for result in analysis_results):
+            logger.error("❌ CRITICAL: ALL Pegasus AI detection failed - quality score will be unreliable")
         
         return analysis_results
     
@@ -1332,8 +1355,10 @@ async def generate_video(request: VideoGenerationRequest, background_tasks: Back
                     logger.info(f"✅ Pegasus content analysis: {content_description[:100]}...")
                     
                 except Exception as e:
-                    logger.warning(f"⚠️ Pegasus content analysis failed: {e}")
-                    content_description = f"Video {request.video_id} content analysis"
+                    logger.error(f"❌ CRITICAL: Pegasus content analysis failed: {e}")
+                    content_description = f"PEGASUS FAILED: Using generic fallback for video {request.video_id}"
+                    # Log this as a critical system failure
+                    log_detailed(video_id, f"❌ CRITICAL: Pegasus analysis completely failed - {str(e)}", "ERROR")
                 
                 # Store content analysis data
                 analysis_data["pegasus_content_analysis"] = content_description
@@ -1406,6 +1431,11 @@ async def generate_video(request: VideoGenerationRequest, background_tasks: Back
         video_id = cursor.lastrowid
         conn.commit()
         conn.close()
+        
+        # 🧹 CLEAR ALL OLD LOGS FOR FRESH START
+        global_log_buffer.clear()  # Clear global backend logs
+        progress_logs.clear()      # Clear all video-specific logs
+        logger.info(f"🧹 Cleared all logs for fresh video generation start")
         
         # Debug: Log what was stored
         stored_value = request.max_retries if request.max_retries and request.max_retries > 0 else 3
@@ -1719,9 +1749,9 @@ async def get_recent_logs(limit: int = 50):
         recent_logs.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
         recent_logs = recent_logs[:limit]
         
-        # Clean up global log buffer if it gets too large (keep last 2000)
-        if len(global_log_buffer) > 2000:
-            global_log_buffer[:] = global_log_buffer[-2000:]
+        # Clean up global log buffer if it gets too large (keep last 200)
+        if len(global_log_buffer) > 200:
+            global_log_buffer[:] = global_log_buffer[-200:]
         
         return {
             "success": True,
@@ -1781,6 +1811,19 @@ async def debug_logs():
             "video_ids": list(progress_logs.keys())
         }
     }
+
+@app.post("/api/clear-logs")
+async def clear_logs():
+    """Clear all logs for fresh start"""
+    try:
+        global_log_buffer.clear()
+        progress_logs.clear()
+        logger.info("🧹 All logs cleared via API endpoint")
+        
+        return {"success": True, "message": "All logs cleared"}
+    except Exception as e:
+        logger.error(f"❌ Clear logs error: {e}")
+        return {"success": False, "error": str(e)}
 
 @app.get("/api/logs/stream")
 async def stream_logs():
