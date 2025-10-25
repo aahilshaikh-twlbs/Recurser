@@ -480,6 +480,10 @@ class VideoGenerationService:
                     # Use quality score as confidence
                     current_confidence = quality_score
                     
+                    # Log the quality score update for frontend visibility
+                    logger.info(f"📊 Video {video_id}: Quality Score updated to {current_confidence:.1f}% (Iteration {current_iteration})")
+                    log_detailed(video_id, f"📊 Quality Score: {current_confidence:.1f}% (Iteration {current_iteration})", "INFO")
+                    
                     # Update database with current confidence
                     conn = sqlite3.connect(DB_PATH)
                     cursor = conn.cursor()

@@ -30,9 +30,11 @@ export default function EnhancedTerminal({ clearOnNewGeneration = true, currentV
   const [isConnected, setIsConnected] = useState(false)
   const [connectionAttempts, setConnectionAttempts] = useState(0)
   const [lastVideoId, setLastVideoId] = useState<number | undefined>(currentVideoId)
+  const [isUserScrolling, setIsUserScrolling] = useState(false)
   const terminalRef = useRef<HTMLDivElement>(null)
   const highlightsRef = useRef<HTMLDivElement>(null)
   const eventSourceRef = useRef<EventSource | null>(null)
+  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   // Clear logs when a new video generation starts
   useEffect(() => {
@@ -47,6 +49,7 @@ export default function EnhancedTerminal({ clearOnNewGeneration = true, currentV
         setLogs([])
         setHighlights([])
         setLastVideoId(currentVideoId)
+        setIsUserScrolling(false) // Reset scroll state
         
         // Reset connection state and force reconnection
         setConnectionAttempts(0)
@@ -171,7 +174,19 @@ export default function EnhancedTerminal({ clearOnNewGeneration = true, currentV
                     }
                     
                     if (highlight) {
-                      setHighlights(prev => [...prev, highlight].slice(-50))
+                      setHighlights(prev => {
+                        // Check for duplicates based on message content (not ID)
+                        const isDuplicate = prev.some(h => 
+                          h.message === highlight.message || 
+                          (h.message.includes('Starting iteration') && highlight.message.includes('Starting iteration'))
+                        )
+                        
+                        if (isDuplicate) {
+                          return prev // Don't add duplicate
+                        }
+                        
+                        return [...prev, highlight].slice(-50)
+                      })
                     }
                   })
                 }
@@ -194,8 +209,8 @@ export default function EnhancedTerminal({ clearOnNewGeneration = true, currentV
           }
         }
         
-        // Poll every 3 seconds to reduce noise
-        const pollInterval = setInterval(pollLogs, 3000)
+        // Poll every 2 seconds for more responsive updates
+        const pollInterval = setInterval(pollLogs, 2000)
         
         // Initial poll
         pollLogs()
@@ -223,19 +238,42 @@ export default function EnhancedTerminal({ clearOnNewGeneration = true, currentV
     }
   }, [])
 
-  // Auto-scroll terminal
+  // Smart auto-scroll: only scroll if user isn't manually scrolling
   useEffect(() => {
-    if (terminalRef.current) {
+    if (!isUserScrolling && terminalRef.current) {
       terminalRef.current.scrollTop = terminalRef.current.scrollHeight
     }
-  }, [logs])
+  }, [logs, isUserScrolling])
 
-  // Auto-scroll highlights
+  // Auto-scroll highlights to bottom (always, since it's a smaller area)
   useEffect(() => {
     if (highlightsRef.current) {
       highlightsRef.current.scrollTop = highlightsRef.current.scrollHeight
     }
   }, [highlights])
+
+  // Handle scroll detection
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const element = e.currentTarget
+    const isAtBottom = element.scrollHeight - element.scrollTop <= element.clientHeight + 10 // 10px tolerance
+    
+    if (!isAtBottom) {
+      setIsUserScrolling(true)
+      // Clear any existing timeout
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current)
+      }
+      // Resume auto-scroll after 3 seconds of no scrolling
+      scrollTimeoutRef.current = setTimeout(() => {
+        setIsUserScrolling(false)
+      }, 3000)
+    } else {
+      setIsUserScrolling(false)
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current)
+      }
+    }
+  }
 
   // Format timestamp to user's local timezone
   const formatTime = (timestamp: string) => {
@@ -332,6 +370,7 @@ export default function EnhancedTerminal({ clearOnNewGeneration = true, currentV
           ref={terminalRef}
           className="flex-1 overflow-y-auto p-4 font-mono text-xs space-y-1"
           style={{ maxHeight: '400px' }}
+          onScroll={handleScroll}
         >
           {logs.length === 0 ? (
             <div className="text-gray-500 text-center py-8">
