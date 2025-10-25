@@ -954,8 +954,8 @@ class AIDetectionService:
         
         for i, prompt in enumerate(content_analysis_prompts):
             try:
-                # Try TwelveLabs Pegasus API - maybe it's generate.text
-                response = analyze_client.generate.text(
+                # Since generate is a function, try calling it directly
+                response = analyze_client.generate(
                     video_id=video_id,
                     prompt=prompt
                 )
@@ -997,8 +997,8 @@ class AIDetectionService:
         
         for prompt in analysis_prompts:
             try:
-                # Try TwelveLabs Pegasus API - maybe it's generate.text
-                response = analyze_client.generate.text(
+                # Since generate is a function, try calling it directly
+                response = analyze_client.generate(
                     video_id=video_id,
                     prompt=prompt,
                     temperature=0.1
