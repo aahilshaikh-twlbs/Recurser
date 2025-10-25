@@ -954,10 +954,11 @@ class AIDetectionService:
         
         for i, prompt in enumerate(content_analysis_prompts):
             try:
-                # Since generate is a function, try calling it directly
-                response = analyze_client.generate(
+                # Use the correct TwelveLabs analyze endpoint
+                response = analyze_client.analyze.create(
                     video_id=video_id,
-                    prompt=prompt
+                    prompt=prompt,
+                    temperature=0.2
                 )
                 
                 if response and hasattr(response, 'data'):
@@ -997,8 +998,8 @@ class AIDetectionService:
         
         for prompt in analysis_prompts:
             try:
-                # Since generate is a function, try calling it directly
-                response = analyze_client.generate(
+                # Use the correct TwelveLabs analyze endpoint
+                response = analyze_client.analyze.create(
                     video_id=video_id,
                     prompt=prompt,
                     temperature=0.1
@@ -1496,6 +1497,11 @@ async def upload_video(
 ):
     """Upload an existing video for analysis"""
     try:
+        # 🧹 CLEAR ALL OLD LOGS FOR FRESH START
+        global_log_buffer.clear()  # Clear global backend logs
+        progress_logs.clear()      # Clear all video-specific logs
+        logger.info(f"🧹 Cleared all logs for fresh video upload start")
+        
         logger.info(f"📁 Video upload: {file.filename}")
         
         # Use hardcoded values for testing
@@ -1769,36 +1775,36 @@ async def get_recent_logs(limit: int = 50):
             "count": 0
         }
 
-@app.get("/api/test-logs")
-async def test_logs():
-    """Test endpoint to verify logs are working and add to stream"""
-    current_time = datetime.now().strftime("%H:%M:%S")
-    
-    # Add logs to the global buffer for streaming
-    test_logs = [
-        f"[{current_time}] ℹ️ Test log message 1",
-        f"[{(datetime.now() + timedelta(seconds=1)).strftime('%H:%M:%S')}] ✅ Test success message",
-        f"[{(datetime.now() + timedelta(seconds=2)).strftime('%H:%M:%S')}] ⚠️ Test warning message"
-    ]
-    
-    # Add to global log buffer for streaming
-    for log in test_logs:
-        global_log_buffer.append({
-            'log': log,
-            'timestamp': datetime.now().isoformat(),
-            'source': 'test',
-            'level': 'INFO'
-        })
-    
-    # Also log normally
-    logger.info("🧪 Test logs generated for streaming")
-    
-    return {
-        "success": True,
-        "data": {
-            "logs": test_logs
-        }
-    }
+# @app.get("/api/test-logs")
+# async def test_logs():
+#     """Test endpoint to verify logs are working and add to stream"""
+#     current_time = datetime.now().strftime("%H:%M:%S")
+#     
+#     # Add logs to the global buffer for streaming
+#     test_logs = [
+#         f"[{current_time}] ℹ️ Test log message 1",
+#         f"[{(datetime.now() + timedelta(seconds=1)).strftime('%H:%M:%S')}] ✅ Test success message",
+#         f"[{(datetime.now() + timedelta(seconds=2)).strftime('%H:%M:%S')}] ⚠️ Test warning message"
+#     ]
+#     
+#     # Add to global log buffer for streaming
+#     for log in test_logs:
+#         global_log_buffer.append({
+#             'log': log,
+#             'timestamp': datetime.now().isoformat(),
+#             'source': 'test',
+#             'level': 'INFO'
+#         })
+#     
+#     # Also log normally
+#     logger.info("🧪 Test logs generated for streaming")
+#     
+#     return {
+#         "success": True,
+#         "data": {
+#             "logs": test_logs
+#         }
+#     }
 
 @app.get("/api/debug-logs")
 async def debug_logs():

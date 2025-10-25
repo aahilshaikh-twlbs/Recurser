@@ -119,7 +119,7 @@ backend/
 
 #### 2. **TwelveLabs Pegasus** - Video Analysis
 - **Purpose**: Video-to-text content analysis and understanding
-- **API**: `client.generate(video_id=video_id, prompt=analysis_prompt)`
+- **API**: `client.analyze.create(video_id=video_id, prompt=analysis_prompt)` (POST /v1.3/analyze)
 - **Usage**: Initial content analysis + iteration quality assessment
 
 #### 3. **TwelveLabs Marengo** - AI Artifact Detection
