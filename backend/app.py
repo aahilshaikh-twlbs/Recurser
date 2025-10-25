@@ -828,10 +828,22 @@ class AIDetectionService:
             
             client = TwelveLabs(api_key=api_key)
             search_client = client.search
-            # Based on documentation, it should be client.generate.text()
-            # Let's verify the client has the generate attribute
-            if not hasattr(client, 'generate'):
-                logger.error(f"❌ TwelveLabs client missing 'generate' attribute. Available: {dir(client)}")
+            # Debug: Let's see what methods are available on the client
+            logger.info(f"🔍 TwelveLabs client available attributes: {[attr for attr in dir(client) if not attr.startswith('_')]}")
+            
+            # Check for analyze-related methods
+            if hasattr(client, 'analyze'):
+                logger.info(f"🔍 client.analyze type: {type(client.analyze)}")
+                if hasattr(client.analyze, '__call__'):
+                    logger.info("✅ client.analyze is callable (function)")
+                else:
+                    logger.info(f"🔍 client.analyze attributes: {[attr for attr in dir(client.analyze) if not attr.startswith('_')]}")
+            
+            if hasattr(client, 'generate'):
+                logger.info(f"🔍 client.generate type: {type(client.generate)}")
+                if not hasattr(client.generate, '__call__'):
+                    logger.info(f"🔍 client.generate attributes: {[attr for attr in dir(client.generate) if not attr.startswith('_')]}")
+            
             analyze_client = client
             
             # Marengo search with detailed logging
@@ -954,8 +966,8 @@ class AIDetectionService:
         
         for i, prompt in enumerate(content_analysis_prompts):
             try:
-                # Use the correct TwelveLabs analyze endpoint
-                response = analyze_client.analyze.create(
+                # Use the correct TwelveLabs analyze endpoint - try direct function call
+                response = analyze_client.analyze(
                     video_id=video_id,
                     prompt=prompt,
                     temperature=0.2
@@ -998,8 +1010,8 @@ class AIDetectionService:
         
         for prompt in analysis_prompts:
             try:
-                # Use the correct TwelveLabs analyze endpoint
-                response = analyze_client.analyze.create(
+                # Use the correct TwelveLabs analyze endpoint - try direct function call
+                response = analyze_client.analyze(
                     video_id=video_id,
                     prompt=prompt,
                     temperature=0.1
@@ -1317,6 +1329,21 @@ async def health_check():
 async def generate_video(request: VideoGenerationRequest, background_tasks: BackgroundTasks):
     """Generate a new video with iterative enhancement"""
     try:
+        # 🧹 CLEAR ALL OLD LOGS FOR FRESH START - FIRST THING!
+        global_log_buffer.clear()  # Clear global backend logs
+        progress_logs.clear()      # Clear all video-specific logs
+        
+        # Also clear any database logs for all videos to ensure completely fresh start
+        try:
+            conn = sqlite3.connect(DB_PATH)
+            cursor = conn.cursor()
+            cursor.execute("UPDATE videos SET detailed_logs = NULL")
+            conn.commit()
+            conn.close()
+        except Exception as e:
+            logger.warning(f"Could not clear database logs: {e}")
+        
+        logger.info(f"🧹 Cleared ALL logs (memory + database) for fresh video generation start")
         logger.info(f"🎬 Video generation request: {request.prompt}")
         
         # Use hardcoded values for testing
@@ -1433,11 +1460,6 @@ async def generate_video(request: VideoGenerationRequest, background_tasks: Back
         conn.commit()
         conn.close()
         
-        # 🧹 CLEAR ALL OLD LOGS FOR FRESH START
-        global_log_buffer.clear()  # Clear global backend logs
-        progress_logs.clear()      # Clear all video-specific logs
-        logger.info(f"🧹 Cleared all logs for fresh video generation start")
-        
         # Debug: Log what was stored
         stored_value = request.max_retries if request.max_retries and request.max_retries > 0 else 3
         logger.info(f"📊 Video {video_id}: Stored max_iterations = {stored_value} (request.max_retries = {request.max_retries})")
@@ -1497,10 +1519,21 @@ async def upload_video(
 ):
     """Upload an existing video for analysis"""
     try:
-        # 🧹 CLEAR ALL OLD LOGS FOR FRESH START
+        # 🧹 CLEAR ALL OLD LOGS FOR FRESH START - FIRST THING!
         global_log_buffer.clear()  # Clear global backend logs
         progress_logs.clear()      # Clear all video-specific logs
-        logger.info(f"🧹 Cleared all logs for fresh video upload start")
+        
+        # Also clear any database logs for all videos to ensure completely fresh start
+        try:
+            conn = sqlite3.connect(DB_PATH)
+            cursor = conn.cursor()
+            cursor.execute("UPDATE videos SET detailed_logs = NULL")
+            conn.commit()
+            conn.close()
+        except Exception as e:
+            logger.warning(f"Could not clear database logs: {e}")
+        
+        logger.info(f"🧹 Cleared ALL logs (memory + database) for fresh video upload start")
         
         logger.info(f"📁 Video upload: {file.filename}")
         
@@ -1822,11 +1855,23 @@ async def debug_logs():
 async def clear_logs():
     """Clear all logs for fresh start"""
     try:
+        # Clear memory logs
         global_log_buffer.clear()
         progress_logs.clear()
-        logger.info("🧹 All logs cleared via API endpoint")
         
-        return {"success": True, "message": "All logs cleared"}
+        # Clear database logs for all videos
+        try:
+            conn = sqlite3.connect(DB_PATH)
+            cursor = conn.cursor()
+            cursor.execute("UPDATE videos SET detailed_logs = NULL")
+            conn.commit()
+            conn.close()
+        except Exception as e:
+            logger.warning(f"Could not clear database logs: {e}")
+        
+        logger.info("🧹 ALL logs cleared via API endpoint (memory + database)")
+        
+        return {"success": True, "message": "All logs cleared (memory + database)"}
     except Exception as e:
         logger.error(f"❌ Clear logs error: {e}")
         return {"success": False, "error": str(e)}
