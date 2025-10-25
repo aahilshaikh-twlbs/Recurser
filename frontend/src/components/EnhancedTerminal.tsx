@@ -90,12 +90,22 @@ export default function EnhancedTerminal({ clearOnNewGeneration = true, currentV
         let lastLogTimestamp = ''
         const pollLogs = async () => {
           try {
-            const response = await fetch('/api/recent-logs?limit=500')
-            if (response.ok) {
-              const data = await response.json()
-              if (data.success && data.logs) {
+            const response = await fetch('/api/recent-logs?limit=200', {
+              method: 'GET',
+              headers: {
+                'Cache-Control': 'no-cache',
+                'Pragma': 'no-cache'
+              }
+            })
+            if (!response.ok) {
+              throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+            }
+            
+            const data = await response.json()
+            if (data.success && (data.logs || (data.data && data.data.logs))) {
+              const logs = data.logs || data.data.logs
                 // Process new logs and filter out noise
-                const newLogs = data.logs.filter((logData: any) => {
+                const newLogs = logs.filter((logData: any) => {
                   // Filter by timestamp
                   if (logData.timestamp <= lastLogTimestamp) return false
                   
@@ -171,6 +181,8 @@ export default function EnhancedTerminal({ clearOnNewGeneration = true, currentV
                       highlight = { id: logEntry.id, message: `🧠 ${message}`, type: 'info', timestamp: logEntry.timestamp }
                     } else if (message.includes('Target confidence reached') || message.includes('Peak quality achieved')) {
                       highlight = { id: logEntry.id, message: `🎯 ${message}`, type: 'success', timestamp: logEntry.timestamp }
+                    } else if (message.includes('Indexing status:')) {
+                      highlight = { id: logEntry.id, message: `⏳ ${message}`, type: 'info', timestamp: logEntry.timestamp }
                     }
                     
                     if (highlight) {
@@ -192,8 +204,9 @@ export default function EnhancedTerminal({ clearOnNewGeneration = true, currentV
                 }
                 setIsConnected(true)
                 setConnectionAttempts(0)
+              } else {
+                throw new Error('Invalid response format or no logs available')
               }
-            }
           } catch (error) {
             console.error('Log polling error:', error)
             setIsConnected(false)

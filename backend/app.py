@@ -773,10 +773,15 @@ class VideoGenerationService:
             # STEP 4: Wait for complete indexing before next iteration
             log_progress(video_id, f"⏳ Waiting for video indexing (Iteration {iteration})", 55)
             log_detailed(video_id, f"Waiting for TwelveLabs indexing to complete (Iteration {iteration})", "INFO")
+            def indexing_callback(task):
+                status_msg = f"⏳ Indexing status: {task.status}"
+                logger.info(status_msg)
+                log_detailed(video_id, status_msg, "INFO")
+            
             completed_task = client.tasks.wait_for_done(
                 task_id=task_id,
                 sleep_interval=5.0,
-                callback=lambda task: logger.info(f"⏳ Indexing status: {task.status}")
+                callback=indexing_callback
             )
             
             if completed_task.status == "ready":
