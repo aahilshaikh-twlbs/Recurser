@@ -57,16 +57,21 @@ export default function EnhancedTerminal({ clearOnNewGeneration = true, currentV
         
         // Clear ALL cached data to force completely fresh start
         if (typeof window !== 'undefined') {
+          // Clear all session storage keys
+          sessionStorage.clear()
+          
+          // Also clear any specific keys that might have been missed
           sessionStorage.removeItem('lastLogTimestamp')
           sessionStorage.removeItem('terminalLogs')
           sessionStorage.removeItem('terminalHighlights')
+          sessionStorage.removeItem('currentProject')
           
-          // Clear any video-specific cached data
-          Object.keys(sessionStorage).forEach(key => {
-            if (key.includes('video_') || key.includes('log_') || key.includes('terminal_')) {
-              sessionStorage.removeItem(key)
-            }
-          })
+          // Force clear browser cache for API responses
+          if ('caches' in window) {
+            caches.keys().then(names => {
+              names.forEach(name => caches.delete(name))
+            })
+          }
         }
         
         console.log('🧹 AGGRESSIVELY cleared ALL terminal data for video:', currentVideoId)
@@ -222,8 +227,8 @@ export default function EnhancedTerminal({ clearOnNewGeneration = true, currentV
           }
         }
         
-        // Poll every 2 seconds for more responsive updates
-        const pollInterval = setInterval(pollLogs, 2000)
+        // Poll every 5 seconds to reduce connection errors
+        const pollInterval = setInterval(pollLogs, 5000)
         
         // Initial poll
         pollLogs()
