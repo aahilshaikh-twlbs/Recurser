@@ -22,8 +22,8 @@ import queue
 # Load environment variables
 load_dotenv()
 
-# Configure logging with reduced verbosity
-logging.basicConfig(level=logging.WARNING)  # Only show warnings and errors by default
+# Configure logging to capture all app logs for streaming
+logging.basicConfig(level=logging.INFO)  # Capture INFO level for streaming
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)  # Keep our app logs at INFO level
 
@@ -48,10 +48,14 @@ class StreamLogHandler(logging.Handler):
             # Remove oldest logs to keep only 200 most recent
             global_log_buffer[:] = global_log_buffer[-200:]
 
-# Add the custom handler to the logger
+# Add the custom handler to both app logger and root logger to catch all logs
 stream_handler = StreamLogHandler()
 stream_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
 logger.addHandler(stream_handler)
+
+# Also add to root logger to catch all application logs
+root_logger = logging.getLogger()
+root_logger.addHandler(stream_handler)
 
 # API Keys
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
