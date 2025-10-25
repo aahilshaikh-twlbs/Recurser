@@ -471,7 +471,7 @@ class VideoGenerationService:
                                 status = 'completed',
                                 updated_at = CURRENT_TIMESTAMP
                             WHERE id = ?
-                        """, (quality_score, current_iteration, video_id))
+                        """, (current_confidence, current_iteration, video_id))
                         conn.commit()
                         conn.close()
                         

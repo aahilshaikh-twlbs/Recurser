@@ -182,7 +182,15 @@ export default function EnhancedTerminal({ clearOnNewGeneration = true, currentV
           } catch (error) {
             console.error('Log polling error:', error)
             setIsConnected(false)
-            setConnectionAttempts(prev => prev + 1)
+            setConnectionAttempts(prev => {
+              const newAttempts = prev + 1
+              // Only log every 5th attempt to reduce noise
+              if (newAttempts % 5 === 0) {
+                console.warn(`Log polling failed ${newAttempts} times, continuing to retry...`)
+              }
+              return newAttempts
+            })
+            // Don't stop polling on errors - keep trying
           }
         }
         
@@ -314,7 +322,7 @@ export default function EnhancedTerminal({ clearOnNewGeneration = true, currentV
           <div className="flex items-center space-x-2">
             <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-400 animate-pulse' : 'bg-red-400'}`} />
             <span className="text-xs text-gray-400">
-              {isConnected ? 'Connected' : `Reconnecting... (${connectionAttempts})`}
+              {isConnected ? 'Connected' : connectionAttempts > 10 ? `Retrying... (${connectionAttempts})` : `Reconnecting... (${connectionAttempts})`}
             </span>
           </div>
         </div>
