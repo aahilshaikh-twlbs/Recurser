@@ -1821,37 +1821,6 @@ async def get_recent_logs(limit: int = 50):
             "count": 0
         }
 
-# @app.get("/api/test-logs")
-# async def test_logs():
-#     """Test endpoint to verify logs are working and add to stream"""
-#     current_time = datetime.now().strftime("%H:%M:%S")
-#     
-#     # Add logs to the global buffer for streaming
-#     test_logs = [
-#         f"[{current_time}] ℹ️ Test log message 1",
-#         f"[{(datetime.now() + timedelta(seconds=1)).strftime('%H:%M:%S')}] ✅ Test success message",
-#         f"[{(datetime.now() + timedelta(seconds=2)).strftime('%H:%M:%S')}] ⚠️ Test warning message"
-#     ]
-#     
-#     # Add to global log buffer for streaming
-#     for log in test_logs:
-#         global_log_buffer.append({
-#             'log': log,
-#             'timestamp': datetime.now().isoformat(),
-#             'source': 'test',
-#             'level': 'INFO'
-#         })
-#     
-#     # Also log normally
-#     logger.info("🧪 Test logs generated for streaming")
-#     
-#     return {
-#         "success": True,
-#         "data": {
-#             "logs": test_logs
-#         }
-#     }
-
 @app.get("/api/debug-logs")
 async def debug_logs():
     """Debug endpoint to check what's in progress_logs memory"""
