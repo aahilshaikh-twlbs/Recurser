@@ -41,11 +41,12 @@ export default function VideoPlayerEnhanced({ videoId, thumbnailUrl, className =
         console.log('📋 Video info:', info)
         
         if (info.type === 'local' && info.local_available) {
-          // Local MP4 available
+          // Local MP4 available - add cache busting to ensure fresh video
           if (mounted) {
             setVideoType('local')
-            setVideoUrl(`/api/videos/${videoId}/play`)
-            console.log('📹 Using local MP4 for video', videoId)
+            const cacheBust = `?t=${Date.now()}`
+            setVideoUrl(`/api/videos/${videoId}/play${cacheBust}`)
+            console.log('📹 Using local MP4 for video', videoId, 'with cache bust:', cacheBust)
           }
         } else if (info.type === 'hls' && info.hls_url) {
           // HLS stream available

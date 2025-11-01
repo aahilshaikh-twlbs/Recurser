@@ -2549,7 +2549,8 @@ async def play_video(video_id: int):
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
         
-        cursor.execute("SELECT video_path, twelvelabs_video_id, index_id FROM videos WHERE id = ?", (video_id,))
+        # Get full video info including prompt to verify it's the right video
+        cursor.execute("SELECT video_path, twelvelabs_video_id, index_id, prompt, source_video_id FROM videos WHERE id = ?", (video_id,))
         video = cursor.fetchone()
         
         if not video:
@@ -2559,9 +2560,12 @@ async def play_video(video_id: int):
         video_path = video[0]
         twelvelabs_video_id = video[1]
         index_id = video[2]
+        prompt = video[3]
+        source_video_id = video[4]
         conn.close()
         
-        logger.info(f"🎬 Video play request: {video_id}, path: {video_path}, tl_id: {twelvelabs_video_id}")
+        logger.info(f"🎬 Video play request: video_id={video_id}, path={video_path}, tl_id={twelvelabs_video_id}, source_id={source_video_id}")
+        logger.info(f"📝 Video prompt: {prompt[:100] if prompt else 'None'}...")
         
         # Check if local file exists and is accessible
         local_file_available = video_path and os.path.exists(video_path)
@@ -2569,8 +2573,17 @@ async def play_video(video_id: int):
         # Check if TwelveLabs video is available
         twelvelabs_available = bool(twelvelabs_video_id and index_id)
         
+        # Verify we're not accidentally using the source video
+        if source_video_id and str(twelvelabs_video_id) == str(source_video_id):
+            logger.warning(f"⚠️ WARNING: Video {video_id} twelvelabs_video_id matches source_video_id - this might be the wrong video!")
+        
         # Prioritize local files (final iterations) for simple display
         if local_file_available:
+            # Verify the file is actually for this video_id (check filename)
+            filename = os.path.basename(video_path)
+            if f"_{video_id}_" not in filename and f"_iter" not in filename:
+                logger.warning(f"⚠️ WARNING: Video file {filename} doesn't match video_id {video_id} pattern!")
+            
             logger.info(f"✅ Serving final iteration locally: {video_path}")
             return FileResponse(
                 path=video_path,
@@ -2578,7 +2591,9 @@ async def play_video(video_id: int):
                 filename=f"video_{video_id}.mp4",
                 headers={
                     "Accept-Ranges": "bytes",
-                    "Cache-Control": "public, max-age=3600"
+                    "Cache-Control": "no-cache, no-store, must-revalidate",  # Disable caching to prevent wrong videos
+                    "Pragma": "no-cache",
+                    "Expires": "0"
                 }
             )
         elif twelvelabs_available:
