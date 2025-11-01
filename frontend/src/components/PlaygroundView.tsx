@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Play, Search, RefreshCw, AlertCircle, ArrowRight } from 'lucide-react'
+import { Play, RefreshCw, AlertCircle, ArrowRight } from 'lucide-react'
 import { getVideosFromIndex } from '@/lib/api'
 import { API_CONFIG, apiRequest } from '@/lib/config'
 import HLSVideoPlayer from './HLSVideoPlayer'
@@ -29,7 +29,6 @@ export default function PlaygroundView({ onVideoSelected }: PlaygroundViewProps)
   const [error, setError] = useState<string | null>(null)
   const [selectedVideo, setSelectedVideo] = useState<Video | null>(null)
   const [isEnhancing, setIsEnhancing] = useState(false)
-  const [searchTerm, setSearchTerm] = useState('')
 
   useEffect(() => {
     loadPlaygroundVideos()
@@ -73,10 +72,8 @@ export default function PlaygroundView({ onVideoSelected }: PlaygroundViewProps)
     loadPlaygroundVideos()
   }
 
-  const filteredVideos = videos.filter(video => {
-    return (video.title || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-           (video.description || '').toLowerCase().includes(searchTerm.toLowerCase())
-  })
+  // No filtering needed since search is removed
+  const filteredVideos = videos
 
   const formatDuration = (seconds: number | string | null | undefined): string => {
     // Handle various input types safely
@@ -118,21 +115,16 @@ export default function PlaygroundView({ onVideoSelected }: PlaygroundViewProps)
 
   return (
     <div className="space-y-6 mt-6">
-      {/* Search Bar */}
-      <div className="flex gap-4">
-        <div className="flex-1 relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-          <input
-            type="text"
-            placeholder="Search videos..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-          />
+      {/* Header with Refresh and Demo Note */}
+      <div className="flex items-center justify-between">
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex-1 mr-4">
+          <p className="text-sm text-blue-800">
+            <strong>Demo Note:</strong> We have 3 videos starting with REAL and 3 starting with AI, just for demo purposes. We labeled 3 of each type so you can mess around.
+          </p>
         </div>
         <button
           onClick={refreshVideos}
-          className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+          className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors flex-shrink-0"
           title="Refresh videos"
         >
           <RefreshCw className="w-5 h-5 text-gray-600" />
@@ -176,9 +168,6 @@ export default function PlaygroundView({ onVideoSelected }: PlaygroundViewProps)
                   <Play className="w-12 h-12 text-white opacity-80" />
                 </div>
               )}
-              <div className="absolute top-2 right-2 bg-black bg-opacity-60 text-white text-xs px-2 py-1 rounded">
-                {formatDuration(video.duration)}
-              </div>
               <div className="absolute inset-0 bg-black bg-opacity-0 hover:bg-opacity-20 transition-all flex items-center justify-center">
                 <div className="opacity-0 hover:opacity-100 transition-opacity">
                   <ArrowRight className="w-8 h-8 text-white" />
@@ -215,9 +204,7 @@ export default function PlaygroundView({ onVideoSelected }: PlaygroundViewProps)
       {filteredVideos.length === 0 && !loading && (
         <div className="text-center py-12">
           <p className="text-gray-500">
-            {searchTerm 
-              ? 'No videos found matching your search.' 
-              : 'No videos available in this index yet.'}
+            No videos available in this index yet.
           </p>
           {videos.length === 0 && (
             <button
