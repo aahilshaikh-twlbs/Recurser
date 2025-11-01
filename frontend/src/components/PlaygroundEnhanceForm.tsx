@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form'
 import { AlertCircle, Loader2, Sparkles, Video, ArrowRight } from 'lucide-react'
 
 interface FormData {
-  maxAttempts: '3' | '5' | '10' | 'unlimited'
+  maxAttempts: '2' | '3' | '5' | 'custom'
 }
 
 interface PlaygroundEnhanceFormProps {
@@ -19,22 +19,18 @@ export default function PlaygroundEnhanceForm({
 }: PlaygroundEnhanceFormProps) {
   const [isGenerating, setIsGenerating] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [showUnlimitedWarning, setShowUnlimitedWarning] = useState(false)
   const [isAnalyzing, setIsAnalyzing] = useState(false)
+  const [customIterations, setCustomIterations] = useState<string>('')
 
   const defaultValues = useMemo(() => ({
-    maxAttempts: '5' as const
+    maxAttempts: '3' as const
   }), [])
 
-  const { register, handleSubmit, watch } = useForm<FormData>({
+  const { register, handleSubmit, watch, setValue } = useForm<FormData>({
     defaultValues
   })
 
   const watchedMaxAttempts = watch('maxAttempts')
-
-  useEffect(() => {
-    setShowUnlimitedWarning(watchedMaxAttempts === 'unlimited')
-  }, [watchedMaxAttempts])
 
   // Don't auto-submit - let user configure first
   // useEffect(() => {
@@ -52,6 +48,15 @@ export default function PlaygroundEnhanceForm({
       return
     }
 
+    // Validate custom iterations if custom is selected
+    if (data.maxAttempts === 'custom') {
+      const customNum = parseInt(customIterations, 10)
+      if (isNaN(customNum) || customNum < 1 || customNum > 10) {
+        setError('Custom iterations must be between 1 and 10')
+        return
+      }
+    }
+
     setIsGenerating(true)
     setError(null)
     setIsAnalyzing(true)
@@ -61,11 +66,19 @@ export default function PlaygroundEnhanceForm({
       const videoTitle = String(selectedVideo.title || 'Untitled')
       const videoId = String(selectedVideo.id || 'unknown')
       
+      // Calculate max_retries based on selection
+      let maxRetries: number
+      if (data.maxAttempts === 'custom') {
+        maxRetries = parseInt(customIterations, 10)
+      } else {
+        maxRetries = parseInt(data.maxAttempts, 10)
+      }
+      
       const payload = {
         prompt: `Analyze and enhance this existing video from the playground. Video ID: ${videoId}, Title: ${videoTitle}. This is a pre-existing video that needs recursive improvement.`,
         project_name: `Enhance_${videoTitle.replace(/[^a-zA-Z0-9]/g, '_')}_${String(Date.now())}`,
         confidence_threshold: 100,
-        max_retries: data.maxAttempts === 'unlimited' ? 999 : parseInt(data.maxAttempts, 10),
+        max_retries: maxRetries,
         index_id: '68d0f9e55705aa622335acb0', // Recurser test index for iterations
         video_id: videoId, // Pass the original video ID for analysis
         is_playground_video: true // Flag to indicate this is from playground
@@ -135,7 +148,17 @@ export default function PlaygroundEnhanceForm({
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Maximum Enhancement Iterations
           </label>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
+            <label className="flex items-center p-3 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
+              <input
+                type="radio"
+                {...register('maxAttempts')}
+                value="2"
+                className="mr-2"
+              />
+              <span className="text-sm">2 iterations</span>
+            </label>
+            
             <label className="flex items-center p-3 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
               <input
                 type="radio"
@@ -160,40 +183,29 @@ export default function PlaygroundEnhanceForm({
               <input
                 type="radio"
                 {...register('maxAttempts')}
-                value="10"
+                value="custom"
                 className="mr-2"
               />
-              <span className="text-sm">10 iterations</span>
+              <span className="text-sm">Custom</span>
             </label>
-            
-            <label className="flex items-center p-3 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
+          </div>
+          
+          {/* Custom Number Input */}
+          {watchedMaxAttempts === 'custom' && (
+            <div className="mt-2">
               <input
-                type="radio"
-                {...register('maxAttempts')}
-                value="unlimited"
-                className="mr-2"
+                type="number"
+                min="1"
+                max="10"
+                value={customIterations}
+                onChange={(e) => setCustomIterations(e.target.value)}
+                placeholder="Enter number (1-10)"
+                className="w-full md:w-48 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
               />
-              <span className="text-sm">Unlimited</span>
-            </label>
-          </div>
-        </div>
-
-        {/* Unlimited Warning */}
-        {showUnlimitedWarning && (
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-            <div className="flex items-start space-x-3">
-              <AlertCircle className="w-5 h-5 text-yellow-600 mt-0.5" />
-              <div className="flex-1">
-                <h4 className="text-sm font-semibold text-yellow-800 mb-1">
-                  Unlimited Iterations Selected
-                </h4>
-                <p className="text-sm text-yellow-700">
-                  The enhancement process will continue until optimal quality is achieved. This may take significant time and resources.
-                </p>
-              </div>
+              <p className="text-xs text-gray-500 mt-1">Enter a number between 1 and 10</p>
             </div>
-          </div>
-        )}
+          )}
+        </div>
 
         {/* Error Display */}
         {error && (
@@ -229,18 +241,17 @@ export default function PlaygroundEnhanceForm({
         </button>
 
         {/* Info Box */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
           <div className="flex items-start space-x-3">
-            <Sparkles className="w-5 h-5 text-blue-600 mt-0.5" />
+            <Sparkles className="w-5 h-5 text-gray-600 mt-0.5" />
             <div className="flex-1">
-              <h4 className="text-sm font-semibold text-blue-800 mb-1">
+              <h4 className="text-sm font-semibold text-gray-900 mb-2">
                 How Recursive Enhancement Works
               </h4>
-              <ul className="text-sm text-blue-700 space-y-1">
+              <ul className="text-sm text-gray-700 space-y-1.5">
                 <li>• The video will be analyzed to understand its content</li>
                 <li>• Each iteration will improve quality and coherence</li>
                 <li>• Progress is tracked with quality scores</li>
-                <li>• Enhanced versions are saved to the test index</li>
               </ul>
             </div>
           </div>
