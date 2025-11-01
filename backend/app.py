@@ -463,20 +463,30 @@ class VideoGenerationService:
                     if quality_score >= target_confidence:
                         logger.info(f"🎉 SUCCESS! Video passes as real - No AI indicators detected at iteration {current_iteration}")
                         log_detailed(video_id, f"SUCCESS! Video passes as real - No AI indicators detected at iteration {current_iteration}", "SUCCESS")
-                        current_confidence = 100.0  # Maximum confidence since it passes as real
+                        # Use the actual quality_score (which should be 100.0) to ensure accuracy
+                        current_confidence = max(quality_score, 100.0)  # Ensure at least 100.0 since it passes as real
                         
-                        # Update database with success
+                        logger.info(f"✅ Setting final confidence to {current_confidence:.1f}% for video {video_id}")
+                        
+                        # Update database with success - ensure we use the quality_score directly
                         conn = sqlite3.connect(DB_PATH)
                         cursor = conn.cursor()
+                        final_confidence_value = max(quality_score, 100.0)
                         cursor.execute("""
                             UPDATE videos SET 
                                 current_confidence = ?, 
                                 iteration_count = ?,
                                 status = 'completed',
+                                progress = 100,
                                 updated_at = CURRENT_TIMESTAMP
                             WHERE id = ?
-                        """, (current_confidence, current_iteration, video_id))
+                        """, (final_confidence_value, current_iteration, video_id))
                         conn.commit()
+                        
+                        # Verify the update
+                        cursor.execute("SELECT current_confidence FROM videos WHERE id = ?", (video_id,))
+                        verify_result = cursor.fetchone()
+                        logger.info(f"✅ Verified: Database now has current_confidence = {verify_result[0] if verify_result else 'NULL'} for video {video_id}")
                         conn.close()
                         
                         break  # Stop iterations - we've achieved success!
@@ -551,8 +561,18 @@ class VideoGenerationService:
                 break
         
         # Final status update - ensure current_confidence is preserved
+        # Read current value from DB first to ensure we don't overwrite a higher value
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
+        cursor.execute("SELECT current_confidence FROM videos WHERE id = ?", (video_id,))
+        db_confidence = cursor.fetchone()
+        db_confidence_value = db_confidence[0] if db_confidence and db_confidence[0] is not None else current_confidence
+        
+        # Use the maximum of what we calculated vs what's in the database
+        final_confidence = max(current_confidence, db_confidence_value if db_confidence_value else 0.0)
+        
+        logger.info(f"🎯 Final update: calculated={current_confidence:.1f}%, db={db_confidence_value if db_confidence_value else 0.0:.1f}%, using={final_confidence:.1f}%")
+        
         cursor.execute("""
             UPDATE videos SET 
                 status = 'completed',
@@ -560,11 +580,11 @@ class VideoGenerationService:
                 current_confidence = ?,
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
-        """, (current_confidence, video_id))
+        """, (final_confidence, video_id))
         conn.commit()
         conn.close()
         
-        logger.info(f"🎯 Iterative generation completed: {current_iteration - 1} iterations, {current_confidence:.1f}% confidence")
+        logger.info(f"🎯 Iterative generation completed: {current_iteration - 1} iterations, {final_confidence:.1f}% confidence")
     
     @staticmethod
     async def generate_video(prompt: str, video_id: int, index_id: str, twelvelabs_api_key: str, gemini_api_key: Optional[str] = None, iteration: int = 1):
@@ -2155,22 +2175,38 @@ async def get_video_status(video_id: int):
         # logger.info(f"📊 Video {video_id}: Full video record: {video}")  # Removed verbose logging
         # log_detailed(video_id, f"🔧 DEBUG: Retrieved max_iterations = {video[13]} from database", "INFO")  # Removed verbose logging
         
+        # Determine better status display
+        raw_status = video[3]
+        if raw_status == "pending":
+            status = "starting"
+        elif raw_status == "generating":
+            status = "generating"
+        elif raw_status == "analyzing":
+            status = "analyzing"
+        elif raw_status == "completed":
+            status = "completed"
+        elif raw_status == "failed":
+            status = "failed"
+        else:
+            status = raw_status
+        
         # Get the actual confidence score from the database
         # Use current_confidence (video[6]) which is the quality score
+        # Ensure we never return 0.0 if the video is completed and quality_score was 100.0
         final_confidence = video[6] if video[6] is not None else 0.0
         
-        # Determine better status display
-        status = video[3]
-        if status == "pending":
-            status = "starting"
-        elif status == "generating":
-            status = "generating"
-        elif status == "analyzing":
-            status = "analyzing"
-        elif status == "completed":
-            status = "completed"
-        elif status == "failed":
-            status = "failed"
+        # If video is completed but confidence is 0.0, check if we have a quality_score in analysis_results
+        if final_confidence == 0.0 and status == 'completed' and analysis_data:
+            quality_score_from_analysis = analysis_data.get('quality_score', None)
+            if quality_score_from_analysis and quality_score_from_analysis >= 100.0:
+                logger.info(f"📊 Video {video_id}: Found quality_score={quality_score_from_analysis}% in analysis, updating final_confidence from 0.0")
+                final_confidence = quality_score_from_analysis
+                # Update the database with the correct value
+                conn_temp = sqlite3.connect(DB_PATH)
+                cursor_temp = conn_temp.cursor()
+                cursor_temp.execute("UPDATE videos SET current_confidence = ? WHERE id = ?", (final_confidence, video_id))
+                conn_temp.commit()
+                conn_temp.close()
         
         # Check video playback availability
         video_available_locally = video[4] and os.path.exists(video[4]) if video[4] else False
