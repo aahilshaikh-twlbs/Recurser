@@ -470,6 +470,9 @@ class VideoGenerationService:
                         
                         # Update database with success - ensure we use the quality_score directly
                         conn = sqlite3.connect(DB_PATH)
+                        # Ensure writes are immediately visible to other connections
+                        conn.execute("PRAGMA synchronous=NORMAL")
+                        conn.execute("PRAGMA journal_mode=WAL")
                         cursor = conn.cursor()
                         final_confidence_value = max(quality_score, 100.0)
                         cursor.execute("""
@@ -482,12 +485,24 @@ class VideoGenerationService:
                             WHERE id = ?
                         """, (final_confidence_value, current_iteration, video_id))
                         conn.commit()
+                        # Checkpoint WAL to ensure changes are visible to other connections
+                        try:
+                            conn.execute("PRAGMA wal_checkpoint")
+                        except:
+                            pass  # Ignore if WAL not available
                         
-                        # Verify the update
+                        # Verify the update immediately
                         cursor.execute("SELECT current_confidence FROM videos WHERE id = ?", (video_id,))
                         verify_result = cursor.fetchone()
-                        logger.info(f"✅ Verified: Database now has current_confidence = {verify_result[0] if verify_result else 'NULL'} for video {video_id}")
+                        verified_value = verify_result[0] if verify_result else None
+                        logger.info(f"✅ Verified: Database now has current_confidence = {verified_value} for video {video_id}")
                         conn.close()
+                        
+                        # Set current_confidence to ensure final update uses correct value
+                        current_confidence = final_confidence_value
+                        
+                        # Small delay to ensure DB write propagates to other connections
+                        await asyncio.sleep(0.2)
                         
                         break  # Stop iterations - we've achieved success!
                     
@@ -564,15 +579,29 @@ class VideoGenerationService:
         # Read current value from DB first to ensure we don't overwrite a higher value
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
-        cursor.execute("SELECT current_confidence FROM videos WHERE id = ?", (video_id,))
-        db_confidence = cursor.fetchone()
-        db_confidence_value = db_confidence[0] if db_confidence and db_confidence[0] is not None else current_confidence
+        cursor.execute("SELECT current_confidence, status FROM videos WHERE id = ?", (video_id,))
+        db_result = cursor.fetchone()
         
-        # Use the maximum of what we calculated vs what's in the database
-        final_confidence = max(current_confidence, db_confidence_value if db_confidence_value else 0.0)
+        if db_result:
+            db_confidence_value = db_result[0] if db_result[0] is not None else None
+            db_status = db_result[1]
+            
+            # If already completed with a HIGH confidence (>=90), don't overwrite
+            # But if confidence is low or missing, we should update
+            if db_status == 'completed' and db_confidence_value is not None and db_confidence_value >= 90.0:
+                logger.info(f"🎯 Video {video_id} already completed with high confidence={db_confidence_value:.1f}%, skipping final update to preserve")
+                conn.close()
+                return
+            
+            # Use the maximum of what we calculated vs what's in the database
+            # Prefer our calculated value if it's higher
+            final_confidence = max(current_confidence, db_confidence_value if db_confidence_value else 0.0)
+        else:
+            final_confidence = current_confidence
         
-        logger.info(f"🎯 Final update: calculated={current_confidence:.1f}%, db={db_confidence_value if db_confidence_value else 0.0:.1f}%, using={final_confidence:.1f}%")
+        logger.info(f"🎯 Final update: calculated={current_confidence:.1f}%, db={db_result[0] if db_result and db_result[0] is not None else 0.0:.1f}%, using={final_confidence:.1f}%")
         
+        # Only update if we have a meaningful confidence or status isn't completed
         cursor.execute("""
             UPDATE videos SET 
                 status = 'completed',
@@ -582,6 +611,11 @@ class VideoGenerationService:
             WHERE id = ?
         """, (final_confidence, video_id))
         conn.commit()
+        
+        # Verify immediately after commit
+        cursor.execute("SELECT current_confidence FROM videos WHERE id = ?", (video_id,))
+        verify_final = cursor.fetchone()
+        logger.info(f"🎯 Final verification: Database has current_confidence = {verify_final[0] if verify_final else 'NULL'} for video {video_id}")
         conn.close()
         
         logger.info(f"🎯 Iterative generation completed: {current_iteration - 1} iterations, {final_confidence:.1f}% confidence")

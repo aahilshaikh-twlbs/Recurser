@@ -129,9 +129,16 @@ export default function ProjectStatus({ project: initialProject }: ProjectStatus
             disconnectedBufferTimeout = null
           }
           
-          // Stop polling if completed or failed
-          if (result.data.status === 'completed' || result.data.status === 'failed') {
+          // Stop polling if completed or failed, BUT keep polling if completed with 0% confidence (might still be updating)
+          if (result.data.status === 'failed') {
             setIsPolling(false)
+          } else if (result.data.status === 'completed') {
+            // Only stop polling if we have a meaningful confidence score (> 0) or after a reasonable time
+            const hasConfidence = result.data.final_confidence > 0 || result.data.current_confidence > 0
+            if (hasConfidence) {
+              setIsPolling(false)
+            }
+            // Otherwise keep polling for up to 2 more minutes to catch the confidence update
           }
         } else {
           throw new Error('Invalid response format')
