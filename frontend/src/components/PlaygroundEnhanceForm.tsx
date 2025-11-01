@@ -148,7 +148,7 @@ export default function PlaygroundEnhanceForm({
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Maximum Enhancement Iterations
           </label>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <label className="flex items-center p-3 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
               <input
                 type="radio"
@@ -179,32 +179,42 @@ export default function PlaygroundEnhanceForm({
               <span className="text-sm">5 iterations</span>
             </label>
             
-            <label className="flex items-center p-3 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
+            <label 
+              className={`flex items-center p-3 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 ${
+                watchedMaxAttempts === 'custom' ? 'bg-gray-50' : ''
+              }`}
+              onClick={(e) => {
+                if (watchedMaxAttempts !== 'custom') {
+                  setValue('maxAttempts', 'custom')
+                }
+              }}
+            >
               <input
                 type="radio"
                 {...register('maxAttempts')}
                 value="custom"
                 className="mr-2"
               />
-              <span className="text-sm">Custom</span>
+              <div className="flex items-center gap-2 flex-1">
+                <span className="text-sm">Custom</span>
+                {watchedMaxAttempts === 'custom' && (
+                  <input
+                    type="number"
+                    min="1"
+                    max="10"
+                    value={customIterations}
+                    onChange={(e) => {
+                      setCustomIterations(e.target.value)
+                      e.stopPropagation()
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                    placeholder="#"
+                    className="w-16 px-2 py-1 text-sm border-0 border-b-2 border-gray-400 focus:border-primary-600 focus:outline-none bg-transparent text-center"
+                  />
+                )}
+              </div>
             </label>
           </div>
-          
-          {/* Custom Number Input */}
-          {watchedMaxAttempts === 'custom' && (
-            <div className="mt-2">
-              <input
-                type="number"
-                min="1"
-                max="10"
-                value={customIterations}
-                onChange={(e) => setCustomIterations(e.target.value)}
-                placeholder="Enter number (1-10)"
-                className="w-full md:w-48 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-              />
-              <p className="text-xs text-gray-500 mt-1">Enter a number between 1 and 10</p>
-            </div>
-          )}
         </div>
 
         {/* Error Display */}
@@ -241,17 +251,19 @@ export default function PlaygroundEnhanceForm({
         </button>
 
         {/* Info Box */}
-        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
           <div className="flex items-start space-x-3">
-            <Sparkles className="w-5 h-5 text-gray-600 mt-0.5" />
+            <Sparkles className="w-5 h-5 text-blue-600 mt-0.5" />
             <div className="flex-1">
-              <h4 className="text-sm font-semibold text-gray-900 mb-2">
+              <h4 className="text-sm font-semibold text-blue-900 mb-2">
                 How Recursive Enhancement Works
               </h4>
-              <ul className="text-sm text-gray-700 space-y-1.5">
-                <li>• The video will be analyzed to understand its content</li>
-                <li>• Each iteration will improve quality and coherence</li>
-                <li>• Progress is tracked with quality scores</li>
+              <ul className="text-sm text-blue-800 space-y-1.5">
+                <li>• AI analyzes your video to detect artifacts and quality issues</li>
+                <li>• Each iteration generates an improved version targeting specific problems</li>
+                <li>• Quality scores (0-100%) track progress - aim for 90%+ for best results</li>
+                <li>• Process automatically stops when target quality is reached or max iterations hit</li>
+                <li>• Enhanced videos replace previous versions - no need to manage multiple files</li>
               </ul>
             </div>
           </div>
