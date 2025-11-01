@@ -550,16 +550,17 @@ class VideoGenerationService:
                     logger.info(f"✅ Target confidence {target_confidence}% reached at iteration {current_iteration - 1}")
                 break
         
-        # Final status update
+        # Final status update - ensure current_confidence is preserved
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
         cursor.execute("""
             UPDATE videos SET 
                 status = 'completed',
                 progress = 100,
+                current_confidence = ?,
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
-        """, (video_id,))
+        """, (current_confidence, video_id))
         conn.commit()
         conn.close()
         
@@ -963,7 +964,11 @@ class AIDetectionService:
                 logger.warning(f"Search query failed for {category}: {e}")
         
         logger.info(f"🔍 Total AI indicators found: {len(all_results)}")
-        log_detailed(video_id, f"Search completed: {len(all_results)} AI indicators found", "INFO")
+        if len(all_results) == 0:
+            logger.info(f"✅ No AI indicators found - video passes quality check!")
+            log_detailed(video_id, f"✅ Search completed: 0 AI indicators found - Video passes as real!", "SUCCESS")
+        else:
+            log_detailed(video_id, f"Search completed: {len(all_results)} AI indicators found", "INFO")
         return all_results
     
     @staticmethod

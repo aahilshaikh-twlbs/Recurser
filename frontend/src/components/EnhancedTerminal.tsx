@@ -178,6 +178,8 @@ export default function EnhancedTerminal({ clearOnNewGeneration = true, currentV
                       highlight = { id: logEntry.id, message: `📊 ${message}`, type: 'info', timestamp: logEntry.timestamp }
                     } else if (message.includes('SUCCESS') || message.includes('Video passes as real')) {
                       highlight = { id: logEntry.id, message: `✅ ${message}`, type: 'success', timestamp: logEntry.timestamp }
+                    } else if (message.includes('0 AI indicators found') || (message.includes('Search completed') && message.includes('0 AI'))) {
+                      highlight = { id: logEntry.id, message: `✅ ${message}`, type: 'success', timestamp: logEntry.timestamp }
                     } else if (message.includes('AI indicators found') || message.includes('artifacts detected')) {
                       highlight = { id: logEntry.id, message: `⚠️ ${message}`, type: 'warning', timestamp: logEntry.timestamp }
                     } else if (message.includes('Pegasus content analysis') && !message.includes('failed')) {
@@ -257,16 +259,26 @@ export default function EnhancedTerminal({ clearOnNewGeneration = true, currentV
   }, [])
 
   // Smart auto-scroll: only scroll if user isn't manually scrolling
+  // Use requestAnimationFrame to prevent affecting page scroll
   useEffect(() => {
     if (!isUserScrolling && terminalRef.current) {
-      terminalRef.current.scrollTop = terminalRef.current.scrollHeight
+      requestAnimationFrame(() => {
+        if (terminalRef.current) {
+          terminalRef.current.scrollTop = terminalRef.current.scrollHeight
+        }
+      })
     }
   }, [logs, isUserScrolling])
 
   // Auto-scroll highlights to bottom (always, since it's a smaller area)
+  // Use requestAnimationFrame to prevent affecting page scroll
   useEffect(() => {
     if (highlightsRef.current) {
-      highlightsRef.current.scrollTop = highlightsRef.current.scrollHeight
+      requestAnimationFrame(() => {
+        if (highlightsRef.current) {
+          highlightsRef.current.scrollTop = highlightsRef.current.scrollHeight
+        }
+      })
     }
   }, [highlights])
 
@@ -462,11 +474,11 @@ export default function EnhancedTerminal({ clearOnNewGeneration = true, currentV
                     {highlight.type === 'iteration' && <Zap className="w-3 h-3" />}
                   </div>
                   <div className="flex-1">
-                    <div className="font-medium mb-0.5">
-                      {highlight.message.slice(0, 100)}
-                      {highlight.message.length > 100 ? '...' : ''}
+                    <div className="font-medium mb-0.5 break-words">
+                      {/* Remove timestamps and dates from message if they're already embedded */}
+                      {highlight.message.replace(/\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}[,\d]*\s*-\s*\w+\s*-\s*(INFO|WARNING|ERROR|SUCCESS)\s*-\s*/gi, '').trim()}
                     </div>
-                    <div className="text-gray-500 text-[10px]">
+                    <div className="text-gray-500 text-[10px] mt-1">
                       {formatTime(highlight.timestamp)}
                     </div>
                   </div>

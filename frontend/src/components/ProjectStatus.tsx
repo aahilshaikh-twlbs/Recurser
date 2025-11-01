@@ -105,6 +105,7 @@ export default function ProjectStatus({ project: initialProject }: ProjectStatus
 
     let pollCount = 0
     const maxPollAttempts = 3
+    let disconnectedBufferTimeout: NodeJS.Timeout | null = null
 
     const pollStatus = async () => {
       try {
@@ -121,6 +122,12 @@ export default function ProjectStatus({ project: initialProject }: ProjectStatus
           setLastUpdateTime(new Date())
           setIsConnected(true)
           pollCount = 0 // Reset on successful poll
+          
+          // Clear any pending disconnected state
+          if (disconnectedBufferTimeout) {
+            clearTimeout(disconnectedBufferTimeout)
+            disconnectedBufferTimeout = null
+          }
           
           // Stop polling if completed or failed
           if (result.data.status === 'completed' || result.data.status === 'failed') {
@@ -144,9 +151,15 @@ export default function ProjectStatus({ project: initialProject }: ProjectStatus
       } catch (error) {
         console.error('Error polling status:', error)
         
-        // Only show disconnected after multiple failed attempts
+        // Only show disconnected after multiple failed attempts AND add a buffer delay
         if (pollCount >= maxPollAttempts) {
-          setIsConnected(false)
+          // Add 2 second buffer before showing disconnected status
+          if (disconnectedBufferTimeout) {
+            clearTimeout(disconnectedBufferTimeout)
+          }
+          disconnectedBufferTimeout = setTimeout(() => {
+            setIsConnected(false)
+          }, 2000)
         }
       }
     }
@@ -157,7 +170,12 @@ export default function ProjectStatus({ project: initialProject }: ProjectStatus
     // Set up interval for polling - more frequent for better responsiveness
     const interval = setInterval(pollStatus, 1000) // Poll every 1 second for faster video updates
 
-    return () => clearInterval(interval)
+    return () => {
+      clearInterval(interval)
+      if (disconnectedBufferTimeout) {
+        clearTimeout(disconnectedBufferTimeout)
+      }
+    }
   }, [project?.video_id, isPolling])
 
   const getStatusMessage = () => {
