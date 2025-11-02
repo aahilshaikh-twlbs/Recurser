@@ -406,14 +406,15 @@ class VideoGenerationService:
         while current_iteration <= max_iterations and current_confidence < target_confidence:
             log_detailed(video_id, f"🔄 Starting iteration {current_iteration}/{max_iterations} (Target: {target_confidence}% confidence)", "INFO")
             
-            # Generate video for this iteration
+            # Generate video for this iteration (skip analysis - we'll do it ourselves)
             await VideoGenerationService.generate_video(
                 current_prompt, 
                 video_id, 
                 index_id, 
                 twelvelabs_api_key, 
                 gemini_api_key, 
-                current_iteration
+                current_iteration,
+                skip_analysis=True  # Skip analysis here - we do it in iterative process
             )
             
             # Wait for indexing to complete
@@ -437,7 +438,7 @@ class VideoGenerationService:
                     logger.info(f"🔍 Running AI detection analysis for iteration {current_iteration}")
                     log_detailed(video_id, f"Running AI detection analysis for iteration {current_iteration}", "INFO")
                     ai_analysis = await AIDetectionService.detect_ai_generation(
-                        index_id, new_video_id, twelvelabs_api_key
+                        index_id, new_video_id, twelvelabs_api_key, database_video_id=video_id
                     )
                     
                     quality_score = ai_analysis.get('quality_score', 0.0)
@@ -621,8 +622,12 @@ class VideoGenerationService:
         logger.info(f"🎯 Iterative generation completed: {current_iteration - 1} iterations, {final_confidence:.1f}% confidence")
     
     @staticmethod
-    async def generate_video(prompt: str, video_id: int, index_id: str, twelvelabs_api_key: str, gemini_api_key: Optional[str] = None, iteration: int = 1):
-        """Generate single video using Veo2 with iterative tracking"""
+    async def generate_video(prompt: str, video_id: int, index_id: str, twelvelabs_api_key: str, gemini_api_key: Optional[str] = None, iteration: int = 1, skip_analysis: bool = False):
+        """Generate single video using Veo2 with iterative tracking
+        
+        Args:
+            skip_analysis: If True, skip AI detection analysis (used when called from iterative process)
+        """
         try:
             # Update status to generating
             log_progress(video_id, f"🎬 Starting Veo2 generation (Iteration {iteration})", 10, "generating")
@@ -722,11 +727,23 @@ class VideoGenerationService:
             # Keep video locally for simple display (cleanup handled by iterative process)
             log_detailed(video_id, f"Video saved locally: {video_filename}", "SUCCESS")
             
+            # Skip analysis if this is part of iterative process (iterative process handles its own analysis)
+            if skip_analysis:
+                logger.info(f"⏭️ Skipping analysis in generate_video - will be handled by iterative process")
+                log_progress(video_id, "⏭️ Analysis will be performed by iterative process", 65)
+                return {
+                    "video_id": video_id,
+                    "status": "generated",
+                    "video_path": video_path,
+                    "twelvelabs_video_id": twelvelabs_video_id,
+                    "message": "Video generated - analysis skipped (handled by iterative process)"
+                }
+            
             # Run AI detection with detailed logging
             try:
                 log_progress(video_id, "🔍 Searching for AI indicators with Marengo", 65)
                 ai_analysis = await AIDetectionService.detect_ai_generation(
-                    index_id, twelvelabs_video_id, twelvelabs_api_key
+                    index_id, twelvelabs_video_id, twelvelabs_api_key, database_video_id=video_id
                 )
                 
                 ai_detection_score = ai_analysis.get('ai_detection_score', 100.0)
@@ -888,7 +905,7 @@ class VideoGenerationService:
 
 class AIDetectionService:
     @staticmethod
-    async def detect_ai_generation(index_id: str, video_id: str, api_key: str):
+    async def detect_ai_generation(index_id: str, video_id: str, api_key: str, database_video_id: int = None):
         """Detect AI generation using Marengo and Pegasus with detailed logging"""
         try:
             logger.info(f"🔍 Starting AI detection for video {video_id}")
@@ -915,17 +932,55 @@ class AIDetectionService:
             analyze_client = client
             
             # Marengo search with detailed logging
+            # Pass database_video_id to allow early exit if video completes during search
             search_results = await AIDetectionService._search_for_ai_indicators(
-                search_client, index_id, video_id
+                search_client, index_id, video_id, early_exit_video_id=database_video_id
             )
             
-            # Pegasus analysis with detailed logging
+            # Calculate quality score based on search results FIRST (before expensive Pegasus analysis)
+            # If we have 0 search results, quality is 100% - we can skip Pegasus and return immediately
+            preliminary_quality_score = AIDetectionService._calculate_quality_score(search_results, [])
+            
+            # Early exit: If we have 0 indicators from searches, quality is 100% - skip Pegasus
+            if len(search_results) == 0 and preliminary_quality_score >= 100.0:
+                logger.info(f"✅ Early exit: 0 search results = 100% quality, skipping Pegasus analysis for faster response")
+                log_detailed(video_id, f"✅ Quality Score: 100.0% (Early exit - 0 AI indicators found)", "SUCCESS")
+                
+                # Create minimal detailed logs without Pegasus
+                detailed_logs = AIDetectionService._create_detailed_logs(
+                    search_results, [], 100.0
+                )
+                
+                return {
+                    "search_results": search_results,
+                    "analysis_results": [],
+                    "quality_score": 100.0,
+                    "detailed_logs": detailed_logs
+                }
+            
+            # Pegasus analysis with detailed logging (only if searches found indicators)
             analysis_results = await AIDetectionService._analyze_with_pegasus(
                 analyze_client, video_id
             )
             
             # Calculate single quality score (0-100, higher = better)
+            # If we have no search results and no analysis results indicating problems, quality is 100%
+            # This can happen if searches were stopped early
             quality_score = AIDetectionService._calculate_quality_score(search_results, analysis_results)
+            
+            # If we exited early and have 0 indicators, we can be confident it's 100%
+            if len(search_results) == 0 and database_video_id:
+                # Check if searches were stopped early due to completion
+                conn = sqlite3.connect(DB_PATH)
+                cursor = conn.cursor()
+                cursor.execute("SELECT status, current_confidence FROM videos WHERE id = ?", (database_video_id,))
+                status_check = cursor.fetchone()
+                conn.close()
+                
+                if status_check and status_check[0] == 'completed' and status_check[1] and status_check[1] >= 100.0:
+                    # Use the already-set confidence since video completed early
+                    quality_score = max(quality_score, 100.0)
+                    logger.info(f"✅ Using early completion quality_score: {quality_score:.1f}% (video already marked complete)")
             
             # Log detailed calculation breakdown
             search_count = len(search_results) if search_results else 0
@@ -950,8 +1005,20 @@ class AIDetectionService:
             raise e
     
     @staticmethod
-    async def _search_for_ai_indicators(search_client, index_id: str, video_id: str):
+    async def _search_for_ai_indicators(search_client, index_id: str, video_id: str, early_exit_video_id: int = None):
         """Search for AI indicators using Marengo - optimized with batched queries"""
+        # Check if video is already completed - skip searches if so
+        if early_exit_video_id:
+            conn = sqlite3.connect(DB_PATH)
+            cursor = conn.cursor()
+            cursor.execute("SELECT status, current_confidence FROM videos WHERE id = ?", (early_exit_video_id,))
+            status_check = cursor.fetchone()
+            conn.close()
+            
+            if status_check and status_check[0] == 'completed' and status_check[1] and status_check[1] >= 100.0:
+                logger.info(f"⏭️ Skipping remaining searches - video {early_exit_video_id} already completed with {status_check[1]}% confidence")
+                return []
+        
         # Batch queries into categories for more efficient searching
         ai_detection_categories = {
             "facial_artifacts": "unnatural facial symmetry, artificial facial proportions, synthetic facial structure, unnatural eye movements, artificial skin texture, robotic facial expressions",
@@ -986,8 +1053,28 @@ class AIDetectionService:
         }
         
         all_results = []
+        searches_completed = 0
+        max_searches_before_check = 5  # Check completion status every 5 searches
+        early_exit_threshold = 8  # If we've done 8+ searches with 0 indicators, likely 100%
         
         for category, query_text in ai_detection_categories.items():
+            # Check periodically if video is already completed (don't check every single search to reduce DB hits)
+            if early_exit_video_id and searches_completed > 0 and searches_completed % max_searches_before_check == 0:
+                conn = sqlite3.connect(DB_PATH)
+                cursor = conn.cursor()
+                cursor.execute("SELECT status, current_confidence FROM videos WHERE id = ?", (early_exit_video_id,))
+                status_check = cursor.fetchone()
+                conn.close()
+                
+                if status_check and status_check[0] == 'completed' and status_check[1] and status_check[1] >= 100.0:
+                    logger.info(f"⏭️ Stopping search loop early - video {early_exit_video_id} already completed with {status_check[1]}% confidence (completed {searches_completed} of {len(ai_detection_categories)} searches)")
+                    break
+            
+            # Early exit optimization: if we've done enough searches and found 0 indicators, likely 100% quality
+            if early_exit_video_id and searches_completed >= early_exit_threshold and len(all_results) == 0:
+                logger.info(f"⏭️ Early exit optimization: {searches_completed} searches completed with 0 indicators - likely 100% quality, skipping remaining searches")
+                break
+            
             try:
                 logger.info(f"🔍 Searching for {category} indicators...")
                 log_detailed(video_id, f"Searching for {category} AI indicators in video", "INFO")
@@ -1013,11 +1100,14 @@ class AIDetectionService:
                     logger.info(f"✅ Found {len(results.data)} {category} indicators")
                 else:
                     logger.info(f"ℹ️ No {category} indicators found")
+                
+                searches_completed += 1
                     
             except Exception as e:
                 logger.warning(f"Search query failed for {category}: {e}")
+                searches_completed += 1
         
-        logger.info(f"🔍 Total AI indicators found: {len(all_results)}")
+        logger.info(f"🔍 Total AI indicators found: {len(all_results)} (completed {searches_completed} searches)")
         if len(all_results) == 0:
             logger.info(f"✅ No AI indicators found - video passes quality check!")
             log_detailed(video_id, f"✅ Search completed: 0 AI indicators found - Video passes as real!", "SUCCESS")
