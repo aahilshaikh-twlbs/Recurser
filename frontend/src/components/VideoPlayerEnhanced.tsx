@@ -38,7 +38,6 @@ export default function VideoPlayerEnhanced({ videoId, thumbnailUrl, className =
         if (!infoResponse.ok) throw new Error('Failed to get video info')
         
         const info = await infoResponse.json()
-        console.log('📋 Video info:', info)
         
         if (info.type === 'local' && info.local_available) {
           // Local MP4 available - add cache busting to ensure fresh video
@@ -46,15 +45,12 @@ export default function VideoPlayerEnhanced({ videoId, thumbnailUrl, className =
             setVideoType('local')
             const cacheBust = `?t=${Date.now()}`
             setVideoUrl(`/api/videos/${videoId}/play${cacheBust}`)
-            console.log('📹 Using local MP4 for video', videoId, 'with cache bust:', cacheBust)
           }
         } else if (info.type === 'hls' && info.hls_url) {
           // HLS stream available
           if (mounted) {
             setVideoType('hls')
             setVideoUrl(info.hls_url)
-            console.log('📡 Using HLS stream for video', videoId)
-            console.log('🎬 HLS URL:', info.hls_url)
           }
         } else {
           throw new Error(info.error || 'No video source available')
@@ -89,101 +85,41 @@ export default function VideoPlayerEnhanced({ videoId, thumbnailUrl, className =
     const video = videoRef.current
 
     if (videoType === 'hls' && Hls && Hls.isSupported()) {
-      // Initialize HLS.js
-      console.log('🎬 Initializing HLS.js for', videoUrl)
-      
       try {
         const hls = new Hls({
-        debug: false,
-        enableWorker: true,
-        lowLatencyMode: false,
-        backBufferLength: 90,
-        maxBufferLength: 30,
-        maxMaxBufferLength: 600,
-        maxBufferSize: 60 * 1000 * 1000, // 60 MB
-        maxBufferHole: 0.5,
-        highBufferWatchdogPeriod: 2,
-        nudgeOffset: 0.1,
-        nudgeMaxRetry: 3,
-        maxFragLookUpTolerance: 0.25,
-        liveSyncDurationCount: 3,
-        liveMaxLatencyDurationCount: Infinity,
-        liveDurationInfinity: true,
-        enableWebVTT: false,
-        enableCEA708Captions: false,
-        stretchShortVideoTrack: false,
-        forceKeyFrameOnDiscontinuity: true,
-        abrEwmaFastLive: 3,
-        abrEwmaSlowLive: 9,
-        abrEwmaFastVoD: 3,
-        abrEwmaSlowVoD: 9,
-        abrEwmaDefaultEstimate: 5000000,
-        abrBandWidthFactor: 0.95,
-        abrBandWidthUpFactor: 0.7,
-        minAutoBitrate: 0,
-        emeEnabled: false,
-        widevineLicenseUrl: undefined,
-        licenseXhrSetup: undefined,
-        manifestLoadingTimeOut: 10000,
-        manifestLoadingMaxRetry: 1,
-        manifestLoadingRetryDelay: 1000,
-        manifestLoadingMaxRetryTimeout: 64000,
-        startLevel: undefined,
-        levelLoadingTimeOut: 10000,
-        levelLoadingMaxRetry: 4,
-        levelLoadingRetryDelay: 1000,
-        levelLoadingMaxRetryTimeout: 64000,
-        fragLoadingTimeOut: 20000,
-        fragLoadingMaxRetry: 6,
-        fragLoadingRetryDelay: 1000,
-        fragLoadingMaxRetryTimeout: 64000,
-        startFragPrefetch: false,
-        testBandwidth: true,
-        progressive: false
-      })
+          debug: false,
+          enableWorker: true,
+          maxBufferLength: 30,
+          maxBufferSize: 60 * 1000 * 1000,
+          manifestLoadingTimeOut: 10000,
+          fragLoadingTimeOut: 20000
+        })
 
         hlsRef.current = hls
         hls.loadSource(videoUrl)
         hls.attachMedia(video)
 
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
-        console.log('✅ HLS manifest parsed successfully')
         setIsLoading(false)
-        // Try to autoplay
-        video.play().catch((e) => {
-          console.log('Autoplay prevented (normal):', e.message)
-        })
-      })
-      
-      hls.on(Hls.Events.LEVEL_LOADED, () => {
-        console.log('📊 HLS level loaded')
-      })
-      
-      hls.on(Hls.Events.FRAG_LOADED, () => {
-        console.log('🧩 HLS fragment loaded')
+        video.play().catch(() => {}) // Autoplay may be prevented
       })
 
-        hls.on(Hls.Events.ERROR, (event: any, data: any) => {
-          console.error('HLS Error:', event, data)
-          
-          if (data.fatal) {
-            switch (data.type) {
-              case Hls.ErrorTypes.NETWORK_ERROR:
-                console.error('Fatal network error encountered, trying to recover')
-                hls.startLoad()
-                break
-              case Hls.ErrorTypes.MEDIA_ERROR:
-                console.error('Fatal media error encountered, trying to recover')
-                hls.recoverMediaError()
-                break
-              default:
-                console.error('Fatal error, cannot recover')
-                setError(`HLS Error: ${data.details}`)
-                hls.destroy()
-                break
-            }
+      hls.on(Hls.Events.ERROR, (event: any, data: any) => {
+        if (data.fatal) {
+          switch (data.type) {
+            case Hls.ErrorTypes.NETWORK_ERROR:
+              hls.startLoad()
+              break
+            case Hls.ErrorTypes.MEDIA_ERROR:
+              hls.recoverMediaError()
+              break
+            default:
+              setError(`HLS Error: ${data.details}`)
+              hls.destroy()
+              break
           }
-        })
+        }
+      })
 
         return () => {
           hls.destroy()
@@ -195,27 +131,16 @@ export default function VideoPlayerEnhanced({ videoId, thumbnailUrl, className =
       }
     } else if (videoType === 'hls' && video.canPlayType('application/vnd.apple.mpegurl')) {
       // Native HLS support (Safari)
-      console.log('🎬 Using native HLS support')
       video.src = videoUrl
       video.addEventListener('loadedmetadata', () => setIsLoading(false))
-      video.addEventListener('error', (e) => {
-        console.error('Native HLS error:', e)
-        setError('Failed to play HLS stream')
-      })
+      video.addEventListener('error', () => setError('Failed to play HLS stream'))
     } else if (videoType === 'hls') {
-      // HLS not supported
-      console.error('❌ HLS not supported in this browser')
-      setError('HLS streaming is not supported in this browser. Please use Chrome, Firefox, or Safari.')
+      setError('HLS streaming is not supported in this browser')
       setIsLoading(false)
     } else if (videoType === 'local') {
-      // Local MP4 file
-      console.log('🎬 Playing local MP4')
       video.src = videoUrl
       video.addEventListener('loadedmetadata', () => setIsLoading(false))
-      video.addEventListener('error', (e) => {
-        console.error('Video error:', e)
-        setError('Failed to play video')
-      })
+      video.addEventListener('error', () => setError('Failed to play video'))
     }
 
     // Video event listeners

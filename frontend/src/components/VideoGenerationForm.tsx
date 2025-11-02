@@ -69,7 +69,7 @@ export default function VideoGenerationForm({
       const payload = {
         prompt: data.prompt,
         project_name: `Enhancement_${String(Date.now())}`, // Auto-generated project name
-        confidence_threshold: 50, // Default threshold
+        confidence_threshold: 100, // Target 100% confidence (same as playground mode)
         max_retries: data.maxAttempts === 'unlimited' ? 999 : parseInt(data.maxAttempts, 10),
         index_id: '68d0f9e55705aa622335acb0' // Recurser test index for iterations
       }

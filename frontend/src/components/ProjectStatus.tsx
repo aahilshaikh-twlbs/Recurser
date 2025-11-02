@@ -15,7 +15,6 @@ import {
 } from 'lucide-react'
 import { API_CONFIG, apiRequest } from '@/lib/config'
 import EnhancedTerminal from './EnhancedTerminal'
-import HLSVideoPlayer from './HLSVideoPlayer'
 
 interface ProjectStatusProps {
   project: any

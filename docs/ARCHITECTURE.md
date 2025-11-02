@@ -97,18 +97,33 @@ src/
 ### ⚙️ Backend (FastAPI)
 ```
 backend/
-├── app.py                    # Main FastAPI application (3000+ lines)
+├── app.py                    # Main FastAPI application (optimized, ~3280 lines)
 ├── uploads/                  # Temporary video storage
 ├── cleanup_uploads.py        # Automated file cleanup
 ├── setup_cleanup.sh          # Cron job configuration
-└── recurser_validator.db     # SQLite database
+└── recurser_validator.db     # SQLite database (WAL mode enabled)
 ```
 
 **Core Services:**
 - **VideoGenerationService**: Orchestrates entire enhancement workflow
+  - `generate_iterative_video()`: Main iterative loop
+  - `generate_video()`: Single video generation with `skip_analysis` flag
+  - `upload_to_twelvelabs()`: Video indexing
 - **AIDetectionService**: Analyzes videos using TwelveLabs models
+  - `detect_ai_generation()`: Main detection orchestrator
+  - `_search_for_ai_indicators()`: Marengo search with early exit
+  - `_analyze_with_pegasus()`: Content analysis
+  - `_calculate_quality_score()`: Quality scoring
+- **PromptEnhancementService**: Gemini-powered prompt improvement
 - **StreamLogHandler**: Custom logging for real-time frontend updates
-- **Database Management**: SQLite with automatic schema initialization
+- **Database Management**: SQLite with WAL mode, proper transaction handling
+
+**Optimizations:**
+- ✅ Early exit logic in searches (stops after 8+ searches with 0 indicators)
+- ✅ Skip Pegasus analysis when 0 indicators found (faster response)
+- ✅ Skip duplicate analysis (prevent double-running in iterative process)
+- ✅ Database WAL mode for concurrent access
+- ✅ Removed verbose/commented logging code
 
 ### 🤖 AI Services Integration
 
@@ -246,22 +261,29 @@ DEBUG   → Detailed technical information (disabled in production)
 
 ## 🚀 Performance Optimizations
 
-### Frontend Optimizations
-- **Rolling Logs**: Automatic cleanup prevents memory bloat
-- **Smart Polling**: 1-second intervals with connection management
-- **Component Memoization**: Prevent unnecessary re-renders
-- **Lazy Loading**: Load components on demand
+### Frontend Optimizations ✅
+- **Rolling Logs**: Automatic cleanup prevents memory bloat (200-entry limit)
+- **Smart Polling**: 1-second intervals with connection management and buffer delays
+- **Component Consolidation**: Reduced from 3 video players to 1 unified component
+- **Removed Unused Code**: Deleted `VideoPlayer.tsx`, `HLSVideoPlayer.tsx`, `TerminalLogs.tsx`
+- **Simplified HLS Config**: Reduced from 40+ options to 6 essential settings
+- **Reduced Logging**: Removed excessive console.log calls
 
-### Backend Optimizations
-- **Async Processing**: Non-blocking video generation workflow
+### Backend Optimizations ✅
+- **Early Exit Logic**: Stops searches/analysis when video already completed
+- **Smart Search Batching**: Checks completion status every 5 searches
+- **Skip Duplicate Analysis**: Prevents running analysis twice in iterative process
+- **Database WAL Mode**: Faster concurrent reads with write-ahead logging
+- **Transaction Safety**: Proper PRAGMA settings and commits for data consistency
+- **Async Processing**: Non-blocking video generation workflow throughout
 - **File Cleanup**: Automatic removal of intermediate iterations
-- **Database Indexing**: Optimized queries for status updates
-- **Memory Management**: Limited log buffers with periodic cleanup
+- **Memory Management**: Limited log buffers (200 entries) with automatic cleanup
 
-### AI Service Optimization
-- **Parallel Analysis**: Marengo and Pegasus run concurrently where possible
-- **Smart Caching**: Reuse analysis results within iterations
-- **Efficient Prompting**: Optimized prompts for better AI responses
+### AI Service Optimization ✅
+- **Conditional Pegasus**: Skips expensive Pegasus analysis when 0 indicators found
+- **Early Exit Searches**: Stops after 8+ searches with 0 results (likely 100%)
+- **Efficient Query Batching**: Category-based searches for Marengo
+- **Optimized Prompts**: Streamlined prompts for faster AI responses
 
 ## 🔐 Security & Configuration
 

@@ -5,7 +5,7 @@ import { motion } from 'framer-motion'
 import { Play, RefreshCw, AlertCircle, ArrowRight } from 'lucide-react'
 import { getVideosFromIndex } from '@/lib/api'
 import { API_CONFIG, apiRequest } from '@/lib/config'
-import HLSVideoPlayer from './HLSVideoPlayer'
+import VideoPlayerEnhanced from './VideoPlayerEnhanced'
 
 interface Video {
   id: string
@@ -241,13 +241,7 @@ export default function PlaygroundView({ onVideoSelected }: PlaygroundViewProps)
             
             {/* Video Preview */}
             <div className="aspect-video bg-black rounded-lg mb-4 relative overflow-hidden">
-              {selectedVideo.hls_url ? (
-                <HLSVideoPlayer
-                  videoId={selectedVideo.id || 'unknown'}
-                  className="w-full h-full"
-                  poster={selectedVideo.thumbnail || undefined}
-                />
-              ) : selectedVideo.thumbnail ? (
+              {selectedVideo.thumbnail ? (
                 <img 
                   src={selectedVideo.thumbnail} 
                   alt={selectedVideo.title}
@@ -258,6 +252,9 @@ export default function PlaygroundView({ onVideoSelected }: PlaygroundViewProps)
                   <Play className="w-16 h-16 text-white opacity-80" />
                 </div>
               )}
+              <div className="absolute inset-0 bg-black bg-opacity-0 hover:bg-opacity-20 transition-all flex items-center justify-center">
+                <Play className="w-16 h-16 text-white opacity-0 hover:opacity-80 transition-opacity" />
+              </div>
             </div>
             
             {/* Video Details */}
