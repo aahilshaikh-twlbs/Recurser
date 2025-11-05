@@ -23,7 +23,7 @@ export default function PlaygroundEnhanceForm({
   const [customIterations, setCustomIterations] = useState<string>('')
 
   const defaultValues = useMemo(() => ({
-    maxAttempts: '3' as const
+    maxAttempts: '2' as const  // Default to first option (2 iterations)
   }), [])
 
   const { register, handleSubmit, watch, setValue } = useForm<FormData>({

@@ -483,32 +483,35 @@ export default function ProjectStatus({ project: initialProject }: ProjectStatus
           {/* Video Display */}
           {(project.video_path || project.twelvelabs_video_id) && (
             <div className="mt-4">
-              <h4 className="font-medium text-gray-900 mb-2">Generated Video:</h4>
-              <div className="bg-white rounded-lg border border-gray-200 p-4 relative">
-              <VideoPlayerEnhanced 
-                videoId={project.video_id}
-                thumbnailUrl={project.thumbnail_url}
-                className="w-full"
-              />
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="font-medium text-gray-900">Generated Video:</h4>
+                {/* Video Actions - Moved to header area for better UX */}
+                <div className="flex space-x-2">
+                  <a 
+                    href={`/api/videos/${project.video_id}/play`}
+                    download
+                    className="inline-flex items-center px-3 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-all"
+                    title="Download Video"
+                  >
+                    <Download className="w-4 h-4 mr-2" />
+                    Download
+                  </a>
+                  <button 
+                    onClick={() => window.open(`/api/videos/${project.video_id}/play`, '_blank')}
+                    className="inline-flex items-center px-3 py-2 bg-gray-600 text-white text-sm rounded-lg hover:bg-gray-700 transition-all"
+                    title="Open in New Tab"
+                  >
+                    <Eye className="w-4 h-4 mr-2" />
+                    Open
+                  </button>
+                </div>
               </div>
-              
-              {/* Video Actions - Repositioned as overlay */}
-              <div className="absolute top-4 right-4 flex space-x-2 z-10">
-                <a 
-                  href={`/api/videos/${project.video_id}/play`}
-                  download
-                  className="inline-flex items-center px-3 py-2 bg-blue-600/90 backdrop-blur-sm text-white text-sm rounded-lg hover:bg-blue-700 transition-all shadow-lg"
-                  title="Download Video"
-                >
-                  <Download className="w-4 h-4" />
-                </a>
-                <button 
-                  onClick={() => window.open(`/api/videos/${project.video_id}/play`, '_blank')}
-                  className="inline-flex items-center px-3 py-2 bg-gray-600/90 backdrop-blur-sm text-white text-sm rounded-lg hover:bg-gray-700 transition-all shadow-lg"
-                  title="Open in New Tab"
-                >
-                  <Eye className="w-4 h-4" />
-                </button>
+              <div className="bg-white rounded-lg border border-gray-200 p-4">
+                <VideoPlayerEnhanced 
+                  videoId={project.video_id}
+                  thumbnailUrl={project.thumbnail_url}
+                  className="w-full"
+                />
               </div>
             </div>
           )}

@@ -188,9 +188,8 @@ export default function EnhancedTerminal({ clearOnNewGeneration = true, currentV
                       highlight = { id: logEntry.id, message: `🧠 ${message}`, type: 'info', timestamp: logEntry.timestamp }
                     } else if (message.includes('Target confidence reached') || message.includes('Peak quality achieved')) {
                       highlight = { id: logEntry.id, message: `🎯 ${message}`, type: 'success', timestamp: logEntry.timestamp }
-                    } else if (message.includes('Indexing status:')) {
-                      highlight = { id: logEntry.id, message: `⏳ ${message}`, type: 'info', timestamp: logEntry.timestamp }
                     }
+                    // Note: Indexing status messages are not important events - removed from highlights
                     
                     if (highlight) {
                       setHighlights(prev => {

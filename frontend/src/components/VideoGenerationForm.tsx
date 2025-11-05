@@ -24,7 +24,7 @@ export default function VideoGenerationForm({
 
   const defaultValues = useMemo(() => {
     const values: FormData = {
-      maxAttempts: '5',
+      maxAttempts: '3',  // Default to first option (3 iterations)
       prompt: ''
     }
     

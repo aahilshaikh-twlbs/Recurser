@@ -20,7 +20,7 @@ export default function VideoUploadForm({ onProjectCreated }: VideoUploadFormPro
 
   const { register, handleSubmit, formState: { errors }, watch, setValue } = useForm<FormData>({
     defaultValues: {
-      maxAttempts: '5'
+      maxAttempts: '3'  // Default to first option (3 iterations)
     }
   })
 
