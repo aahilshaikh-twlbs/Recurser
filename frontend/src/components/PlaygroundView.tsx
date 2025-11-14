@@ -117,8 +117,8 @@ export default function PlaygroundView({ onVideoSelected }: PlaygroundViewProps)
     <div className="space-y-6 mt-6">
       {/* Header with Refresh and Demo Note */}
       <div className="flex items-center justify-between">
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex-1 mr-4">
-          <p className="text-sm text-blue-800">
+        <div className="bg-info-light border border-info rounded-lg p-3 flex-1 mr-4">
+          <p className="text-sm text-info-dark">
             <strong>Demo Note:</strong> We have 3 videos starting with REAL and 3 starting with AI, just for demo purposes. We labeled 3 of each type so you can mess around.
           </p>
         </div>

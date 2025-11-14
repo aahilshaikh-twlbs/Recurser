@@ -220,7 +220,7 @@ export default function ProjectStatus({ project: initialProject }: ProjectStatus
         return 'text-red-600 bg-red-100'
       case 'generating':
       case 'analyzing':
-        return 'text-blue-600 bg-blue-100'
+        return 'text-info bg-info-light'
       default:
         return 'text-yellow-600 bg-yellow-100'
     }
@@ -289,10 +289,10 @@ export default function ProjectStatus({ project: initialProject }: ProjectStatus
             {project?.iteration_count ? `Iteration ${project.iteration_count}/${project?.max_iterations || 3}` : 'Starting'}
           </span>
         </div>
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+        <div className="bg-info-light border border-info rounded-lg p-3">
           <div className="flex items-center space-x-2">
-            <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
-            <span className="text-sm font-medium text-blue-800">
+            <div className="w-2 h-2 bg-info rounded-full animate-pulse"></div>
+            <span className="text-sm font-medium text-info-dark">
               {getCurrentStepMessage()}
             </span>
           </div>
@@ -349,7 +349,7 @@ export default function ProjectStatus({ project: initialProject }: ProjectStatus
               <div className={`text-xl font-bold ${
                 project?.status === 'completed' ? 'text-green-600' :
                 project?.status === 'failed' ? 'text-red-600' :
-                'text-blue-600'
+                'text-info'
               }`}>
                 {project?.status === 'completed' ? '✅' :
                  project?.status === 'failed' ? '❌' :
@@ -404,17 +404,17 @@ export default function ProjectStatus({ project: initialProject }: ProjectStatus
           {/* Single Quality Score Overview */}
           <div className="mb-4">
             <h4 className="font-medium text-gray-900 mb-2">Quality Assessment</h4>
-            <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-              <div className="text-sm text-blue-800">
+            <div className="bg-info-light p-4 rounded-lg border border-info">
+              <div className="text-sm text-info-dark">
                 <div className="bg-white p-3 rounded-lg">
                   <div className="flex items-center space-x-3">
                     <div className="text-2xl">📊</div>
                     <div className="flex-1">
-                      <p className="font-semibold text-blue-700 text-lg">Quality Score</p>
+                      <p className="font-semibold text-info text-lg">Quality Score</p>
                       <p className="text-gray-600 text-sm">Higher = Better (0-100%)</p>
                     </div>
                     <div className="text-right">
-                      <div className="text-2xl font-bold text-blue-700">
+                      <div className="text-2xl font-bold text-info">
                         {project.final_confidence?.toFixed(1) || '0.0'}%
                       </div>
                       <div className="text-xs text-gray-500">
@@ -425,7 +425,7 @@ export default function ProjectStatus({ project: initialProject }: ProjectStatus
                     </div>
                   </div>
                 </div>
-                <div className="text-xs text-blue-600 mt-3">
+                <div className="text-xs text-info mt-3">
                   <p className="mb-2"><strong>What are AI artifacts?</strong> Visual glitches, unnatural movements, or distortions that reveal a video was AI-generated.</p>
                   <div className="space-y-1.5 text-xs">
                     <div className="bg-green-50 p-2 rounded border border-green-200">
@@ -490,7 +490,7 @@ export default function ProjectStatus({ project: initialProject }: ProjectStatus
                   <a 
                     href={`/api/videos/${project.video_id}/play`}
                     download
-                    className="inline-flex items-center px-3 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-all"
+                    className="inline-flex items-center px-3 py-2 bg-brand-purple text-white text-sm rounded-lg hover:bg-brand-dark-purple transition-all"
                     title="Download Video"
                   >
                     <Download className="w-4 h-4 mr-2" />

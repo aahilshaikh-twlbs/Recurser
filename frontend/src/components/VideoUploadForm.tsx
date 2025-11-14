@@ -179,10 +179,10 @@ export default function VideoUploadForm({ onProjectCreated }: VideoUploadFormPro
         </div>
 
         {/* AI Analysis Notice */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div className="bg-info-light border border-info rounded-lg p-4">
           <div className="flex items-start space-x-2">
-            <Info className="w-5 h-5 text-blue-600 mt-0.5" />
-            <div className="text-sm text-blue-800">
+            <Info className="w-5 h-5 text-info mt-0.5" />
+            <div className="text-sm text-info-dark">
               <p className="font-semibold mb-1">Automatic Video Analysis</p>
               <p>Our AI will automatically analyze your video content using Pegasus video-to-text technology. No need to provide the original prompt!</p>
             </div>

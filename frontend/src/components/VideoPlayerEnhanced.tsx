@@ -212,7 +212,7 @@ export default function VideoPlayerEnhanced({ videoId, thumbnailUrl, className =
           <p className="text-gray-400 text-sm mb-4">{error}</p>
           <button
             onClick={() => window.location.reload()}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            className="px-4 py-2 bg-brand-purple text-white rounded-lg hover:bg-brand-dark-purple transition-colors"
           >
             Retry
           </button>
@@ -257,7 +257,7 @@ export default function VideoPlayerEnhanced({ videoId, thumbnailUrl, className =
           <div className="mb-3">
             <div className="bg-gray-700 rounded-full h-1 relative">
               <div 
-                className="bg-blue-500 h-full rounded-full"
+                className="bg-brand-purple h-full rounded-full"
                 style={{ width: `${duration ? (currentTime / duration) * 100 : 0}%` }}
               />
             </div>

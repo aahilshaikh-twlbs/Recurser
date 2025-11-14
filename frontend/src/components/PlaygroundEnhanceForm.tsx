@@ -251,14 +251,14 @@ export default function PlaygroundEnhanceForm({
         </button>
 
         {/* Info Box */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div className="bg-info-light border border-info rounded-lg p-4">
           <div className="flex items-start space-x-3">
-            <Sparkles className="w-5 h-5 text-blue-600 mt-0.5" />
+            <Sparkles className="w-5 h-5 text-info mt-0.5" />
             <div className="flex-1">
-              <h4 className="text-sm font-semibold text-blue-900 mb-2">
+              <h4 className="text-sm font-semibold text-info-dark mb-2">
                 How Recursive Enhancement Works
               </h4>
-              <ul className="text-sm text-blue-800 space-y-1.5">
+              <ul className="text-sm text-info-dark space-y-1.5">
                 <li>• AI analyzes your video to detect artifacts and quality issues</li>
                 <li>• Each iteration generates an improved version targeting specific problems</li>
                 <li>• Quality scores (0-100%) track progress - aim for 90%+ for best results</li>

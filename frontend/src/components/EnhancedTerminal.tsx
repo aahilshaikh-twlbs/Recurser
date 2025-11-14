@@ -417,7 +417,7 @@ export default function EnhancedTerminal({ clearOnNewGeneration = true, currentV
                   </span>
                   <span className={`
                     ${log.source === 'error' ? 'text-red-400' : ''}
-                    ${log.source === 'processing' ? 'text-blue-400' : ''}
+                    ${log.source === 'processing' ? 'text-info' : ''}
                     ${cleaned.includes('SUCCESS') ? 'text-green-400 font-bold' : ''}
                     ${cleaned.includes('ERROR') || cleaned.includes('Failed') ? 'text-red-400' : ''}
                     ${cleaned.includes('WARNING') ? 'text-yellow-400' : ''}
@@ -461,7 +461,7 @@ export default function EnhancedTerminal({ clearOnNewGeneration = true, currentV
                   p-2 rounded-lg text-xs border
                   ${highlight.type === 'success' ? 'bg-green-900/30 border-green-700 text-green-300' : ''}
                   ${highlight.type === 'warning' ? 'bg-yellow-900/30 border-yellow-700 text-yellow-300' : ''}
-                  ${highlight.type === 'info' ? 'bg-blue-900/30 border-blue-700 text-blue-300' : ''}
+                  ${highlight.type === 'info' ? 'bg-info-dark/30 border-info text-info-light' : ''}
                   ${highlight.type === 'iteration' ? 'bg-purple-900/30 border-purple-700 text-purple-300' : ''}
                 `}
               >
