@@ -153,15 +153,15 @@
 
   /* Typography color combinations */
   .text-charcoal {
-    @apply text-neutral-charcoal;
+    color: #1D1C1B; /* neutral-charcoal */
   }
 
   .text-white {
-    @apply text-white;
+    color: #ffffff;
   }
 
   .text-duotone {
-    @apply text-brand-dark-green;
+    color: #30710E; /* brand-dark-green */
   }
 
   /* Layout Types */
