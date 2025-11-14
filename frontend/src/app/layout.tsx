@@ -1,13 +1,13 @@
 import type { Metadata } from 'next'
-import { Inter, IBM_Plex_Mono } from 'next/font/google'
+import { Nunito, IBM_Plex_Mono } from 'next/font/google'
 import './globals.css'
 
-// Brand fonts - using Inter with different weights
-// Simplex (display) = Inter 900, Duplex (primary) = Inter 400, Triplex (emphasis) = Inter 600
-const inter = Inter({ 
+// Brand fonts - using Nunito (more rounded sans-serif) with different weights
+// Simplex (display) = Nunito 700, Duplex (primary) = Nunito 400, Triplex (emphasis) = Nunito 600
+const nunito = Nunito({ 
   subsets: ['latin'],
-  weight: ['400', '600', '900'],
-  variable: '--font-inter',
+  weight: ['400', '500', '600', '700'],
+  variable: '--font-nunito',
   display: 'swap',
 })
 
@@ -31,7 +31,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={`${inter.variable} ${ibmPlexMono.variable} font-sans`}>
+      <body className={`${nunito.variable} ${ibmPlexMono.variable} font-sans`}>
         {children}
       </body>
     </html>

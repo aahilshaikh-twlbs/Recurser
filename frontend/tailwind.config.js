@@ -23,10 +23,10 @@ module.exports = {
         'brand': '30%',
       },
       fontFamily: {
-        sans: ['var(--font-inter)', 'system-ui', 'sans-serif'],
-        'simplex': ['var(--font-inter)', 'sans-serif'], // Display - uses font-weight 900
-        'duplex': ['var(--font-inter)', 'sans-serif'], // Primary - uses font-weight 400
-        'triplex': ['var(--font-inter)', 'sans-serif'], // Emphasis - uses font-weight 600
+        sans: ['var(--font-nunito)', 'system-ui', 'sans-serif'],
+        'simplex': ['var(--font-nunito)', 'sans-serif'], // Display - uses font-weight 700
+        'duplex': ['var(--font-nunito)', 'sans-serif'], // Primary - uses font-weight 400
+        'triplex': ['var(--font-nunito)', 'sans-serif'], // Emphasis - uses font-weight 500
         mono: ['var(--font-ibm-plex-mono)', 'monospace'],
       },
       fontSize: {
@@ -71,23 +71,23 @@ module.exports = {
           'dark-pink': '#806867',
           'light-pink': '#FFDFEB',
         },
-        // Product Colors - Search
+        // Product Colors - Search (Pegasus - Purple variants)
         search: {
-          purple: '#F6AFFF',
-          'dark-lavender': '#60627F',
-          'dark-purple': '#785880',
-          lavender: '#A7ABFF',
-          'light-lavender': '#DBD9FF',
-          'light-purple': '#FBDFFF',
+          purple: '#E8A5FF', // Softer, more rounded purple
+          'dark-lavender': '#7B6FA8', // Adjusted dark lavender
+          'dark-purple': '#8B6FA0', // Adjusted dark purple
+          lavender: '#B8A5FF', // Softer lavender
+          'light-lavender': '#E0D9FF', // Adjusted light lavender
+          'light-purple': '#F5E5FF', // Softer light purple
         },
-        // Product Colors - Generate
+        // Product Colors - Generate (Marengo - Yellow/Orange variants)
         generate: {
-          orange: '#FABA17',
-          'dark-peach': '#805849',
-          'dark-orange': '#7D5D0C',
-          peach: '#FFB592',
-          'light-peach': '#FFD3BE',
-          'light-orange': '#FDE3A2',
+          orange: '#FFC947', // Brighter, more vibrant yellow-orange
+          'dark-peach': '#9D7A5A', // Adjusted dark peach
+          'dark-orange': '#9D7A3A', // Adjusted dark orange
+          peach: '#FFB87A', // Warmer peach
+          'light-peach': '#FFE5C4', // Softer light peach
+          'light-orange': '#FFE8A5', // Brighter light orange/yellow
         },
         // Product Colors - Embed
         embed: {
