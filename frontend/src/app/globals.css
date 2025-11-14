@@ -2,27 +2,133 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Layout System - Built around multiples of 4px */
+@layer utilities {
+  /* Margins: 4% of shortest side, rounded to multiples of 4 */
+  .margin-4p {
+    margin: 4%;
+  }
+  
+  /* Gutter: 8% (2x margin) */
+  .gutter-8p {
+    gap: 8%;
+  }
+  
+  /* Border radius: 30% of shortest side */
+  /* Note: For dynamic calculation, use aspect-ratio aware classes */
+  .rounded-brand {
+    border-radius: 30%;
+  }
+  
+  /* Responsive grid columns */
+  @media (max-width: 768px) {
+    .grid-12 {
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+    }
+  }
+  
+  @media (max-width: 640px) {
+    .grid-12 {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+    .grid-6 {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+  
+  @media (max-width: 480px) {
+    .grid-12,
+    .grid-6 {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+}
+
 @layer base {
   html {
-    font-family: system-ui, sans-serif;
+    font-family: var(--font-inter), system-ui, sans-serif;
+  }
+
+  /* Code blocks and inline code */
+  code,
+  pre,
+  .font-mono {
+    font-family: var(--font-ibm-plex-mono), monospace;
+  }
+
+  /* Typography hierarchy */
+  h1 {
+    font-size: 64px;
+    line-height: 72px;
+    letter-spacing: -0.02em;
+    font-family: var(--font-inter), sans-serif;
+    font-weight: 900; /* Simplex equivalent - display weight */
+  }
+
+  h2, h3, h4, h5 {
+    font-family: var(--font-inter), sans-serif;
+    font-weight: 600; /* Triplex equivalent - emphasis weight */
+  }
+
+  h6 {
+    font-size: 24px;
+    line-height: 32px;
+    letter-spacing: -0.01em;
+    font-family: var(--font-inter), sans-serif;
+    font-weight: 600; /* Triplex equivalent - emphasis weight */
+  }
+
+  p {
+    font-size: 16px;
+    line-height: 24px;
+    letter-spacing: 0.01em;
+    font-family: var(--font-inter), sans-serif;
+    font-weight: 400; /* Duplex equivalent - primary weight */
+  }
+
+  /* Large paragraph variant */
+  .text-large-paragraph {
+    font-size: 20px;
+    line-height: 28px;
+    letter-spacing: 0.005em;
+    font-family: var(--font-inter), sans-serif;
+    font-weight: 400; /* Duplex equivalent */
+  }
+
+  /* Small text variant */
+  .text-small-text {
+    font-size: 12px;
+    line-height: 20px;
+    letter-spacing: 0.02em;
+    font-family: var(--font-inter), sans-serif;
+    font-weight: 400; /* Duplex equivalent */
+    text-transform: uppercase;
+  }
+
+  /* Tag variant */
+  .text-tag {
+    font-size: 12px;
+    line-height: 20px;
+    font-family: var(--font-inter), sans-serif;
+    font-weight: 400; /* Duplex equivalent */
   }
 }
 
 @layer components {
   .btn-primary {
-    @apply bg-primary-600 hover:bg-primary-700 text-white font-medium py-2 px-4 rounded-md transition-colors duration-200;
+    @apply bg-brand-green hover:bg-brand-dark-green text-neutral-charcoal font-medium py-2 px-4 rounded-md transition-colors duration-200;
   }
   
   .btn-secondary {
-    @apply bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium py-2 px-4 rounded-md transition-colors duration-200;
+    @apply bg-neutral-fog hover:bg-neutral-smoke text-neutral-charcoal font-medium py-2 px-4 rounded-md transition-colors duration-200;
   }
   
   .card {
-    @apply bg-white rounded-lg shadow-md border border-gray-200 p-6;
+    @apply bg-neutral-chalk rounded-lg shadow-md border border-neutral-smoke p-6;
   }
   
   .input-field {
-    @apply w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent;
+    @apply w-full px-3 py-2 border border-neutral-smoke rounded-md focus:outline-none focus:ring-2 focus:ring-brand-green focus:border-transparent;
   }
   
   .status-badge {
@@ -30,18 +136,101 @@
   }
   
   .status-pending {
-    @apply bg-yellow-100 text-yellow-800;
+    @apply bg-warning-light text-warning-dark;
   }
   
   .status-processing {
-    @apply bg-blue-100 text-blue-800;
+    @apply bg-info-light text-info-dark;
   }
   
   .status-completed {
-    @apply bg-green-100 text-green-800;
+    @apply bg-success-light text-success-dark;
   }
   
   .status-failed {
-    @apply bg-red-100 text-red-800;
+    @apply bg-error-light text-error-dark;
+  }
+
+  /* Typography color combinations */
+  .text-charcoal {
+    @apply text-neutral-charcoal;
+  }
+
+  .text-white {
+    @apply text-white;
+  }
+
+  .text-duotone {
+    @apply text-brand-dark-green;
+  }
+
+  /* Layout Types */
+  
+  /* Lines informed layout - type-based */
+  .layout-lines {
+    @apply grid-12;
+    gap: 8%; /* Gutter */
+  }
+  
+  /* Cards informed layout - card-based */
+  .layout-cards {
+    @apply grid-12;
+    gap: 4%; /* Half the layout gutter */
+  }
+  
+  /* Lines with hero imagery */
+  .layout-hero {
+    @apply grid-12;
+    gap: 8%;
+  }
+  
+  /* Lines with fullbleed imagery */
+  .layout-fullbleed {
+    @apply grid-12;
+    gap: 8%;
+  }
+  
+  /* Container with brand margins */
+  .container-brand {
+    margin: 4%;
+    width: calc(100% - 8%);
+  }
+  
+  /* Section division utilities */
+  .div-1-1 {
+    @apply section-1-1;
+  }
+  
+  .div-1-2 {
+    @apply section-1-2;
+  }
+  
+  .div-1-3 {
+    @apply section-1-3;
+  }
+  
+  .div-1-4 {
+    @apply section-1-4;
+  }
+  
+  .div-1-6 {
+    @apply section-1-6;
+  }
+  
+  /* Spacer utilities */
+  .spacer-xs {
+    margin-bottom: 20px;
+  }
+  
+  .spacer-sm {
+    margin-bottom: 40px;
+  }
+  
+  .spacer-md {
+    margin-bottom: 64px;
+  }
+  
+  .spacer-lg {
+    margin-bottom: 96px;
   }
 }

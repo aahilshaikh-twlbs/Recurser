@@ -1055,7 +1055,6 @@ class AIDetectionService:
         all_results = []
         searches_completed = 0
         max_searches_before_check = 5  # Check completion status every 5 searches
-        early_exit_threshold = 8  # If we've done 8+ searches with 0 indicators, likely 100%
         
         for category, query_text in ai_detection_categories.items():
             # Check periodically if video is already completed (don't check every single search to reduce DB hits)
@@ -1070,10 +1069,8 @@ class AIDetectionService:
                     logger.info(f"⏭️ Stopping search loop early - video {early_exit_video_id} already completed with {status_check[1]}% confidence (completed {searches_completed} of {len(ai_detection_categories)} searches)")
                     break
             
-            # Early exit optimization: if we've done enough searches and found 0 indicators, likely 100% quality
-            if early_exit_video_id and searches_completed >= early_exit_threshold and len(all_results) == 0:
-                logger.info(f"⏭️ Early exit optimization: {searches_completed} searches completed with 0 indicators - likely 100% quality, skipping remaining searches")
-                break
+            # Note: We previously had an early exit heuristic that stopped after 8 searches with 0 indicators.
+            # We removed it to ensure comprehensive detection across all 15 categories for maximum accuracy.
             
             try:
                 logger.info(f"🔍 Searching for {category} indicators...")
