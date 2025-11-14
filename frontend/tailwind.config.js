@@ -57,13 +57,22 @@ module.exports = {
         },
         // Masterbrand - Primary Colors
         brand: {
-          green: '#60E218',
+          // Purple (Pegasus) - Primary brand color
+          purple: '#E8A5FF',
+          'dark-purple': '#8B6FA0',
+          'light-purple': '#F5E5FF',
+          // Yellow (Marengo) - Primary brand color
+          yellow: '#FFC947',
+          'dark-yellow': '#9D7A3A',
+          'light-yellow': '#FFE8A5',
+          // Green - Lighter variant
+          green: '#7FE840', // Lighter, brighter green
+          'dark-green': '#4A9E1A', // Lighter dark green
+          'light-green': '#CFF5A8', // Lighter light green
+          // Supporting colors
           orange: '#FABA17',
           peach: '#FFB592',
           pink: '#FFB0CD',
-          // Tonal variations
-          'dark-green': '#30710E',
-          'light-green': '#BFF3A4',
           'dark-orange': '#7D5D0C',
           'light-orange': '#FDE3A2',
           'dark-peach': '#805849',
@@ -89,14 +98,15 @@ module.exports = {
           'light-peach': '#FFE5C4', // Softer light peach
           'light-orange': '#FFE8A5', // Brighter light orange/yellow
         },
-        // Product Colors - Embed
+        // Product Colors - Embed (using lighter green, minimal blue)
         embed: {
-          blue: '#6CD6FD',
-          'dark-green': '#30710E',
-          'dark-blue': '#388B7F',
-          green: '#60E218',
-          'light-green': '#BFF3A4',
-          'light-blue': '#C4EEFE',
+          green: '#7FE840', // Lighter green
+          'dark-green': '#4A9E1A', // Lighter dark green
+          'light-green': '#CFF5A8', // Lighter light green
+          // Blue kept minimal for specific use cases only
+          blue: '#B8A5FF', // Using lavender instead of bright blue
+          'dark-blue': '#7B6FA8', // Using dark lavender
+          'light-blue': '#E0D9FF', // Using light lavender
         },
         // System Colors - Error
         error: {
@@ -110,43 +120,47 @@ module.exports = {
           DEFAULT: '#FABA17',
           light: '#FDE3A2',
         },
-        // System Colors - Success
+        // System Colors - Success (lighter green)
         success: {
-          dark: '#30710E',
-          DEFAULT: '#60E21B',
-          light: '#BFF3A4',
+          dark: '#4A9E1A', // Lighter dark green
+          DEFAULT: '#7FE840', // Lighter green
+          light: '#CFF5A8', // Lighter light green
         },
-        // System Colors - Info
+        // System Colors - Info (using purple instead of blue)
         info: {
-          dark: '#36687F',
-          DEFAULT: '#6CD6FD',
-          light: '#C4EEFE',
+          dark: '#8B6FA0', // dark-purple
+          DEFAULT: '#E8A5FF', // purple
+          light: '#F5E5FF', // light-purple
         },
-        // Legacy support (mapped to new system)
+        // Legacy support (mapped to purple/yellow instead of green)
         primary: {
-          50: '#BFF3A4',
-          500: '#60E218',
-          600: '#30710E',
-          700: '#1D1C1B',
+          50: '#F5E5FF', // light-purple
+          100: '#E8A5FF', // purple
+          200: '#B8A5FF', // lavender
+          300: '#8B6FA0', // dark-purple
+          400: '#FFE8A5', // light-yellow
+          500: '#FFC947', // yellow
+          600: '#9D7A3A', // dark-yellow
+          700: '#1D1C1B', // charcoal
         },
       },
       backgroundImage: {
-        // Masterbrand gradients
-        'gradient-masterbrand': 'linear-gradient(to right, #60E21B, #FFDFEB, #FABA17)',
-        'gradient-masterbrand-1': 'linear-gradient(to right, #60E21B, #FFDFEB, #FABA17)',
-        'gradient-masterbrand-2': 'linear-gradient(to right, #FFDFEB, #60E21B, #FFD3BE)',
-        'gradient-masterbrand-3': 'linear-gradient(to right, #805867, #60E21B, #FDE3A2)',
-        'gradient-masterbrand-4': 'linear-gradient(to right, #FFB0CD, #FFD3BE, #60E21B)',
-        // Masterbrand secondary gradients
-        'gradient-masterbrand-secondary-1': 'linear-gradient(to right, #BFF3A4, #FABA17, #FFDFEB)',
-        'gradient-masterbrand-secondary-2': 'linear-gradient(to right, #307108, #FABA17, #FFD3BE)',
-        'gradient-masterbrand-secondary-3': 'linear-gradient(to right, #FABA17, #BFF3A4, #FFB592)',
-        'gradient-masterbrand-secondary-4': 'linear-gradient(to right, #FDE3A2, #FFB592, #BFF3A4)',
-        // Masterbrand tertiary gradients
-        'gradient-masterbrand-tertiary-1': 'linear-gradient(to right, #7D5D0C, #FFB592, #FFDFEB)',
-        'gradient-masterbrand-tertiary-2': 'linear-gradient(to right, #FFD3BE, #FFB0CD, #FDE3A2)',
-        'gradient-masterbrand-tertiary-3': 'linear-gradient(to right, #FFB592, #FDE3A2, #FFB0CD)',
-        'gradient-masterbrand-tertiary-4': 'linear-gradient(to right, #805849, #FFB0CD, #BFF3A4)',
+        // Masterbrand gradients (purple and yellow)
+        'gradient-masterbrand': 'linear-gradient(to right, #E8A5FF, #FFDFEB, #FFC947)',
+        'gradient-masterbrand-1': 'linear-gradient(to right, #E8A5FF, #FFDFEB, #FFC947)',
+        'gradient-masterbrand-2': 'linear-gradient(to right, #FFDFEB, #E8A5FF, #FFE8A5)',
+        'gradient-masterbrand-3': 'linear-gradient(to right, #8B6FA0, #E8A5FF, #FFE8A5)',
+        'gradient-masterbrand-4': 'linear-gradient(to right, #FFB0CD, #FFE8A5, #E8A5FF)',
+        // Masterbrand secondary gradients (purple and yellow)
+        'gradient-masterbrand-secondary-1': 'linear-gradient(to right, #F5E5FF, #FFC947, #FFDFEB)',
+        'gradient-masterbrand-secondary-2': 'linear-gradient(to right, #8B6FA0, #FFC947, #FFE8A5)',
+        'gradient-masterbrand-secondary-3': 'linear-gradient(to right, #FFC947, #F5E5FF, #FFB592)',
+        'gradient-masterbrand-secondary-4': 'linear-gradient(to right, #FFE8A5, #FFB592, #F5E5FF)',
+        // Masterbrand tertiary gradients (purple/yellow focused)
+        'gradient-masterbrand-tertiary-1': 'linear-gradient(to right, #9D7A3A, #FFB592, #FFDFEB)',
+        'gradient-masterbrand-tertiary-2': 'linear-gradient(to right, #FFE8A5, #FFB0CD, #F5E5FF)',
+        'gradient-masterbrand-tertiary-3': 'linear-gradient(to right, #FFB592, #FFE8A5, #FFB0CD)',
+        'gradient-masterbrand-tertiary-4': 'linear-gradient(to right, #805849, #FFB0CD, #F5E5FF)',
         // Search gradients
         'gradient-search-1': 'linear-gradient(to right, #7B6880, #A7ABFF, #FBDFFF)',
         'gradient-search-2': 'linear-gradient(to right, #FBDFFF, #A7ABFF, #E9E8E7)',
@@ -167,16 +181,16 @@ module.exports = {
         'gradient-generate-secondary-2': 'linear-gradient(to right, #E9E8E7, #F4A680, #FDE3A2)',
         'gradient-generate-secondary-3': 'linear-gradient(to right, #FDE3A2, #E9E8E7, #FFDFEB)',
         'gradient-generate-secondary-4': 'linear-gradient(to right, #7D6D0C, #F4A680, #FDE3A2)',
-        // Embed gradients
-        'gradient-embed-1': 'linear-gradient(to right, #BFF3A4, #6CD5FD, #E9E8E7)',
-        'gradient-embed-2': 'linear-gradient(to right, #307108, #6CD5FD, #BFF3A4)',
-        'gradient-embed-3': 'linear-gradient(to right, #6CD5FD, #BFF3A4, #60E21B)',
-        'gradient-embed-4': 'linear-gradient(to right, #60E21B, #C4EEFE, #6CD5FD)',
-        // Embed secondary gradients
-        'gradient-embed-secondary-1': 'linear-gradient(to right, #E9E8E7, #60E21B, #6CD5FD)',
-        'gradient-embed-secondary-2': 'linear-gradient(to right, #366B7F, #60E21B, #E9E8E7)',
-        'gradient-embed-secondary-3': 'linear-gradient(to right, #C4EEFE, #E9E8E7, #BFF3A4)',
-        'gradient-embed-secondary-4': 'linear-gradient(to right, #366B7F, #60E21B, #C4EEFE)',
+        // Embed gradients (lighter green, no blue)
+        'gradient-embed-1': 'linear-gradient(to right, #CFF5A8, #E0D9FF, #E9E8E7)',
+        'gradient-embed-2': 'linear-gradient(to right, #4A9E1A, #E0D9FF, #CFF5A8)',
+        'gradient-embed-3': 'linear-gradient(to right, #E0D9FF, #CFF5A8, #7FE840)',
+        'gradient-embed-4': 'linear-gradient(to right, #7FE840, #E0D9FF, #B8A5FF)',
+        // Embed secondary gradients (lighter green focused)
+        'gradient-embed-secondary-1': 'linear-gradient(to right, #E9E8E7, #7FE840, #B8A5FF)',
+        'gradient-embed-secondary-2': 'linear-gradient(to right, #7B6FA8, #7FE840, #E9E8E7)',
+        'gradient-embed-secondary-3': 'linear-gradient(to right, #E0D9FF, #E9E8E7, #CFF5A8)',
+        'gradient-embed-secondary-4': 'linear-gradient(to right, #7B6FA8, #7FE840, #E0D9FF)',
       },
       animation: {
         'fade-in': 'fadeIn 0.5s ease-in-out',
