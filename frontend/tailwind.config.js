@@ -23,26 +23,30 @@ module.exports = {
         'brand': '30%',
       },
       fontFamily: {
-        sans: ['Milling', 'system-ui', 'sans-serif'],
-        'simplex': ['Milling', 'sans-serif'], // Display - uses font-weight 200-300
-        'duplex': ['Milling', 'sans-serif'], // Primary - uses font-weight 400
-        'triplex': ['Milling', 'sans-serif'], // Emphasis - uses font-weight 500-700
+        sans: ['Milling', 'Inter', 'system-ui', 'sans-serif'],
+        'simplex': ['Milling', 'Inter', 'sans-serif'], // Display - uses font-weight 200-300 (occasional use)
+        'duplex': ['Milling', 'Inter', 'sans-serif'], // Primary - uses font-weight 400 (99% usage)
+        'triplex': ['Milling', 'Inter', 'sans-serif'], // Emphasis - uses font-weight 500-700 (for highlights)
         mono: ['IBM Plex Mono', 'monospace'],
       },
       fontSize: {
-        // Headline 1: 64px/72px, -2% tracking
+        // Type hierarchy - All using Duplex 1mm (weight 400)
+        // Headline 1: 64px/72px, -2% tracking (Desktop)
         'headline-1': ['64px', { lineHeight: '72px', letterSpacing: '-0.02em' }],
+        'headline-1-mobile': ['36px', { lineHeight: '44px', letterSpacing: '-0.02em' }],
         // Large Paragraph: 20px/28px, 0.5% tracking
         'large-paragraph': ['20px', { lineHeight: '28px', letterSpacing: '0.005em' }],
+        'large-paragraph-mobile': ['18px', { lineHeight: '26px', letterSpacing: '0.005em' }],
         // Tag: 12px, 20px line height
         'tag': ['12px', { lineHeight: '20px' }],
         // Headline 6: 24px/32px, -1% tracking
         'headline-6': ['24px', { lineHeight: '32px', letterSpacing: '-0.01em' }],
+        'headline-6-mobile': ['18px', { lineHeight: '26px', letterSpacing: '-0.01em' }],
         // Paragraph: 16px/24px, 1% tracking
         'paragraph': ['16px', { lineHeight: '24px', letterSpacing: '0.01em' }],
-        // Small Text: 12px, 20px line height, 2% tracking
+        // Small Text: 12px, 20px line height, 2% tracking, ALL CAPS
         'small-text': ['12px', { lineHeight: '20px', letterSpacing: '0.02em' }],
-        // Inline Code: 16px/24px, 0% tracking
+        // Inline Code: 16px/24px, 0% tracking (IBM Plex Mono)
         'inline-code': ['16px', { lineHeight: '24px', letterSpacing: '0' }],
       },
       colors: {

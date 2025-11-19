@@ -145,7 +145,7 @@
 
 @layer base {
   html {
-    font-family: 'Milling', system-ui, sans-serif;
+    font-family: 'Milling', 'Inter', system-ui, sans-serif;
   }
 
   /* Code blocks and inline code */
@@ -155,52 +155,77 @@
     font-family: 'IBM Plex Mono', monospace;
   }
 
-  /* Typography hierarchy */
+  /* Typography hierarchy - All using Duplex 1mm (weight 400) per brand guidelines */
+  /* 99% of brand uses Duplex 1mm - this is the primary weight */
   h1 {
     font-size: 64px;
     line-height: 72px;
-    letter-spacing: -0.02em;
-    font-family: 'Milling', sans-serif;
-    font-weight: 300; /* Simplex 0.75mm - display weight */
+    letter-spacing: -0.02em; /* -2% */
+    font-family: 'Milling', 'Inter', sans-serif;
+    font-weight: 400; /* Duplex 1mm - HEADLINE 1 */
+  }
+
+  /* Mobile: 36px */
+  @media (max-width: 768px) {
+    h1 {
+      font-size: 36px;
+      line-height: 44px;
+    }
   }
 
   h2, h3, h4, h5 {
-    font-family: 'Milling', sans-serif;
-    font-weight: 500; /* Triplex 1mm - emphasis weight */
+    font-family: 'Milling', 'Inter', sans-serif;
+    font-weight: 400; /* Duplex 1mm - primary weight */
   }
 
   h6 {
     font-size: 24px;
     line-height: 32px;
-    letter-spacing: -0.01em;
-    font-family: 'Milling', sans-serif;
-    font-weight: 500; /* Triplex 1mm - emphasis weight */
+    letter-spacing: -0.01em; /* -1% */
+    font-family: 'Milling', 'Inter', sans-serif;
+    font-weight: 400; /* Duplex 1mm - HEADLINE 6 */
+  }
+
+  /* Mobile: 18px */
+  @media (max-width: 768px) {
+    h6 {
+      font-size: 18px;
+      line-height: 26px;
+    }
   }
 
   p {
     font-size: 16px;
     line-height: 24px;
-    letter-spacing: 0.01em;
-    font-family: 'Milling', sans-serif;
-    font-weight: 400; /* Duplex 1mm - primary weight */
+    letter-spacing: 0.01em; /* 1% */
+    font-family: 'Milling', 'Inter', sans-serif;
+    font-weight: 400; /* Duplex 1mm - PARAGRAPH */
   }
 
   /* Large paragraph variant */
   .text-large-paragraph {
     font-size: 20px;
     line-height: 28px;
-    letter-spacing: 0.005em;
-    font-family: 'Milling', sans-serif;
-    font-weight: 400; /* Duplex 1mm */
+    letter-spacing: 0.005em; /* 0.5% */
+    font-family: 'Milling', 'Inter', sans-serif;
+    font-weight: 400; /* Duplex 1mm - LARGE PARAGRAPH */
   }
 
-  /* Small text variant */
+  /* Mobile: 18px */
+  @media (max-width: 768px) {
+    .text-large-paragraph {
+      font-size: 18px;
+      line-height: 26px;
+    }
+  }
+
+  /* Small text variant - ALL CAPS */
   .text-small-text {
     font-size: 12px;
     line-height: 20px;
-    letter-spacing: 0.02em;
-    font-family: 'Milling', sans-serif;
-    font-weight: 400; /* Duplex 1mm */
+    letter-spacing: 0.02em; /* 2% */
+    font-family: 'Milling', 'Inter', sans-serif;
+    font-weight: 400; /* Duplex 1mm - SMALL TEXT */
     text-transform: uppercase;
   }
 
@@ -208,8 +233,30 @@
   .text-tag {
     font-size: 12px;
     line-height: 20px;
-    font-family: 'Milling', sans-serif;
-    font-weight: 400; /* Duplex 1mm */
+    font-family: 'Milling', 'Inter', sans-serif;
+    font-weight: 400; /* Duplex 1mm - TAG */
+  }
+
+  /* Simplex (Light) - Only occasionally for display use-cases */
+  .font-simplex {
+    font-family: 'Milling', 'Inter', sans-serif;
+    font-weight: 200; /* Simplex 0.5mm - for big numerals or words */
+  }
+
+  .font-simplex-light {
+    font-family: 'Milling', 'Inter', sans-serif;
+    font-weight: 300; /* Simplex 0.75mm - for display */
+  }
+
+  /* Triplex (Bold) - For emphasizing headlines or highlights */
+  .font-triplex {
+    font-family: 'Milling', 'Inter', sans-serif;
+    font-weight: 500; /* Triplex 1mm - emphasis */
+  }
+
+  .font-triplex-bold {
+    font-family: 'Milling', 'Inter', sans-serif;
+    font-weight: 600; /* Triplex 1.5mm - strong emphasis */
   }
 }
 

@@ -1,8 +1,18 @@
 import type { Metadata } from 'next'
+import { Inter } from 'next/font/google'
 import './globals.css'
 
+// System font fallback
+const inter = Inter({
+  subsets: ['latin'],
+  variable: '--font-inter',
+  display: 'swap',
+})
+
 // Fonts are loaded via @font-face in globals.css
-// Milling is the main brand font, IBM Plex Mono for code
+// Milling is the main brand font (Duplex 1mm - weight 400 for 99% of usage)
+// Inter is the system font fallback
+// IBM Plex Mono for code
 
 export const metadata: Metadata = {
   title: 'Recurser - AI Video Generation with Recursive Enhancement',
@@ -16,7 +26,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className="font-sans">
+      <body className={`${inter.variable} font-sans`}>
         {children}
       </body>
     </html>
