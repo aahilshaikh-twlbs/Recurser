@@ -23,11 +23,11 @@ module.exports = {
         'brand': '30%',
       },
       fontFamily: {
-        sans: ['var(--font-nunito)', 'system-ui', 'sans-serif'],
-        'simplex': ['var(--font-nunito)', 'sans-serif'], // Display - uses font-weight 700
-        'duplex': ['var(--font-nunito)', 'sans-serif'], // Primary - uses font-weight 400
-        'triplex': ['var(--font-nunito)', 'sans-serif'], // Emphasis - uses font-weight 500
-        mono: ['var(--font-ibm-plex-mono)', 'monospace'],
+        sans: ['Milling', 'system-ui', 'sans-serif'],
+        'simplex': ['Milling', 'sans-serif'], // Display - uses font-weight 200-300
+        'duplex': ['Milling', 'sans-serif'], // Primary - uses font-weight 400
+        'triplex': ['Milling', 'sans-serif'], // Emphasis - uses font-weight 500-700
+        mono: ['IBM Plex Mono', 'monospace'],
       },
       fontSize: {
         // Headline 1: 64px/72px, -2% tracking

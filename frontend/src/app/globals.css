@@ -2,6 +2,105 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Milling Font Faces */
+@font-face {
+  font-family: 'Milling';
+  font-style: normal;
+  font-weight: 200;
+  src: url('https://d1eaw48ll8ut2y.cloudfront.net/FONTS/205TF-Milling-Simplex0,5mm.woff2') format('woff2');
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Milling';
+  font-style: normal;
+  font-weight: 300;
+  src: url('https://d1eaw48ll8ut2y.cloudfront.net/FONTS/205TF-Milling-Simplex0,75mm.woff2') format('woff2');
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Milling';
+  font-style: normal;
+  font-weight: 400;
+  src: url('https://d1eaw48ll8ut2y.cloudfront.net/FONTS/205TF-Milling-Duplex1mm.woff2') format('woff2');
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Milling';
+  font-style: normal;
+  font-weight: 500;
+  src: url('https://d1eaw48ll8ut2y.cloudfront.net/FONTS/205TF-Milling-Triplex1mm.woff2') format('woff2');
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Milling';
+  font-style: normal;
+  font-weight: 600;
+  src: url('https://d1eaw48ll8ut2y.cloudfront.net/FONTS/205TF-Milling-Triplex1,5mm.woff2') format('woff2');
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Milling';
+  font-style: normal;
+  font-weight: 700;
+  src: url('https://d1eaw48ll8ut2y.cloudfront.net/FONTS/205TF-Milling-Triplex2mm.woff2') format('woff2');
+  font-display: swap;
+}
+
+/* IBM Plex Mono - cyrillic-ext */
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/ibmplexmono/v19/-F63fjptAgt5VM-kVkqdyU8n1iIq131nj-otFQ.woff2) format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+
+/* IBM Plex Mono - cyrillic */
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/ibmplexmono/v19/-F63fjptAgt5VM-kVkqdyU8n1isq131nj-otFQ.woff2) format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+
+/* IBM Plex Mono - vietnamese */
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/ibmplexmono/v19/-F63fjptAgt5VM-kVkqdyU8n1iAq131nj-otFQ.woff2) format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+
+/* IBM Plex Mono - latin-ext */
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/ibmplexmono/v19/-F63fjptAgt5VM-kVkqdyU8n1iEq131nj-otFQ.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+/* IBM Plex Mono - latin */
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/ibmplexmono/v19/-F63fjptAgt5VM-kVkqdyU8n1i8q131nj-o.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
 /* Layout System - Built around multiples of 4px */
 @layer utilities {
   /* Margins: 4% of shortest side, rounded to multiples of 4 */
@@ -46,14 +145,14 @@
 
 @layer base {
   html {
-    font-family: var(--font-nunito), system-ui, sans-serif;
+    font-family: 'Milling', system-ui, sans-serif;
   }
 
   /* Code blocks and inline code */
   code,
   pre,
   .font-mono {
-    font-family: var(--font-ibm-plex-mono), monospace;
+    font-family: 'IBM Plex Mono', monospace;
   }
 
   /* Typography hierarchy */
@@ -61,29 +160,29 @@
     font-size: 64px;
     line-height: 72px;
     letter-spacing: -0.02em;
-    font-family: var(--font-nunito), sans-serif;
-    font-weight: 700; /* Simplex equivalent - display weight (reduced from 900) */
+    font-family: 'Milling', sans-serif;
+    font-weight: 300; /* Simplex 0.75mm - display weight */
   }
 
   h2, h3, h4, h5 {
-    font-family: var(--font-nunito), sans-serif;
-    font-weight: 500; /* Triplex equivalent - emphasis weight (reduced from 600) */
+    font-family: 'Milling', sans-serif;
+    font-weight: 500; /* Triplex 1mm - emphasis weight */
   }
 
   h6 {
     font-size: 24px;
     line-height: 32px;
     letter-spacing: -0.01em;
-    font-family: var(--font-nunito), sans-serif;
-    font-weight: 500; /* Triplex equivalent - emphasis weight (reduced from 600) */
+    font-family: 'Milling', sans-serif;
+    font-weight: 500; /* Triplex 1mm - emphasis weight */
   }
 
   p {
     font-size: 16px;
     line-height: 24px;
     letter-spacing: 0.01em;
-    font-family: var(--font-nunito), sans-serif;
-    font-weight: 400; /* Duplex equivalent - primary weight */
+    font-family: 'Milling', sans-serif;
+    font-weight: 400; /* Duplex 1mm - primary weight */
   }
 
   /* Large paragraph variant */
@@ -91,8 +190,8 @@
     font-size: 20px;
     line-height: 28px;
     letter-spacing: 0.005em;
-    font-family: var(--font-nunito), sans-serif;
-    font-weight: 400; /* Duplex equivalent */
+    font-family: 'Milling', sans-serif;
+    font-weight: 400; /* Duplex 1mm */
   }
 
   /* Small text variant */
@@ -100,8 +199,8 @@
     font-size: 12px;
     line-height: 20px;
     letter-spacing: 0.02em;
-    font-family: var(--font-nunito), sans-serif;
-    font-weight: 400; /* Duplex equivalent */
+    font-family: 'Milling', sans-serif;
+    font-weight: 400; /* Duplex 1mm */
     text-transform: uppercase;
   }
 
@@ -109,8 +208,8 @@
   .text-tag {
     font-size: 12px;
     line-height: 20px;
-    font-family: var(--font-nunito), sans-serif;
-    font-weight: 400; /* Duplex equivalent */
+    font-family: 'Milling', sans-serif;
+    font-weight: 400; /* Duplex 1mm */
   }
 }
 
