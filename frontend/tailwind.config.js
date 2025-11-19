@@ -29,6 +29,15 @@ module.exports = {
         'triplex': ['Milling', 'Inter', 'sans-serif'], // Emphasis - uses font-weight 500-700 (for highlights)
         mono: ['IBM Plex Mono', 'monospace'],
       },
+      fontWeight: {
+        // Map Tailwind font weights to Milling weights
+        thin: '200',      // Simplex 0.5mm
+        light: '300',      // Simplex 0.75mm
+        normal: '400',     // Duplex 1mm (primary - 99% usage)
+        medium: '500',    // Triplex 1mm (emphasis)
+        semibold: '600',  // Triplex 1.5mm (strong emphasis)
+        bold: '700',       // Triplex 2mm (heavy - rarely used)
+      },
       fontSize: {
         // Type hierarchy - All using Duplex 1mm (weight 400)
         // Headline 1: 64px/72px, -2% tracking (Desktop)

@@ -51,6 +51,16 @@
   font-display: swap;
 }
 
+/* Override font-bold on headings to use Duplex 1mm (400) per brand guidelines */
+h1.font-bold,
+h2.font-bold,
+h3.font-bold,
+h4.font-bold,
+h5.font-bold,
+h6.font-bold {
+  font-weight: 400 !important; /* Duplex 1mm - primary weight for headings */
+}
+
 /* IBM Plex Mono - cyrillic-ext */
 @font-face {
   font-family: 'IBM Plex Mono';
@@ -173,9 +183,64 @@
     }
   }
 
-  h2, h3, h4, h5 {
+  h2 {
+    font-size: 56px;
+    line-height: 64px;
+    letter-spacing: -0.02em;
     font-family: 'Milling', 'Inter', sans-serif;
-    font-weight: 400; /* Duplex 1mm - primary weight */
+    font-weight: 400; /* Duplex 1mm - HEADLINE 2 */
+  }
+
+  @media (max-width: 768px) {
+    h2 {
+      font-size: 32px;
+      line-height: 40px;
+    }
+  }
+
+  h3 {
+    font-size: 48px;
+    line-height: 56px;
+    letter-spacing: -0.02em;
+    font-family: 'Milling', 'Inter', sans-serif;
+    font-weight: 400; /* Duplex 1mm - HEADLINE 3 */
+  }
+
+  @media (max-width: 768px) {
+    h3 {
+      font-size: 28px;
+      line-height: 36px;
+    }
+  }
+
+  h4 {
+    font-size: 40px;
+    line-height: 48px;
+    letter-spacing: -0.01em;
+    font-family: 'Milling', 'Inter', sans-serif;
+    font-weight: 400; /* Duplex 1mm - HEADLINE 4 */
+  }
+
+  @media (max-width: 768px) {
+    h4 {
+      font-size: 24px;
+      line-height: 32px;
+    }
+  }
+
+  h5 {
+    font-size: 32px;
+    line-height: 40px;
+    letter-spacing: -0.01em;
+    font-family: 'Milling', 'Inter', sans-serif;
+    font-weight: 400; /* Duplex 1mm - HEADLINE 5 */
+  }
+
+  @media (max-width: 768px) {
+    h5 {
+      font-size: 20px;
+      line-height: 28px;
+    }
   }
 
   h6 {
