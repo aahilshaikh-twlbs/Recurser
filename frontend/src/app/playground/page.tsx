@@ -61,7 +61,7 @@ export default function PlaygroundPage() {
                 <Home className="w-5 h-5" />
               </Link>
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">
+                <h1 className="text-xl text-gray-900">
                   Playground Mode
                 </h1>
                 <p className="text-sm text-gray-500">

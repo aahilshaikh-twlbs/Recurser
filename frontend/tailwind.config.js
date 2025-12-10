@@ -34,9 +34,9 @@ module.exports = {
         thin: '200',      // Simplex 0.5mm
         light: '300',      // Simplex 0.75mm
         normal: '400',     // Duplex 1mm (primary - 99% usage)
-        medium: '500',    // Triplex 1mm (emphasis)
-        semibold: '600',  // Triplex 1.5mm (strong emphasis)
-        bold: '700',       // Triplex 2mm (heavy - rarely used)
+        medium: '500',    // Triplex 1mm (emphasis - use for lighter bold)
+        semibold: '500',  // Triplex 1mm (same as medium - lighter bold)
+        bold: '500',       // Triplex 1mm (lighter bold instead of heavy 700)
       },
       fontSize: {
         // Type hierarchy - All using Duplex 1mm (weight 400)

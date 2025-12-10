@@ -177,14 +177,14 @@ export default function PlaygroundView({ onVideoSelected }: PlaygroundViewProps)
 
             {/* Video Info */}
             <div className="p-4">
-              <h3 className="font-semibold text-gray-900 mb-1 truncate">{video.title}</h3>
-              <p className="text-sm text-gray-600 mb-2 line-clamp-2">
+              <h3 className="text-base font-medium text-gray-900 mb-1 truncate tracking-normal">{video.title}</h3>
+              <p className="text-sm text-gray-600 mb-2 line-clamp-2 tracking-normal">
                 {video.description ? video.description : 'Click to select for recursive enhancement'}
               </p>
-              <div className="flex justify-between items-center text-xs text-gray-500">
+              <div className="flex justify-between items-center text-xs text-gray-500 tracking-normal">
                 <span>{formatDate(video.created_at)}</span>
                 <button 
-                  className="text-primary-600 hover:text-primary-700 font-medium"
+                  className="text-primary-600 hover:text-primary-700"
                   onClick={(e) => {
                     e.stopPropagation()
                     if (onVideoSelected) {
@@ -237,7 +237,7 @@ export default function PlaygroundView({ onVideoSelected }: PlaygroundViewProps)
             className="bg-white rounded-lg max-w-2xl w-full p-6"
             onClick={(e) => e.stopPropagation()}
           >
-            <h2 className="text-2xl font-bold mb-4">{selectedVideo.title}</h2>
+            <h2 className="text-lg font-medium mb-4 tracking-normal">{selectedVideo.title}</h2>
             
             {/* Video Preview */}
             <div className="aspect-video bg-black rounded-lg mb-4 relative overflow-hidden">
@@ -259,18 +259,18 @@ export default function PlaygroundView({ onVideoSelected }: PlaygroundViewProps)
             
             {/* Video Details */}
             <div className="space-y-3 mb-6">
-              <p className="text-gray-600">
+              <p className="text-gray-600 tracking-normal">
                 {selectedVideo.description || 'Video available for recursive enhancement'}
               </p>
               
-              <div className="grid grid-cols-2 gap-4 text-sm">
+              <div className="grid grid-cols-2 gap-4 text-sm tracking-normal">
                 <div>
                   <span className="text-gray-500">Duration:</span>
-                  <span className="ml-2 font-medium">{formatDuration(selectedVideo.duration)}</span>
+                  <span className="ml-2">{formatDuration(selectedVideo.duration)}</span>
                 </div>
                 <div>
                   <span className="text-gray-500">Added:</span>
-                  <span className="ml-2 font-medium">{formatDate(selectedVideo.created_at)}</span>
+                  <span className="ml-2">{formatDate(selectedVideo.created_at)}</span>
                 </div>
               </div>
             </div>

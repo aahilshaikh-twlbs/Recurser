@@ -51,14 +51,15 @@
   font-display: swap;
 }
 
-/* Override font-bold on headings to use Duplex 1mm (400) per brand guidelines */
+/* Override font-bold on headings to use medium weight (500) instead of heavy (700) */
 h1.font-bold,
 h2.font-bold,
 h3.font-bold,
 h4.font-bold,
 h5.font-bold,
 h6.font-bold {
-  font-weight: 400 !important; /* Duplex 1mm - primary weight for headings */
+  font-weight: 500 !important; /* Triplex 1mm - lighter bold for headings */
+  letter-spacing: 0.01em; /* Slight spacing to prevent melding */
 }
 
 /* IBM Plex Mono - cyrillic-ext */
@@ -170,7 +171,7 @@ h6.font-bold {
   h1 {
     font-size: 64px;
     line-height: 72px;
-    letter-spacing: -0.02em; /* -2% */
+    letter-spacing: 0; /* Increased from -2% to prevent melding */
     font-family: 'Milling', 'Inter', sans-serif;
     font-weight: 400; /* Duplex 1mm - HEADLINE 1 */
   }
@@ -186,7 +187,7 @@ h6.font-bold {
   h2 {
     font-size: 56px;
     line-height: 64px;
-    letter-spacing: -0.02em;
+    letter-spacing: 0; /* Increased from -2% to prevent melding */
     font-family: 'Milling', 'Inter', sans-serif;
     font-weight: 400; /* Duplex 1mm - HEADLINE 2 */
   }
@@ -201,7 +202,7 @@ h6.font-bold {
   h3 {
     font-size: 48px;
     line-height: 56px;
-    letter-spacing: -0.02em;
+    letter-spacing: 0; /* Increased from -2% to prevent melding */
     font-family: 'Milling', 'Inter', sans-serif;
     font-weight: 400; /* Duplex 1mm - HEADLINE 3 */
   }
@@ -216,7 +217,7 @@ h6.font-bold {
   h4 {
     font-size: 40px;
     line-height: 48px;
-    letter-spacing: -0.01em;
+    letter-spacing: 0; /* Increased from -1% to prevent melding */
     font-family: 'Milling', 'Inter', sans-serif;
     font-weight: 400; /* Duplex 1mm - HEADLINE 4 */
   }
@@ -231,7 +232,7 @@ h6.font-bold {
   h5 {
     font-size: 32px;
     line-height: 40px;
-    letter-spacing: -0.01em;
+    letter-spacing: 0; /* Increased from -1% to prevent melding */
     font-family: 'Milling', 'Inter', sans-serif;
     font-weight: 400; /* Duplex 1mm - HEADLINE 5 */
   }
@@ -246,7 +247,7 @@ h6.font-bold {
   h6 {
     font-size: 24px;
     line-height: 32px;
-    letter-spacing: -0.01em; /* -1% */
+    letter-spacing: 0; /* Increased from -1% to prevent melding */
     font-family: 'Milling', 'Inter', sans-serif;
     font-weight: 400; /* Duplex 1mm - HEADLINE 6 */
   }
@@ -262,7 +263,7 @@ h6.font-bold {
   p {
     font-size: 16px;
     line-height: 24px;
-    letter-spacing: 0.01em; /* 1% */
+    letter-spacing: 0.015em; /* Increased from 1% to 1.5% to prevent melding */
     font-family: 'Milling', 'Inter', sans-serif;
     font-weight: 400; /* Duplex 1mm - PARAGRAPH */
   }
@@ -271,7 +272,7 @@ h6.font-bold {
   .text-large-paragraph {
     font-size: 20px;
     line-height: 28px;
-    letter-spacing: 0.005em; /* 0.5% */
+    letter-spacing: 0.01em; /* Increased from 0.5% to 1% to prevent melding */
     font-family: 'Milling', 'Inter', sans-serif;
     font-weight: 400; /* Duplex 1mm - LARGE PARAGRAPH */
   }

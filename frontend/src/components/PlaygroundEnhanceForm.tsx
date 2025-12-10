@@ -124,16 +124,16 @@ export default function PlaygroundEnhanceForm({
         <div className="flex items-start space-x-4">
           <Video className="w-12 h-12 text-primary-600 flex-shrink-0" />
           <div className="flex-1">
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+            <h3 className="text-base font-medium text-gray-900 mb-2 tracking-normal">
               Enhancing: {String(selectedVideo.title || 'Untitled Video')}
             </h3>
-            <p className="text-sm text-gray-600 mb-4">
+            <p className="text-sm text-gray-600 mb-4 tracking-normal">
               {String(selectedVideo.description || 'This video will be analyzed and recursively enhanced to improve quality and coherence.')}
             </p>
             {selectedVideo.confidence_score && (
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-2 tracking-normal">
                 <span className="text-sm text-gray-500">Current Quality:</span>
-                <span className="text-sm font-semibold text-primary-600">
+                <span className="text-sm font-medium text-primary-600">
                   {String(selectedVideo.confidence_score)}%
                 </span>
               </div>
@@ -223,8 +223,8 @@ export default function PlaygroundEnhanceForm({
             <div className="flex items-start space-x-3">
               <AlertCircle className="w-5 h-5 text-red-600 mt-0.5" />
               <div className="flex-1">
-                <h4 className="text-sm font-semibold text-red-800 mb-1">Enhancement Failed</h4>
-                <p className="text-sm text-red-700">{error}</p>
+                <h4 className="text-sm font-medium text-red-800 mb-1 tracking-normal">Enhancement Failed</h4>
+                <p className="text-sm text-red-700 tracking-normal">{error}</p>
               </div>
             </div>
           </div>
@@ -255,10 +255,10 @@ export default function PlaygroundEnhanceForm({
           <div className="flex items-start space-x-3">
             <Sparkles className="w-5 h-5 text-info mt-0.5" />
             <div className="flex-1">
-              <h4 className="text-sm font-semibold text-info-dark mb-2">
+              <h4 className="text-sm font-medium text-info-dark mb-2 tracking-normal">
                 How Recursive Enhancement Works
               </h4>
-              <ul className="text-sm text-info-dark space-y-1.5">
+              <ul className="text-sm text-info-dark space-y-1.5 tracking-normal">
                 <li>• AI analyzes your video to detect artifacts and quality issues</li>
                 <li>• Each iteration generates an improved version targeting specific problems</li>
                 <li>• Quality scores (0-100%) track progress - aim for 90%+ for best results</li>
