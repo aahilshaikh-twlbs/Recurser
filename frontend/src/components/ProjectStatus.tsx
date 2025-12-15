@@ -302,10 +302,10 @@ export default function ProjectStatus({ project: initialProject }: ProjectStatus
       {/* Live Activity Feed */}
       <div className="mb-6">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="font-semibold text-gray-900 flex items-center">
+          <h5 className="font-semibold text-gray-900 flex items-center">
             <BarChart3 className="w-4 h-4 mr-2" />
             Live Backend Terminal
-          </h3>
+          </h5>
         </div>
         <EnhancedTerminal 
           clearOnNewGeneration={true}
@@ -321,7 +321,7 @@ export default function ProjectStatus({ project: initialProject }: ProjectStatus
           animate={{ opacity: 1, height: 'auto' }}
           className="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200"
         >
-          <h3 className="font-semibold text-gray-900 mb-4">Technical Details</h3>
+          <h5 className="font-semibold text-gray-900 mb-4">Technical Details</h5>
           
           {/* Key Metrics */}
           {/* Streamlined Technical Details */}
@@ -372,7 +372,7 @@ export default function ProjectStatus({ project: initialProject }: ProjectStatus
           {/* Video Information */}
           {project?.video_path && (
             <div className="mb-4">
-              <h4 className="font-medium text-gray-900 mb-2">Generated Video</h4>
+              <h6 className="font-medium text-gray-900 mb-2">Generated Video</h6>
               <div className="bg-white p-3 rounded-lg border">
                 <p className="text-sm text-gray-600 mb-2">
                   <strong>File:</strong> {project.video_path.split('/').pop()}
@@ -392,7 +392,7 @@ export default function ProjectStatus({ project: initialProject }: ProjectStatus
           {/* Enhanced Prompt */}
           {project?.enhanced_prompt && (
             <div className="mb-4">
-              <h4 className="font-medium text-gray-900 mb-2">Enhanced Prompt</h4>
+              <h6 className="font-medium text-gray-900 mb-2">Enhanced Prompt</h6>
               <div className="bg-white p-3 rounded-lg border">
                 <p className="text-sm text-gray-700">
                   {project.enhanced_prompt}
@@ -403,7 +403,7 @@ export default function ProjectStatus({ project: initialProject }: ProjectStatus
 
           {/* Single Quality Score Overview */}
           <div className="mb-4">
-            <h4 className="font-medium text-gray-900 mb-2">Quality Assessment</h4>
+            <h6 className="font-medium text-gray-900 mb-2">Quality Assessment</h6>
             <div className="bg-info-light p-4 rounded-lg border border-info">
               <div className="text-sm text-info-dark">
                 <div className="bg-white p-3 rounded-lg">
@@ -484,7 +484,7 @@ export default function ProjectStatus({ project: initialProject }: ProjectStatus
           {(project.video_path || project.twelvelabs_video_id) && (
             <div className="mt-4">
               <div className="flex items-center justify-between mb-2">
-                <h4 className="font-medium text-gray-900">Generated Video:</h4>
+                <h6 className="font-medium text-gray-900">Generated Video:</h6>
                 {/* Video Actions - Moved to header area for better UX */}
                 <div className="flex space-x-2">
                   <a 
