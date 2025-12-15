@@ -473,7 +473,7 @@ export default function ProjectStatus({ project: initialProject }: ProjectStatus
           <div className="flex items-center space-x-3">
             <CheckCircle className="w-6 h-6 text-success-600" />
             <div>
-              <h3 className="font-semibold text-success-900">Project Completed!</h3>
+              <h5 className="font-semibold text-success-900">Project Completed!</h5>
               <p className="text-sm text-success-700">
                 Quality Score: {`${project.final_confidence?.toFixed(1) || '0.0'}%`} (Higher = Better)
               </p>
